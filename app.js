@@ -57,7 +57,7 @@ function totalAmt(obs) {
 }
 
 function payerClass(p) {
-  return 'p-' + p.replace(/\s+/g, '');
+  return p ? 'p-' + String(p).replace(/\s+/g, '') : '';
 }
 
 const PAYER_COLORS = {
