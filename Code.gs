@@ -207,7 +207,7 @@ function setup() {
     ['ob-082','Hovhannes','Karine Avetisyan','personal',0,0,2000500,'','',true,'']
   ];
 
-  rows.forEach(function(row) { ob.appendRow(row); });
+  ob.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
   SpreadsheetApp.flush();
   Logger.log('Setup complete: ' + rows.length + ' obligations seeded.');
 }
