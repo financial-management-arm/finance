@@ -8,9 +8,9 @@ const state = {
   payments: {},   // "id__YYYY-MM" -> true/false
   income: [],
   month: todayMonth(),
-  tab: 'dashboard',
+  tab: 'schedule',
   filter: 'all',
-  statusFilter: 'all',
+  statusFilter: 'unpaid',
   search: '',
 };
 
@@ -152,6 +152,25 @@ async function saveBalance(id, balance) {
   }
 }
 
+async function updateLoan(id, changes) {
+  const button = q('loan-edit-save');
+  button.disabled = true;
+  button.textContent = 'Saving...';
+  try {
+    await callApi({ action: 'updateLoan', id, ...changes });
+    const loan = state.obligations.find(o => String(o.id) === String(id));
+    if (loan) Object.assign(loan, changes);
+    closeLoanEditor();
+    renderLoans();
+    showToast('Loan updated.');
+  } catch (err) {
+    showError('Could not update loan: ' + err.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Save changes';
+  }
+}
+
 async function addIncome(entry) {
   try {
     const res = await callApi({ action: 'addIncome', ...entry });
@@ -172,8 +191,17 @@ function showLoading(on) {
 function showError(msg) {
   const el = document.getElementById('error-toast');
   el.textContent = msg;
-  el.classList.remove('hidden');
+  el.classList.remove('hidden', 'is-success');
+  el.classList.add('is-error');
   setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+function showToast(msg) {
+  const el = q('error-toast');
+  el.textContent = msg;
+  el.classList.remove('hidden', 'is-error');
+  el.classList.add('is-success');
+  setTimeout(() => el.classList.add('hidden'), 2200);
 }
 
 function switchTab(tab) {
@@ -313,7 +341,7 @@ function renderSchedule() {
         <button class="check-btn ${paid ? 'is-checked' : ''}"
                 onclick="togglePayment('${escapeHtml(o.id)}')"
                 title="${paid ? 'Mark unpaid' : 'Mark paid'}">
-          ${paid ? '✓' : ''}
+          ${paid ? '↶ Undo' : '✓ Done'}
         </button>
       </td>
     </tr>`;
@@ -355,20 +383,32 @@ function loanCard(o) {
   const tot        = Number(o.loanTotal) || 0;
   const pctOff     = (tot && bal !== null) ? Math.round((1 - bal / tot) * 100) : 0;
   const hasPayment = Number(o.amount) > 0;
+  const contracts  = contractParts(o.contractNumber);
 
   return `<div class="loan-card">
     <div class="loan-card-top">
       <div>
         <div class="loan-bank">${escapeHtml(o.bank)}</div>
-        <div class="loan-meta">${escapeHtml(o.payer)}${o.contractNumber ? ' · #' + escapeHtml(o.contractNumber) : ''}</div>
+        <div class="loan-meta">${escapeHtml(o.payer)}</div>
         ${o.startDate ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">Started ${fmtStartDate(o.startDate)}</div>` : ''}
       </div>
-      <div style="text-align:right">
-        ${hasPayment
-          ? `<div class="loan-monthly">${amd(o.amount)}</div><div class="loan-mo-label">/month</div>`
-          : `<div class="loan-mo-label" style="margin-top:6px;color:var(--muted)">credit / no payment</div>`}
+      <div class="loan-card-actions">
+        <div style="text-align:right">
+          ${hasPayment
+            ? `<div class="loan-monthly">${amd(o.amount)}</div><div class="loan-mo-label">/month</div>`
+            : `<div class="loan-mo-label" style="margin-top:6px;color:var(--muted)">credit / no payment</div>`}
+        </div>
+        <button class="btn-edit" type="button" onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
       </div>
     </div>
+    ${contracts.length ? `
+      <div class="contract-row">
+        <span class="contract-label">Contract</span>
+        ${contracts.map(part => `
+          <button class="copy-chip" type="button" onclick="copyContract('${escapeHtml(part)}', this)"
+                  title="Copy ${escapeHtml(part)}">${escapeHtml(part)} <span>Copy</span></button>
+        `).join('')}
+      </div>` : ''}
     ${(tot || balKnown) ? `
     <div class="balance-row">
       <label>${tot ? 'Balance ֏' : 'Amount owed ֏'}</label>
@@ -391,11 +431,69 @@ function loanCard(o) {
   </div>`;
 }
 
+function contractParts(value) {
+  return String(value || '').trim().split(/\s+/).filter(Boolean);
+}
+
+async function copyContract(value, button) {
+  try {
+    await navigator.clipboard.writeText(value);
+    const label = button.querySelector('span');
+    label.textContent = 'Copied';
+    setTimeout(() => { label.textContent = 'Copy'; }, 1200);
+  } catch {
+    showError('Copy failed. Please copy the contract number manually.');
+  }
+}
+
 function fmtStartDate(d) {
   if (!d) return '';
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return String(d);
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function inputMonth(value) {
+  if (!value) return '';
+  const match = String(value).match(/^(\d{4})-(\d{2})/);
+  if (match) return `${match[1]}-${match[2]}`;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function openLoanEditor(id) {
+  const loan = state.obligations.find(o => String(o.id) === String(id));
+  if (!loan) return;
+  q('edit-id').value = loan.id;
+  q('edit-bank').value = loan.bank || '';
+  q('edit-amount').value = Number(loan.amount) || 0;
+  q('edit-due-day').value = Number(loan.dueDay) || 0;
+  q('edit-balance').value = loan.currentBalance === '' ? '' : Number(loan.currentBalance);
+  q('edit-total').value = loan.loanTotal === '' ? '' : Number(loan.loanTotal);
+  q('edit-start-date').value = inputMonth(loan.startDate);
+  q('edit-contract').value = loan.contractNumber || '';
+  q('loan-edit-title').textContent = `Edit ${loan.bank || 'loan'}`;
+  q('loan-edit-modal').classList.remove('hidden');
+  q('edit-bank').focus();
+}
+
+function closeLoanEditor() {
+  q('loan-edit-modal').classList.add('hidden');
+}
+
+function submitLoanEdit(event) {
+  event.preventDefault();
+  const optionalNumber = id => q(id).value === '' ? '' : Number(q(id).value);
+  updateLoan(q('edit-id').value, {
+    bank: q('edit-bank').value.trim(),
+    amount: Number(q('edit-amount').value),
+    dueDay: Number(q('edit-due-day').value),
+    currentBalance: optionalNumber('edit-balance'),
+    loanTotal: optionalNumber('edit-total'),
+    startDate: q('edit-start-date').value,
+    contractNumber: q('edit-contract').value.trim()
+  });
 }
 
 function saveBalFromInput(id) {
@@ -531,8 +629,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSchedule();
   });
 
-  q('status-filter').addEventListener('change', event => {
-    state.statusFilter = event.target.value;
+  q('show-completed').addEventListener('change', event => {
+    state.statusFilter = event.target.checked ? 'all' : 'unpaid';
     renderSchedule();
   });
 
@@ -544,6 +642,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Income submit
   q('btn-add-income').addEventListener('click', submitIncome);
   q('f-date').value = new Date().toISOString().slice(0,10);
+
+  q('loan-edit-form').addEventListener('submit', submitLoanEdit);
+  q('loan-edit-close').addEventListener('click', closeLoanEditor);
+  q('loan-edit-cancel').addEventListener('click', closeLoanEditor);
+  q('loan-edit-modal').addEventListener('click', event => {
+    if (event.target === q('loan-edit-modal')) closeLoanEditor();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeLoanEditor();
+  });
 
   // Load data
   if (!API_URL || API_URL.includes('YOUR_')) {

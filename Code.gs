@@ -55,6 +55,52 @@ function doGet(e) {
       if (!updated) throw new Error('Obligation not found');
       result = { success: true };
 
+    } else if (action === 'updateLoan') {
+      var loanId = String(e.parameter.id || '');
+      if (!loanId) throw new Error('Loan id is required');
+
+      var amount = Number(e.parameter.amount);
+      var dueDay = Number(e.parameter.dueDay);
+      var currentBalance = e.parameter.currentBalance === '' ? '' : Number(e.parameter.currentBalance);
+      var loanTotal = e.parameter.loanTotal === '' ? '' : Number(e.parameter.loanTotal);
+      var startDate = String(e.parameter.startDate || '');
+
+      if (!isFinite(amount) || amount < 0) throw new Error('Invalid monthly payment');
+      if (!isFinite(dueDay) || dueDay < 0 || dueDay > 31) throw new Error('Invalid due day');
+      if (currentBalance !== '' && (!isFinite(currentBalance) || currentBalance < 0)) throw new Error('Invalid balance');
+      if (loanTotal !== '' && (!isFinite(loanTotal) || loanTotal < 0)) throw new Error('Invalid loan total');
+      if (startDate && !/^\d{4}-\d{2}$/.test(startDate)) throw new Error('Invalid start month');
+
+      var loanSheet = ss.getSheetByName('Obligations');
+      var loanData = loanSheet.getDataRange().getValues();
+      var loanHeaders = loanData[0].map(function(h) { return String(h).trim(); });
+      var loanIdCol = loanHeaders.indexOf('id');
+      var loanRow = -1;
+
+      for (var lr = 1; lr < loanData.length; lr++) {
+        if (String(loanData[lr][loanIdCol]) === loanId) {
+          loanRow = lr + 1;
+          break;
+        }
+      }
+      if (loanRow < 0) throw new Error('Loan not found');
+
+      var updates = {
+        bank: String(e.parameter.bank || '').trim().slice(0, 120),
+        amount: amount,
+        dueDay: dueDay,
+        currentBalance: currentBalance,
+        loanTotal: loanTotal,
+        contractNumber: String(e.parameter.contractNumber || '').trim().slice(0, 120),
+        startDate: startDate
+      };
+
+      Object.keys(updates).forEach(function(field) {
+        var col = loanHeaders.indexOf(field);
+        if (col >= 0) loanSheet.getRange(loanRow, col + 1).setValue(updates[field]);
+      });
+      result = { success: true };
+
     } else {
       result = { error: 'Unknown action: ' + action };
     }

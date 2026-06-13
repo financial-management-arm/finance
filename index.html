@@ -33,8 +33,8 @@
       </div>
     </div>
     <ul class="sidebar-nav">
-      <li><a href="#" data-tab="dashboard" class="active"><span class="icon">◈</span> Dashboard</a></li>
-      <li><a href="#" data-tab="schedule"><span class="icon">☰</span> Schedule</a></li>
+      <li><a href="#" data-tab="dashboard"><span class="icon">◈</span> Overview</a></li>
+      <li><a href="#" data-tab="schedule" class="active"><span class="icon">☰</span> Payments</a></li>
       <li><a href="#" data-tab="loans"><span class="icon">⊟</span> Loans</a></li>
       <li><a href="#" data-tab="income"><span class="icon">↑</span> Income</a></li>
       <li><a href="#" data-tab="reports"><span class="icon">⊞</span> Reports</a></li>
@@ -45,7 +45,7 @@
   <main class="main">
 
     <!-- ─── DASHBOARD ─── -->
-    <section id="page-dashboard" class="page active">
+    <section id="page-dashboard" class="page">
       <div class="page-header">
         <h1>Dashboard</h1>
         <div class="month-nav">
@@ -115,7 +115,7 @@
     </section>
 
     <!-- ─── SCHEDULE ─── -->
-    <section id="page-schedule" class="page">
+    <section id="page-schedule" class="page active">
       <div class="page-header">
         <h1>Payment Schedule</h1>
         <div class="month-nav">
@@ -130,11 +130,10 @@
           <button class="pill active" data-filter="all">All payers</button>
         </div>
         <div class="schedule-actions">
-          <select class="compact-select" id="status-filter" aria-label="Payment status">
-            <option value="all">All statuses</option>
-            <option value="unpaid">Unpaid only</option>
-            <option value="paid">Paid only</option>
-          </select>
+          <label class="completed-toggle">
+            <input id="show-completed" type="checkbox">
+            <span>Show completed</span>
+          </label>
           <input class="search-input" id="schedule-search" type="search"
                  placeholder="Search bank, payer, category..." aria-label="Search payments">
         </div>
@@ -258,8 +257,36 @@
   </main>
 </div>
 
+<div class="modal-backdrop hidden" id="loan-edit-modal">
+  <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="loan-edit-title">
+    <div class="edit-modal-header">
+      <div>
+        <div class="eyebrow">Loan details</div>
+        <h2 id="loan-edit-title">Edit loan</h2>
+      </div>
+      <button class="modal-close" id="loan-edit-close" type="button" aria-label="Close">×</button>
+    </div>
+    <form id="loan-edit-form">
+      <input id="edit-id" type="hidden">
+      <div class="edit-grid">
+        <label>Bank / Payee<input id="edit-bank" type="text" required></label>
+        <label>Monthly Payment<input id="edit-amount" type="number" min="0" required></label>
+        <label>Due Day<input id="edit-due-day" type="number" min="0" max="31" required></label>
+        <label>Current Balance<input id="edit-balance" type="number" min="0"></label>
+        <label>Original Loan Total<input id="edit-total" type="number" min="0"></label>
+        <label>Start Month<input id="edit-start-date" type="month"></label>
+        <label class="edit-wide">Contract Number<input id="edit-contract" type="text"></label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="loan-edit-cancel" type="button">Cancel</button>
+        <button class="btn-primary" id="loan-edit-save" type="submit">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<script src="config.js?v=2"></script>
-<script src="app.js?v=2"></script>
+<script src="config.js?v=4"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
