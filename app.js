@@ -6,12 +6,18 @@
 const state = {
   obligations: [],
   payments: {},   // "id__YYYY-MM" -> true/false
+  paymentMeta: {},
   income: [],
+  loanHistory: [],
   month: todayMonth(),
   tab: 'dashboard',
   filter: 'all',
   statusFilter: 'unpaid',
   search: '',
+  scheduleSort: 'due-asc',
+  loanSort: 'debt-desc',
+  incomeSort: 'date-desc',
+  reportMonths: 6,
 };
 
 let charts = {};
@@ -91,6 +97,32 @@ function currentMonthDay() {
   return state.month === todayMonth() ? new Date().getDate() : 0;
 }
 
+function loanSnapshot(id, month = state.month) {
+  return state.loanHistory.find(row =>
+    String(row.obligationId) === String(id) && String(row.month) === month
+  );
+}
+
+function loanBalance(loan, month = state.month) {
+  const snapshot = loanSnapshot(loan.id, month);
+  const value = snapshot ? snapshot.currentBalance : loan.currentBalance;
+  return value === '' || value === null || value === undefined ? null : Number(value);
+}
+
+function balanceSourceMonth(loan, month = state.month) {
+  const snapshot = loanSnapshot(loan.id, month);
+  return String((snapshot && snapshot.balanceSourceMonth) || loan.balanceUpdatedMonth || '');
+}
+
+function isLoanRecord(obligation) {
+  return String(obligation.category).toLowerCase() === 'loan' ||
+    Number(obligation.loanTotal) > 0 || Number(obligation.currentBalance) > 0;
+}
+
+function activeLoans() {
+  return activeObs().filter(isLoanRecord);
+}
+
 // ================================================================
 // API
 // ================================================================
@@ -112,13 +144,16 @@ async function callApi(params) {
 async function fetchAll() {
   showLoading(true);
   try {
-    const data = await callApi({ action: 'all' });
+    const data = await callApi({ action: 'all', month: state.month });
     state.obligations = data.obligations || [];
     state.payments = {};
+    state.paymentMeta = {};
     (data.payments || []).forEach(p => {
       state.payments[p.key] = (p.paid === true || String(p.paid).toUpperCase() === 'TRUE');
+      state.paymentMeta[p.key] = p;
     });
     state.income = data.income || [];
+    state.loanHistory = data.loanHistory || [];
     renderPayerFilters();
     render();
   } catch (err) {
@@ -141,7 +176,13 @@ async function togglePayment(id) {
   state.payments[key] = !was;
   renderCurrentTab();
   try {
-    await callApi({ action: 'setPayment', key, paid: !was });
+    const result = await callApi({ action: 'setPayment', key, paid: !was, month: state.month });
+    state.paymentMeta[key] = {
+      key,
+      paid: !was,
+      completedAt: result.completedAt || '',
+      updatedAt: new Date().toISOString()
+    };
     if (!was) showToast('Payment completed.');
   } catch (err) {
     state.payments[key] = was;
@@ -152,9 +193,12 @@ async function togglePayment(id) {
 
 async function saveBalance(id, balance) {
   try {
-    await callApi({ action: 'updateBalance', id, balance });
+    await callApi({ action: 'updateBalance', id, balance, month: state.month });
     const ob = state.obligations.find(o => o.id === id);
-    if (ob) ob.currentBalance = balance;
+    if (ob) {
+      ob.currentBalance = balance;
+      ob.balanceUpdatedMonth = state.month;
+    }
     renderLoans();
   } catch (err) {
     alert('Save failed: ' + err.message);
@@ -166,9 +210,12 @@ async function updateLoan(id, changes, sourceButton = null) {
   button.disabled = true;
   button.textContent = 'Saving...';
   try {
-    await callApi({ action: 'updateLoan', id, ...changes });
+    const result = await callApi({ action: 'updateLoan', id, month: state.month, ...changes });
     const loan = state.obligations.find(o => String(o.id) === String(id));
-    if (loan) Object.assign(loan, changes);
+    if (loan) Object.assign(loan, changes, {
+      balanceUpdatedMonth: result.balanceUpdatedMonth || loan.balanceUpdatedMonth
+    });
+    await refreshData(false);
     renderLoans();
     showToast('Loan updated.');
   } catch (err) {
@@ -176,6 +223,48 @@ async function updateLoan(id, changes, sourceButton = null) {
   } finally {
     button.disabled = false;
     button.textContent = 'Save changes';
+  }
+}
+
+async function completeLoan(id, button) {
+  if (!confirm('Mark this loan complete? It will not roll into the next month.')) return;
+  button.disabled = true;
+  button.textContent = 'Completing...';
+  try {
+    await callApi({ action: 'completeLoan', id, month: state.month });
+    const loan = state.obligations.find(o => String(o.id) === String(id));
+    if (loan) {
+      loan.active = false;
+      loan.currentBalance = 0;
+      loan.completedAt = new Date().toISOString();
+    }
+    renderLoans();
+    renderDashboard();
+    showToast('Loan completed. It will not transfer to next month.');
+  } catch (err) {
+    showError('Could not complete loan: ' + err.message);
+    button.disabled = false;
+    button.textContent = 'Complete';
+  }
+}
+
+async function refreshData(showSkeleton = true) {
+  if (showSkeleton) showLoading(true);
+  try {
+    const data = await callApi({ action: 'all', month: state.month });
+    state.obligations = data.obligations || [];
+    state.payments = {};
+    state.paymentMeta = {};
+    (data.payments || []).forEach(p => {
+      state.payments[p.key] = p.paid === true || String(p.paid).toUpperCase() === 'TRUE';
+      state.paymentMeta[p.key] = p;
+    });
+    state.income = data.income || [];
+    state.loanHistory = data.loanHistory || [];
+    renderPayerFilters();
+    render();
+  } finally {
+    if (showSkeleton) showLoading(false);
   }
 }
 
@@ -264,7 +353,6 @@ function renderDashboard() {
     .reduce((s, i) => s + Number(i.amount), 0);
 
   q('stat-total').textContent  = amd(totalA);
-  q('stat-paid').textContent   = amd(paidAmt);
   q('stat-unpaid').textContent = amd(unpaidA);
   q('stat-income').textContent = amd(monthIncome);
   const net = monthIncome - totalA;
@@ -275,6 +363,21 @@ function renderDashboard() {
   q('prog-label').textContent = `${pct}%`;
   const circumference = 2 * Math.PI * 49;
   q('progress-ring-value').style.strokeDashoffset = String(circumference * (1 - pct / 100));
+
+  const loans = activeLoans();
+  const knownBalances = loans
+    .map(loan => loanBalance(loan))
+    .filter(balance => balance !== null && Number.isFinite(balance));
+  const totalDebt = knownBalances.reduce((sum, balance) => sum + balance, 0);
+  const staleLoans = loans.filter(loan => {
+    const balance = loanBalance(loan);
+    return balance !== null && balanceSourceMonth(loan) !== state.month;
+  });
+  q('stat-debt').textContent = amd(totalDebt);
+  q('debt-freshness').textContent = staleLoans.length
+    ? `${staleLoans.length} balances carried forward from a previous month`
+    : 'All recorded balances are updated for this month';
+  q('debt-freshness').classList.toggle('is-stale', staleLoans.length > 0);
 
   renderUrgentStrip(overdue, dueSoon);
   renderPayerBars();
@@ -305,17 +408,25 @@ function renderUrgentStrip(overdue, dueSoon) {
 }
 
 function renderPayerBars() {
-  const all = activeObs();
-  const html = payers().map(p => {
-    const obs  = all.filter(o => o.payer === p);
-    if (!obs.length) return '';
-    const tot  = totalAmt(obs);
-    const paid = totalAmt(obs.filter(o => isPaid(o.id)));
-    const pct  = tot ? Math.round(paid / tot * 100) : 0;
+  const all = activeLoans();
+  const payerDebt = payers().map(p => ({
+    payer: p,
+    loans: all.filter(o => o.payer === p)
+  })).filter(group => group.loans.length).map(group => ({
+    ...group,
+    debt: group.loans.reduce((sum, loan) => sum + Number(loanBalance(loan) || 0), 0)
+  })).sort((a, b) => b.debt - a.debt);
+
+  const html = payerDebt.map(group => {
+    const p = group.payer;
+    const obs = group.loans;
+    const original = obs.reduce((sum, o) => sum + Number(o.loanTotal || 0), 0);
+    const debt = group.debt;
+    const pct = original ? Math.round((1 - debt / original) * 100) : 0;
     return `<div class="payer-row" style="--payer-color:${payerColor(p)}">
       <div class="payer-row-head">
         <span class="payer-name" style="color:var(--payer-color)">${escapeHtml(p)}</span>
-        <span class="payer-amount">${amd(paid)} / ${amd(tot)}</span>
+        <span class="payer-amount">${amd(debt)} remaining · ${pct}% repaid</span>
       </div>
       <div class="payer-track">
         <div class="payer-fill" style="width:${pct}%;background:var(--payer-color)"></div>
@@ -353,7 +464,7 @@ function renderDashCategoryChart() {
 // Schedule
 // ================================================================
 function renderSchedule() {
-  const obs = filteredObs().sort((a, b) => Number(a.dueDay) - Number(b.dueDay));
+  const obs = sortPayments(filteredObs());
   const tbody = q('sched-tbody');
 
   const today = currentMonthDay();
@@ -378,6 +489,9 @@ function renderSchedule() {
                 aria-label="${paid ? 'Mark payment unpaid' : 'Mark payment paid'}"
                 title="${paid ? 'Mark unpaid' : 'Mark paid'}">
         </button>
+        ${paid && state.paymentMeta[pkey(o.id, state.month)]?.completedAt
+          ? `<time class="payment-time">${formatTimestamp(state.paymentMeta[pkey(o.id, state.month)].completedAt)}</time>`
+          : ''}
       </td>
     </tr>`;
   }).join('') : `<tr><td colspan="6" class="empty-state">
@@ -393,6 +507,27 @@ function renderSchedule() {
   q('sched-total').textContent  = amd(totalAmt(obs));
   q('sched-count').textContent  = `${visPaid.length}/${obs.length}`;
   q('sched-grand').textContent  = `Total: ${amd(totalAmt(all))} — ${allPaid.length}/${all.length} paid`;
+}
+
+function sortPayments(rows) {
+  const sorted = [...rows];
+  const text = value => String(value || '').localeCompare;
+  const sorters = {
+    'due-asc': (a, b) => Number(a.dueDay || 99) - Number(b.dueDay || 99),
+    'amount-desc': (a, b) => Number(b.amount) - Number(a.amount),
+    'amount-asc': (a, b) => Number(a.amount) - Number(b.amount),
+    'payer-asc': (a, b) => String(a.payer || '').localeCompare(String(b.payer || '')),
+    'bank-asc': (a, b) => String(a.bank || '').localeCompare(String(b.bank || ''))
+  };
+  return sorted.sort(sorters[state.scheduleSort] || sorters['due-asc']);
+}
+
+function formatTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
 }
 
 function jumpToPayment(id) {
@@ -416,24 +551,32 @@ function jumpToPayment(id) {
 // Loans
 // ================================================================
 function renderLoans() {
-  const loans = activeObs().filter(o =>
-    o.category === 'loan' || Number(o.loanTotal) > 0 || Number(o.currentBalance) > 0
-  );
+  const loans = sortLoans(activeLoans());
+  const totalDebt = loans.reduce((sum, loan) => sum + Number(loanBalance(loan) || 0), 0);
+  q('loans-container').innerHTML = `
+    <div class="loan-list-summary">
+      <span>${loans.length} active loans</span>
+      <strong>${amd(totalDebt)} total debt</strong>
+    </div>
+    <div class="loans-grid">${loans.map(loanCard).join('')}</div>
+  `;
+}
 
-  const html = payers().map(p => {
-    const pLoans = loans.filter(o => o.payer === p);
-    if (!pLoans.length) return '';
-    return `<div class="loans-section">
-      <div class="loans-section-title" style="color:${payerColor(p)}">${escapeHtml(p)}</div>
-      <div class="loans-grid">${pLoans.map(loanCard).join('')}</div>
-    </div>`;
-  }).join('');
-
-  q('loans-container').innerHTML = html;
+function sortLoans(rows) {
+  const freshness = loan => balanceSourceMonth(loan) === state.month ? 1 : 0;
+  const sorters = {
+    'debt-desc': (a, b) => Number(loanBalance(b) || 0) - Number(loanBalance(a) || 0),
+    'debt-asc': (a, b) => Number(loanBalance(a) || 0) - Number(loanBalance(b) || 0),
+    'payer-asc': (a, b) => String(a.payer || '').localeCompare(String(b.payer || '')),
+    'bank-asc': (a, b) => String(a.bank || '').localeCompare(String(b.bank || '')),
+    'due-asc': (a, b) => Number(a.dueDay || 99) - Number(b.dueDay || 99),
+    'freshness': (a, b) => freshness(a) - freshness(b)
+  };
+  return [...rows].sort(sorters[state.loanSort] || sorters['debt-desc']);
 }
 
 function loanCard(o) {
-  const balRaw     = o.currentBalance;
+  const balRaw     = loanBalance(o);
   const balKnown   = balRaw !== '' && balRaw !== null && balRaw !== undefined && balRaw !== false;
   const bal        = balKnown ? Number(balRaw) : null;
   const tot        = Number(o.loanTotal) || 0;
@@ -444,6 +587,8 @@ function loanCard(o) {
   const arcLength = 157;
   const arcOffset = arcLength * (1 - Math.max(0, Math.min(100, pctOff)) / 100);
   const bankColor = bankColorFor(o.bank);
+  const sourceMonth = balanceSourceMonth(o);
+  const staleBalance = balKnown && sourceMonth !== state.month;
 
   return `<article class="loan-card ${!balKnown ? 'is-unverified' : ''} ${paidOff ? 'is-paid-off' : ''}"
                    style="--bank-color:${bankColor}">
@@ -457,6 +602,8 @@ function loanCard(o) {
       </div>
       <div class="loan-card-actions">
         ${paidOff ? '<span class="paid-off-badge">Paid off</span>' : ''}
+        <button class="button button-secondary loan-complete" type="button"
+                onclick="completeLoan('${escapeHtml(o.id)}', this)">Complete</button>
         <button class="button button-ghost loan-edit-toggle" type="button"
                 onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
       </div>
@@ -479,6 +626,9 @@ function loanCard(o) {
         <div class="loan-monthly-line">
           ${hasPayment ? `${amd(o.amount)} monthly · due day ${Number(o.dueDay) || '—'}` : 'No monthly payment recorded'}
         </div>
+        ${staleBalance
+          ? `<div class="balance-stale">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>`
+          : '<div class="balance-current">Balance updated for this month</div>'}
       </div>
     </div>
     ${contracts.length ? `
@@ -618,7 +768,14 @@ function renderIncome() {
 
   const streamLabel = { car_rental: 'Car Rental', legal: 'Legal', real_estate: 'Real Estate', other: 'Other' };
 
-  const sorted = [...state.income].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const incomeSorters = {
+    'date-desc': (a, b) => String(b.date).localeCompare(String(a.date)),
+    'date-asc': (a, b) => String(a.date).localeCompare(String(b.date)),
+    'amount-desc': (a, b) => Number(b.amount) - Number(a.amount),
+    'amount-asc': (a, b) => Number(a.amount) - Number(b.amount),
+    'source-asc': (a, b) => String(a.stream || '').localeCompare(String(b.stream || ''))
+  };
+  const sorted = [...state.income].sort(incomeSorters[state.incomeSort] || incomeSorters['date-desc']);
   q('income-tbody').innerHTML = sorted.map(i => `<tr>
     <td>${escapeHtml(String(i.date).slice(0, 10))}</td>
     <td>${escapeHtml(streamLabel[i.stream] || i.stream)}</td>
@@ -672,7 +829,7 @@ function renderMonthlyChart() {
 
   const months = [];
   let m = state.month;
-  for (let i = 0; i < 6; i++) { months.unshift(m); m = shiftMonth(m, -1); }
+  for (let i = 0; i < state.reportMonths; i++) { months.unshift(m); m = shiftMonth(m, -1); }
 
   const all   = activeObs();
   const total = totalAmt(all);
@@ -680,6 +837,15 @@ function renderMonthlyChart() {
   const paidData = months.map(mo =>
     totalAmt(all.filter(o => state.payments[pkey(o.id, mo)]))
   );
+  const debtData = months.map(mo => {
+    const snapshots = state.loanHistory.filter(row => String(row.month) === mo && !row.completed);
+    if (snapshots.length) {
+      return snapshots.reduce((sum, row) => sum + Number(row.currentBalance || 0), 0);
+    }
+    return mo === state.month
+      ? activeLoans().reduce((sum, loan) => sum + Number(loanBalance(loan, mo) || 0), 0)
+      : 0;
+  });
 
   const labels = months.map(mo => {
     const [y, month] = mo.split('-');
@@ -694,8 +860,8 @@ function renderMonthlyChart() {
       datasets: [
         { label: 'Paid', data: paidData, backgroundColor: '#16a34a', borderRadius: 4 },
         {
-          label: 'Total obligations', data: months.map(() => total),
-          type: 'line', borderColor: '#94a3b8', backgroundColor: 'transparent',
+          label: 'Total debt', data: debtData,
+          type: 'line', borderColor: '#4f7cff', backgroundColor: 'transparent',
           borderDash: [5,4], pointRadius: 0, borderWidth: 1.5,
         }
       ]
@@ -727,9 +893,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Month nav (all pages share the same class)
   document.addEventListener('click', e => {
-    if (e.target.classList.contains('btn-prev'))  { state.month = shiftMonth(state.month, -1); render(); }
-    if (e.target.classList.contains('btn-next'))  { state.month = shiftMonth(state.month,  1); render(); }
-    if (e.target.classList.contains('btn-today')) { state.month = todayMonth(); render(); }
+    const previous = e.target.closest('.btn-prev');
+    const next = e.target.closest('.btn-next');
+    const today = e.target.closest('.btn-today');
+    if (previous) changeMonth(shiftMonth(state.month, -1));
+    if (next) changeMonth(shiftMonth(state.month, 1));
+    if (today) changeMonth(todayMonth());
   });
 
   // Filter pills
@@ -749,6 +918,26 @@ document.addEventListener('DOMContentLoaded', () => {
   q('schedule-search').addEventListener('input', event => {
     state.search = event.target.value.trim();
     renderSchedule();
+  });
+
+  q('schedule-sort').addEventListener('change', event => {
+    state.scheduleSort = event.target.value;
+    renderSchedule();
+  });
+
+  q('loan-sort').addEventListener('change', event => {
+    state.loanSort = event.target.value;
+    renderLoans();
+  });
+
+  q('income-sort').addEventListener('change', event => {
+    state.incomeSort = event.target.value;
+    renderIncome();
+  });
+
+  q('report-period').addEventListener('change', event => {
+    state.reportMonths = Number(event.target.value);
+    renderReports();
   });
 
   // Income submit
@@ -777,7 +966,17 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     fetchAll();
   }
+
+  window.addEventListener('focus', () => {
+    if (!document.body.classList.contains('is-loading')) refreshData(false).catch(() => {});
+  });
 });
+
+function changeMonth(month) {
+  if (state.month === month) return;
+  state.month = month;
+  refreshData(true).catch(err => showError('Could not load month: ' + err.message));
+}
 
 function renderPayerFilters() {
   const container = q('payer-filters');

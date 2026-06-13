@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 
@@ -99,11 +99,12 @@
           <section class="surface-card payer-card">
             <div class="section-heading compact">
               <div>
-                <div class="eyebrow">Family load</div>
-                <h2>By payer</h2>
+                <div class="eyebrow">Total debt</div>
+                <h2>Debt by payer</h2>
               </div>
-              <span class="muted" id="stat-paid">—</span>
+              <strong class="debt-total" id="stat-debt">—</strong>
             </div>
+            <div class="debt-freshness" id="debt-freshness"></div>
             <div id="payer-bars"></div>
           </section>
         </div>
@@ -126,6 +127,13 @@
           <button class="pill active" data-filter="all">All payers</button>
         </div>
         <div class="schedule-actions">
+          <select class="sort-select" id="schedule-sort" aria-label="Sort payments">
+            <option value="due-asc">Due date</option>
+            <option value="amount-desc">Amount: high to low</option>
+            <option value="amount-asc">Amount: low to high</option>
+            <option value="payer-asc">Payer name</option>
+            <option value="bank-asc">Bank name</option>
+          </select>
           <label class="completed-toggle">
             <input id="show-completed" type="checkbox">
             <span>Show completed</span>
@@ -163,6 +171,14 @@
     <section id="page-loans" class="page">
       <div class="page-header">
         <h1>Loans &amp; Balances</h1>
+        <select class="sort-select" id="loan-sort" aria-label="Sort loans">
+          <option value="debt-desc">Debt: high to low</option>
+          <option value="debt-asc">Debt: low to high</option>
+          <option value="payer-asc">Payer name</option>
+          <option value="bank-asc">Bank name</option>
+          <option value="due-asc">Due date</option>
+          <option value="freshness">Needs update first</option>
+        </select>
       </div>
       <div class="page-body" id="loans-container"></div>
     </section>
@@ -210,9 +226,16 @@
           <div class="income-list">
             <div class="income-list-header">
               <h3>Income Log</h3>
-              <span class="muted" style="font-size:12px">
-                This month: <strong id="income-month-total">—</strong>
-              </span>
+              <div class="list-header-actions">
+                <select class="sort-select" id="income-sort" aria-label="Sort income">
+                  <option value="date-desc">Newest first</option>
+                  <option value="date-asc">Oldest first</option>
+                  <option value="amount-desc">Amount: high to low</option>
+                  <option value="amount-asc">Amount: low to high</option>
+                  <option value="source-asc">Source</option>
+                </select>
+                <span class="muted">This month: <strong id="income-month-total">—</strong></span>
+              </div>
             </div>
             <table style="width:100%">
               <thead>
@@ -235,6 +258,11 @@
     <section id="page-reports" class="page">
       <div class="page-header">
         <h1>Reports</h1>
+        <select class="sort-select" id="report-period" aria-label="Report period">
+          <option value="6">Last 6 months</option>
+          <option value="12">Last 12 months</option>
+          <option value="24">Last 24 months</option>
+        </select>
       </div>
       <div class="page-body">
         <div class="reports-grid">
@@ -243,7 +271,7 @@
             <canvas id="chart-cat2"></canvas>
           </div>
           <div class="chart-card">
-            <div class="chart-title">Paid vs Total — last 6 months</div>
+            <div class="chart-title">Payments and total debt over time</div>
             <canvas id="chart-monthly"></canvas>
           </div>
         </div>
@@ -282,7 +310,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<script src="config.js?v=4"></script>
-<script src="app.js?v=8"></script>
+<script src="config.js?v=11"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

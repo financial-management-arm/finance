@@ -1,111 +1,73 @@
-// ================================================================
-// Finance Manager — Google Apps Script Backend
-// Paste into script.google.com, run setup(), then deploy as:
-//   Execute as: Me  |  Access: Anyone
-// ================================================================
+// Finance Manager - continuous Google Sheets backend.
+// Existing Obligations data is never seeded or cleared by this script.
 
 var SS_ID = '14tjp5lUfjZL9RTNMz8eCoxFOogbGSj-Op0C4WI7UNTY';
 
+var SCHEMAS = {
+  Obligations: [
+    'id', 'payer', 'bank', 'category', 'amount', 'dueDay',
+    'currentBalance', 'loanTotal', 'contractNumber', 'active', 'startDate',
+    'balanceUpdatedMonth', 'completedAt', 'updatedAt'
+  ],
+  Payments: ['key', 'paid', 'completedAt', 'updatedAt'],
+  Income: ['id', 'date', 'amount', 'stream', 'note', 'createdAt', 'updatedAt'],
+  Loans: [
+    'snapshotKey', 'month', 'obligationId', 'payer', 'bank', 'amount', 'dueDay',
+    'currentBalance', 'loanTotal', 'contractNumber', 'balanceSourceMonth',
+    'completed', 'completedAt', 'snapshotAt', 'updatedAt'
+  ]
+};
+
 function doGet(e) {
-  var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'all';
+  var params = (e && e.parameter) || {};
+  var action = params.action || 'all';
+  var month = validMonth(params.month) ? params.month : currentMonth();
   var ss = SpreadsheetApp.openById(SS_ID);
   var result;
 
   try {
+    ensureSchema(ss);
+
     if (action === 'all') {
+      withLock(function() {
+        ensureMonthlyLoanSnapshot(ss, month);
+      });
       result = {
         obligations: sheetToJson(ss, 'Obligations'),
-        payments:    sheetToJson(ss, 'Payments'),
-        income:      sheetToJson(ss, 'Income')
+        payments: sheetToJson(ss, 'Payments'),
+        income: sheetToJson(ss, 'Income'),
+        loanHistory: sheetToJson(ss, 'Loans'),
+        serverMonth: month,
+        syncedAt: isoNow()
       };
-
     } else if (action === 'setPayment') {
-      var key  = e.parameter.key;
-      var paid = e.parameter.paid === 'true';
-      if (!key || key.length > 100) throw new Error('Invalid payment key');
-      upsertRow(ss, 'Payments', 'key', key, { key: key, paid: paid });
-      result = { success: true };
-
-    } else if (action === 'addIncome') {
-      var amount = Number(e.parameter.amount);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(e.parameter.date || '')) throw new Error('Invalid income date');
-      if (!isFinite(amount) || amount <= 0) throw new Error('Income amount must be positive');
-      var id    = 'inc-' + Date.now();
-      var sheet = ss.getSheetByName('Income');
-      var note = String(e.parameter.note || '').slice(0, 250);
-      sheet.appendRow([id, e.parameter.date, amount, e.parameter.stream, note]);
-      result = { success: true, id: id };
-
-    } else if (action === 'updateBalance') {
-      var balance = Number(e.parameter.balance);
-      if (!isFinite(balance) || balance < 0) throw new Error('Invalid balance');
-      var obs  = ss.getSheetByName('Obligations');
-      var data = obs.getDataRange().getValues();
-      var hdrs = data[0].map(function(h) { return String(h).trim(); });
-      var idCol  = hdrs.indexOf('id');
-      var balCol = hdrs.indexOf('currentBalance');
-      var updated = false;
-      for (var r = 1; r < data.length; r++) {
-        if (String(data[r][idCol]) === String(e.parameter.id)) {
-          obs.getRange(r + 1, balCol + 1).setValue(balance);
-          updated = true;
-          break;
-        }
-      }
-      if (!updated) throw new Error('Obligation not found');
-      result = { success: true };
-
-    } else if (action === 'updateLoan') {
-      var loanId = String(e.parameter.id || '');
-      if (!loanId) throw new Error('Loan id is required');
-
-      var amount = Number(e.parameter.amount);
-      var dueDay = Number(e.parameter.dueDay);
-      var currentBalance = e.parameter.currentBalance === '' ? '' : Number(e.parameter.currentBalance);
-      var loanTotal = e.parameter.loanTotal === '' ? '' : Number(e.parameter.loanTotal);
-      var startDate = String(e.parameter.startDate || '');
-
-      if (!isFinite(amount) || amount < 0) throw new Error('Invalid monthly payment');
-      if (!isFinite(dueDay) || dueDay < 0 || dueDay > 31) throw new Error('Invalid due day');
-      if (currentBalance !== '' && (!isFinite(currentBalance) || currentBalance < 0)) throw new Error('Invalid balance');
-      if (loanTotal !== '' && (!isFinite(loanTotal) || loanTotal < 0)) throw new Error('Invalid loan total');
-      if (startDate && !/^\d{4}-\d{2}$/.test(startDate)) throw new Error('Invalid start month');
-
-      var loanSheet = ss.getSheetByName('Obligations');
-      var loanData = loanSheet.getDataRange().getValues();
-      var loanHeaders = loanData[0].map(function(h) { return String(h).trim(); });
-      var loanIdCol = loanHeaders.indexOf('id');
-      var loanRow = -1;
-
-      for (var lr = 1; lr < loanData.length; lr++) {
-        if (String(loanData[lr][loanIdCol]) === loanId) {
-          loanRow = lr + 1;
-          break;
-        }
-      }
-      if (loanRow < 0) throw new Error('Loan not found');
-
-      var updates = {
-        bank: String(e.parameter.bank || '').trim().slice(0, 120),
-        amount: amount,
-        dueDay: dueDay,
-        currentBalance: currentBalance,
-        loanTotal: loanTotal,
-        contractNumber: String(e.parameter.contractNumber || '').trim().slice(0, 120),
-        startDate: startDate
-      };
-
-      Object.keys(updates).forEach(function(field) {
-        var col = loanHeaders.indexOf(field);
-        if (col >= 0) loanSheet.getRange(loanRow, col + 1).setValue(updates[field]);
+      result = withLock(function() {
+        return setPayment(ss, params);
       });
-      result = { success: true };
-
+    } else if (action === 'addIncome') {
+      result = withLock(function() {
+        return addIncome(ss, params);
+      });
+    } else if (action === 'updateBalance') {
+      result = withLock(function() {
+        return updateBalance(ss, params, month);
+      });
+    } else if (action === 'updateLoan') {
+      result = withLock(function() {
+        return updateLoan(ss, params, month);
+      });
+    } else if (action === 'completeLoan') {
+      result = withLock(function() {
+        return completeLoan(ss, params, month);
+      });
+    } else if (action === 'repairSchema') {
+      ensureSchema(ss);
+      result = { success: true, sheets: Object.keys(SCHEMAS), repairedAt: isoNow() };
     } else {
       result = { error: 'Unknown action: ' + action };
     }
   } catch (err) {
-    result = { error: err.toString() };
+    result = { error: err && err.message ? err.message : String(err) };
   }
 
   return ContentService
@@ -113,178 +75,407 @@ function doGet(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ----------------------------------------------------------------
-// Helpers
-// ----------------------------------------------------------------
+function setPayment(ss, params) {
+  var key = String(params.key || '');
+  var paid = params.paid === 'true';
+  if (!key || key.length > 100) throw new Error('Invalid payment key');
+
+  var now = isoNow();
+  upsertObject(ss.getSheetByName('Payments'), 'key', key, {
+    key: key,
+    paid: paid,
+    completedAt: paid ? now : '',
+    updatedAt: now
+  });
+  return { success: true, completedAt: paid ? now : '' };
+}
+
+function addIncome(ss, params) {
+  var amount = Number(params.amount);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date || '')) throw new Error('Invalid income date');
+  if (!isFinite(amount) || amount <= 0) throw new Error('Income amount must be positive');
+
+  var now = isoNow();
+  var row = {
+    id: 'inc-' + Date.now(),
+    date: params.date,
+    amount: amount,
+    stream: String(params.stream || 'other').slice(0, 60),
+    note: String(params.note || '').slice(0, 250),
+    createdAt: now,
+    updatedAt: now
+  };
+  appendObject(ss.getSheetByName('Income'), row);
+  return { success: true, id: row.id, createdAt: now };
+}
+
+function updateBalance(ss, params, month) {
+  var balance = Number(params.balance);
+  if (!isFinite(balance) || balance < 0) throw new Error('Invalid balance');
+  var id = String(params.id || '');
+  if (!id) throw new Error('Obligation id is required');
+
+  updateObjectByKey(ss.getSheetByName('Obligations'), 'id', id, {
+    currentBalance: balance,
+    balanceUpdatedMonth: month,
+    updatedAt: isoNow()
+  });
+  syncCurrentSnapshot(ss, id, month);
+  return { success: true, balanceUpdatedMonth: month };
+}
+
+function updateLoan(ss, params, month) {
+  var id = String(params.id || '');
+  if (!id) throw new Error('Loan id is required');
+
+  var amount = Number(params.amount);
+  var dueDay = Number(params.dueDay);
+  var currentBalance = params.currentBalance === '' ? '' : Number(params.currentBalance);
+  var loanTotal = params.loanTotal === '' ? '' : Number(params.loanTotal);
+  var startDate = String(params.startDate || '');
+
+  if (!isFinite(amount) || amount < 0) throw new Error('Invalid monthly payment');
+  if (!isFinite(dueDay) || dueDay < 0 || dueDay > 31) throw new Error('Invalid due day');
+  if (currentBalance !== '' && (!isFinite(currentBalance) || currentBalance < 0)) throw new Error('Invalid balance');
+  if (loanTotal !== '' && (!isFinite(loanTotal) || loanTotal < 0)) throw new Error('Invalid loan total');
+  if (startDate && !validMonth(startDate)) throw new Error('Invalid start month');
+
+  var existing = findObjectByKey(ss.getSheetByName('Obligations'), 'id', id);
+  if (!existing) throw new Error('Loan not found');
+  var balanceChanged = String(existing.currentBalance) !== String(currentBalance);
+
+  updateObjectByKey(ss.getSheetByName('Obligations'), 'id', id, {
+    bank: String(params.bank || '').trim().slice(0, 120),
+    amount: amount,
+    dueDay: dueDay,
+    currentBalance: currentBalance,
+    loanTotal: loanTotal,
+    contractNumber: String(params.contractNumber || '').trim().slice(0, 120),
+    startDate: startDate,
+    balanceUpdatedMonth: balanceChanged ? month : existing.balanceUpdatedMonth,
+    updatedAt: isoNow()
+  });
+  syncCurrentSnapshot(ss, id, month);
+  return {
+    success: true,
+    balanceUpdatedMonth: balanceChanged ? month : existing.balanceUpdatedMonth
+  };
+}
+
+function completeLoan(ss, params, month) {
+  var id = String(params.id || '');
+  if (!id) throw new Error('Loan id is required');
+  var now = isoNow();
+  var existing = findObjectByKey(ss.getSheetByName('Obligations'), 'id', id);
+  if (!existing) throw new Error('Loan not found');
+
+  updateObjectByKey(ss.getSheetByName('Obligations'), 'id', id, {
+    currentBalance: 0,
+    active: false,
+    balanceUpdatedMonth: month,
+    completedAt: now,
+    updatedAt: now
+  });
+
+  var snapshotKey = month + '__' + id;
+  upsertObject(ss.getSheetByName('Loans'), 'snapshotKey', snapshotKey, {
+    snapshotKey: snapshotKey,
+    month: month,
+    obligationId: id,
+    payer: existing.payer,
+    bank: existing.bank,
+    amount: existing.amount,
+    dueDay: existing.dueDay,
+    loanTotal: existing.loanTotal,
+    contractNumber: existing.contractNumber,
+    completed: true,
+    completedAt: now,
+    currentBalance: 0,
+    balanceSourceMonth: month,
+    updatedAt: now
+  }, true);
+  removeFutureLoanSnapshots(ss, id, month);
+
+  return { success: true, completedAt: now };
+}
+
+// Creates one immutable monthly row per active loan. Existing rows are not
+// overwritten here; edits are synchronized explicitly by syncCurrentSnapshot.
+function ensureMonthlyLoanSnapshot(ss, month) {
+  if (month < currentMonth()) return;
+  var obligations = sheetToJson(ss, 'Obligations');
+  var historySheet = ss.getSheetByName('Loans');
+  var history = sheetToJson(ss, 'Loans');
+  var existing = {};
+  history.forEach(function(row) { existing[String(row.snapshotKey)] = true; });
+
+  var now = isoNow();
+  var rows = [];
+  obligations.forEach(function(o) {
+    if (!isLoan(o) || !isActive(o) || o.completedAt) return;
+    var key = month + '__' + o.id;
+    if (existing[key]) return;
+    rows.push({
+      snapshotKey: key,
+      month: month,
+      obligationId: o.id,
+      payer: o.payer,
+      bank: o.bank,
+      amount: o.amount,
+      dueDay: o.dueDay,
+      currentBalance: o.currentBalance,
+      loanTotal: o.loanTotal,
+      contractNumber: o.contractNumber,
+      balanceSourceMonth: o.balanceUpdatedMonth || '',
+      completed: false,
+      completedAt: '',
+      snapshotAt: now,
+      updatedAt: now
+    });
+  });
+  appendObjects(historySheet, rows);
+}
+
+function removeFutureLoanSnapshots(ss, id, month) {
+  var sheet = ss.getSheetByName('Loans');
+  var headers = SCHEMAS.Loans;
+  var values = sheet.getDataRange().getValues();
+  var monthCol = headers.indexOf('month');
+  var idCol = headers.indexOf('obligationId');
+  for (var row = values.length - 1; row >= 1; row--) {
+    if (String(values[row][idCol]) === String(id) && String(values[row][monthCol]) > month) {
+      sheet.deleteRow(row + 1);
+    }
+  }
+}
+
+function syncCurrentSnapshot(ss, id, month) {
+  ensureMonthlyLoanSnapshot(ss, month);
+  var obligation = findObjectByKey(ss.getSheetByName('Obligations'), 'id', id);
+  if (!obligation || !isLoan(obligation)) return;
+
+  var key = month + '__' + id;
+  upsertObject(ss.getSheetByName('Loans'), 'snapshotKey', key, {
+    snapshotKey: key,
+    month: month,
+    obligationId: obligation.id,
+    payer: obligation.payer,
+    bank: obligation.bank,
+    amount: obligation.amount,
+    dueDay: obligation.dueDay,
+    currentBalance: obligation.currentBalance,
+    loanTotal: obligation.loanTotal,
+    contractNumber: obligation.contractNumber,
+    balanceSourceMonth: obligation.balanceUpdatedMonth || '',
+    completed: !isActive(obligation),
+    completedAt: obligation.completedAt || '',
+    snapshotAt: isoNow(),
+    updatedAt: isoNow()
+  });
+}
+
+// Safe to run manually, but every API request also runs it automatically.
+function setup() {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  ensureSchema(ss);
+  ensureMonthlyLoanSnapshot(ss, currentMonth());
+  ensureMaintenanceTrigger();
+  return 'Schema checked. Existing obligation data was preserved.';
+}
+
+// Keeps app data synchronized when loan fields are edited directly in Sheets.
+function onEdit(e) {
+  if (!e || !e.range) return;
+  var sheet = e.range.getSheet();
+  if (sheet.getName() !== 'Obligations') return;
+  if (e.range.getRow() === 1) {
+    ensureSchema(e.source);
+    return;
+  }
+
+  var headers = SCHEMAS.Obligations;
+  var editedHeader = headers[e.range.getColumn() - 1];
+  var tracked = [
+    'payer', 'bank', 'category', 'amount', 'dueDay', 'currentBalance',
+    'loanTotal', 'contractNumber', 'active', 'startDate'
+  ];
+  if (tracked.indexOf(editedHeader) < 0) return;
+
+  var id = String(sheet.getRange(e.range.getRow(), headers.indexOf('id') + 1).getValue() || '');
+  if (!id) return;
+  var month = currentMonth();
+  var updates = { updatedAt: isoNow() };
+  if (editedHeader === 'currentBalance') updates.balanceUpdatedMonth = month;
+  updateObjectByKey(sheet, 'id', id, updates);
+
+  var obligation = findObjectByKey(sheet, 'id', id);
+  if (obligation && isLoan(obligation)) {
+    syncCurrentSnapshot(e.source, id, month);
+    if (!isActive(obligation)) removeFutureLoanSnapshots(e.source, id, month);
+  }
+}
+
+function onStructureChange(e) {
+  var ss = e && e.source ? e.source : SpreadsheetApp.openById(SS_ID);
+  ensureSchema(ss);
+}
+
+function ensureMaintenanceTrigger() {
+  var exists = ScriptApp.getProjectTriggers().some(function(trigger) {
+    return trigger.getHandlerFunction() === 'onStructureChange';
+  });
+  if (!exists) {
+    ScriptApp.newTrigger('onStructureChange')
+      .forSpreadsheet(SS_ID)
+      .onChange()
+      .create();
+  }
+}
+
+function ensureSchema(ss) {
+  Object.keys(SCHEMAS).forEach(function(name) {
+    var headers = SCHEMAS[name];
+    var sheet = ss.getSheetByName(name);
+    if (!sheet) sheet = ss.insertSheet(name);
+
+    if (sheet.getLastRow() > 0) {
+      var firstCell = String(sheet.getRange(1, 1).getValue() || '');
+      if (looksLikeDataRow(name, firstCell)) sheet.insertRowBefore(1);
+    }
+    if (sheet.getMaxColumns() < headers.length) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+    }
+    var currentHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0]
+      .map(function(value) { return String(value || '').trim(); });
+    if (currentHeaders.join('|') !== headers.join('|')) {
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
+    sheet.setFrozenRows(1);
+  });
+
+  var obligations = ss.getSheetByName('Obligations');
+  var contractCol = SCHEMAS.Obligations.indexOf('contractNumber') + 1;
+  var contractRows = Math.max(obligations.getLastRow() - 1, 1);
+  obligations.getRange(2, contractCol, contractRows, 1).setNumberFormat('@');
+}
+
+function looksLikeDataRow(sheetName, firstCell) {
+  if (!firstCell) return false;
+  if (sheetName === 'Obligations') return /^ob-/i.test(firstCell);
+  if (sheetName === 'Payments') return /__\d{4}-\d{2}$/.test(firstCell);
+  if (sheetName === 'Income') return /^inc-/i.test(firstCell);
+  if (sheetName === 'Loans') return /^\d{4}-\d{2}__/.test(firstCell);
+  return false;
+}
+
 function sheetToJson(ss, name) {
   var sheet = ss.getSheetByName(name);
-  if (!sheet) return [];
-  var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return [];
-  var headers = values[0].map(function(h) { return String(h).trim(); });
-  return values.slice(1).map(function(row) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  var headers = SCHEMAS[name] || sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  return values.filter(function(row) {
+    return row.some(function(value) { return value !== ''; });
+  }).map(function(row) {
     var obj = {};
-    headers.forEach(function(h, i) { obj[h] = row[i]; });
+    headers.forEach(function(header, index) { obj[header] = row[index]; });
     return obj;
   });
 }
 
-function upsertRow(ss, sheetName, keyField, keyValue, newRow) {
-  var sheet   = ss.getSheetByName(sheetName);
-  var data    = sheet.getDataRange().getValues();
-  var headers = data[0].map(function(h) { return String(h).trim(); });
-  var keyCol  = headers.indexOf(keyField);
+function appendObject(sheet, object) {
+  appendObjects(sheet, [object]);
+}
 
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][keyCol]) === String(keyValue)) {
-      var rowData = headers.map(function(h) { return newRow[h] !== undefined ? newRow[h] : ''; });
-      sheet.getRange(i + 1, 1, 1, headers.length).setValues([rowData]);
+function appendObjects(sheet, objects) {
+  if (!objects.length) return;
+  var headers = SCHEMAS[sheet.getName()];
+  var rows = objects.map(function(object) {
+    return headers.map(function(header) {
+      return object[header] !== undefined ? object[header] : '';
+    });
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+}
+
+function upsertObject(sheet, keyField, keyValue, object, preserveExisting) {
+  var headers = SCHEMAS[sheet.getName()];
+  var data = sheet.getDataRange().getValues();
+  var keyCol = headers.indexOf(keyField);
+  for (var row = 1; row < data.length; row++) {
+    if (String(data[row][keyCol]) === String(keyValue)) {
+      var merged = {};
+      headers.forEach(function(header, index) {
+        merged[header] = preserveExisting ? data[row][index] : '';
+      });
+      Object.keys(object).forEach(function(key) { merged[key] = object[key]; });
+      sheet.getRange(row + 1, 1, 1, headers.length).setValues([
+        headers.map(function(header) { return merged[header] !== undefined ? merged[header] : ''; })
+      ]);
       return;
     }
   }
-  sheet.appendRow(headers.map(function(h) { return newRow[h] !== undefined ? newRow[h] : ''; }));
+  appendObject(sheet, object);
 }
 
-// ----------------------------------------------------------------
-// Run ONCE: creates sheets and seeds all 82 obligations
-// ----------------------------------------------------------------
-function setup(forceReset) {
-  var ss = SpreadsheetApp.openById(SS_ID);
-  var existing = ['Obligations', 'Payments', 'Income'].some(function(name) {
-    var sheet = ss.getSheetByName(name);
-    return sheet && sheet.getLastRow() > 1;
-  });
-
-  if (existing && forceReset !== true) {
-    throw new Error('Setup stopped: finance data already exists. Call setup(true) only for an intentional full reset.');
+function updateObjectByKey(sheet, keyField, keyValue, updates) {
+  var headers = SCHEMAS[sheet.getName()];
+  var data = sheet.getDataRange().getValues();
+  var keyCol = headers.indexOf(keyField);
+  for (var row = 1; row < data.length; row++) {
+    if (String(data[row][keyCol]) === String(keyValue)) {
+      var rowValues = data[row].slice(0, headers.length);
+      Object.keys(updates).forEach(function(field) {
+        var col = headers.indexOf(field);
+        if (col >= 0) rowValues[col] = updates[field];
+      });
+      sheet.getRange(row + 1, 1, 1, headers.length).setValues([rowValues]);
+      return;
+    }
   }
+  throw new Error(sheet.getName() + ' row not found: ' + keyValue);
+}
 
-  // --- Create / reset sheets ---
-  var sheetDefs = [
-    { name: 'Obligations', headers: ['id','payer','bank','category','amount','dueDay','currentBalance','loanTotal','contractNumber','active','startDate'] },
-    { name: 'Payments',    headers: ['key','paid'] },
-    { name: 'Income',      headers: ['id','date','amount','stream','note'] }
-  ];
+function findObjectByKey(sheet, keyField, keyValue) {
+  var headers = SCHEMAS[sheet.getName()];
+  var data = sheet.getDataRange().getValues();
+  var keyCol = headers.indexOf(keyField);
+  for (var row = 1; row < data.length; row++) {
+    if (String(data[row][keyCol]) === String(keyValue)) {
+      var object = {};
+      headers.forEach(function(header, index) { object[header] = data[row][index]; });
+      return object;
+    }
+  }
+  return null;
+}
 
-  sheetDefs.forEach(function(def) {
-    var s = ss.getSheetByName(def.name);
-    if (!s) s = ss.insertSheet(def.name);
-    s.clear();
-    s.setFrozenRows(1);
-  });
+function isLoan(obligation) {
+  return String(obligation.category).toLowerCase() === 'loan' ||
+    Number(obligation.loanTotal) > 0 || Number(obligation.currentBalance) > 0;
+}
 
-  // Set contractNumber column (I) to plain text BEFORE any data is written
-  // so Google Sheets never auto-converts values to numbers
-  var ob = ss.getSheetByName('Obligations');
-  ob.getRange('I:I').setNumberFormat('@');
-  SpreadsheetApp.flush();
+function isActive(obligation) {
+  return obligation.active === true || String(obligation.active).toUpperCase() === 'TRUE';
+}
 
-  // Write headers now (after format is committed)
-  sheetDefs.forEach(function(def) {
-    ss.getSheetByName(def.name).appendRow(def.headers);
-  });
-  SpreadsheetApp.flush();
+function validMonth(value) {
+  return /^\d{4}-\d{2}$/.test(String(value || ''));
+}
 
-  // --- Seed obligations ---
-  // Columns: id, payer, bank, category, amount, dueDay, currentBalance, loanTotal, contractNumber, active, startDate
-  // currentBalance = '' means "not yet verified / still to check"
-  // startDate = 'YYYY-MM' (loan creation month) or '' if unknown
+function currentMonth() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM');
+}
 
-  var rows = [
-    ['ob-001','Hovhannes','Unibank','loan',20000,1,570000,600000,'241400148490L004',true,'2026-03'],
-    ['ob-002','Alvard','Inekobank','loan',7000,1,241000,264582,'205025219473L027',true,'2025-12'],
-    ['ob-003','Alvard','Inekobank','loan',6000,3,128000,200000,'205025219473L022',true,''],
-    ['ob-004','Alvard','Inekobank','loan',5000,3,123000,155000,'2050252194737024',true,''],
-    ['ob-005','Hovhannes','Unibank','loan',20000,4,65000,600000,'241400148490L003',true,''],
-    ['ob-006','Karine','Inekobank','loan',20000,5,175000,577000,'205009102232L015',true,''],
-    ['ob-007','Home','Home Rent','personal',85000,5,'','','',true,''],
-    ['ob-008','Grigor','ACBA Bank','loan',60000,5,1138000,1900000,'220050024334L004',true,''],
-    ['ob-009','Hovhannes','Inekobank','loan',7500,5,147000,210000,'205055868553L063',true,''],
-    ['ob-010','Karine','Inekobank','loan',44000,5,952000,1376000,'205009102232L036',true,''],
-    ['ob-011','Alvard','Inekobank','loan',13000,6,515000,537926,'205025219473L029',true,''],
-    ['ob-012','Grigor','Converse Bank','loan',23000,7,'',580000,'L06970 011598737',true,''],
-    ['ob-013','Hovhannes','Inekobank','loan',22000,7,295000,510850,'205055868553L064',true,''],
-    ['ob-014','Karine','Inekobank','loan',4000,7,23000,82600,'205009102232L028',true,''],
-    ['ob-015','Karine','Inekobank','loan',3000,7,4000,65870,'205009102232L029',true,''],
-    ['ob-016','Karine','Inekobank','loan',5500,7,107000,153000,'205009102232L030',true,''],
-    ['ob-017','Karine','Inekobank','loan',31000,8,789000,959000,'205009102232L034',true,''],
-    ['ob-018','Karine','Inekobank','loan',25000,8,565000,719600,'205009102232L035',true,''],
-    ['ob-019','Karine','Inekobank','loan',5000,8,90000,102000,'205009102232L040',true,'2026-02'],
-    ['ob-020','Karine','Inekobank','loan',20000,9,77000,524000,'205009102232L014',true,''],
-    ['ob-021','Alvard','Converse Bank','loan',12000,9,'',270000,'A01768 AR0498235',true,'2025-12'],
-    ['ob-022','Karine','Inekobank','loan',23000,9,868000,941336,'205009102232L038',true,'2025-12'],
-    ['ob-023','Plus 1','Armenikum','business',930000,10,'','','',true,''],
-    ['ob-024','Karine','VTB Armenia','loan',10000,11,173000,282000,'160485731881L002',true,''],
-    ['ob-025','Karine','Inekobank','loan',24000,11,368000,612000,'205009102232L032',true,''],
-    ['ob-026','Karine','Inekobank','loan',16000,11,482000,571000,'205009102232L033',true,''],
-    ['ob-027','Hovhannes','ID Bank','loan',9000,11,86000,105314,'118000626572L020',true,'2026-04'],
-    ['ob-028','Hovhannes','ID Bank','loan',11000,11,118000,200000,'118000626572L003',true,''],
-    ['ob-029','Alvard','Inekobank','loan',5000,11,129000,148722,'205025219473L028',true,'2026-02'],
-    ['ob-030','Alvard','Inekobank','loan',30000,12,346000,1000000,'205025219473L013',true,''],
-    ['ob-031','Karine','Inekobank','loan',31000,12,747000,992407,'205009102232L037',true,''],
-    ['ob-032','Alvard','Inekobank','loan',4000,13,105000,129000,'205025219473L025',true,''],
-    ['ob-033','Alvard','Converse Bank','loan',6000,13,'',100000,'L89213 AR0498235',true,''],
-    ['ob-034','Alvard','Inekobank','loan',19000,13,656000,733970,'205025219473L026',true,''],
-    ['ob-035','Alvard','Unibank','loan',20000,14,464000,630000,'241010032969L004',true,''],
-    ['ob-036','Plus 1','Service Fees','business',421000,15,'','','',true,''],
-    ['ob-037','Karine','Inekobank','loan',18000,15,347000,500000,'205009102232L027',true,''],
-    ['ob-038','Business','Bar Association','business',5000,15,'','','',true,''],
-    ['ob-039','Business','ICC','business',10000,15,'','','',true,''],
-    ['ob-040','Hovhannes','Converse Bank','loan',38000,15,'',1000000,'L07280 009987561',true,''],
-    ['ob-041','Alvard','Inekobank','loan',4000,15,19000,101000,'205025219473L023',true,''],
-    ['ob-042','Hovhannes','VTB Armenia','loan',14000,15,406000,470000,'160482758382L010',true,'2025-08'],
-    ['ob-043','Alvard','Inekobank','loan',15000,16,442000,489000,'205025219473L030',true,'2026-03'],
-    ['ob-044','Hovhannes','ID Bank','loan',21000,16,181000,243290,'118000626572L013',true,''],
-    ['ob-045','Hovhannes','Inekobank','loan',18000,17,464000,583931,'205055868553L065',true,''],
-    ['ob-046','Hovhannes','ID Bank','loan',10000,17,'',85310,'118000626572L015',true,'2026-03'],
-    ['ob-047','Hovhannes','ID Bank','loan',3500,17,'',38058,'118000626572L016',true,'2026-03'],
-    ['ob-048','Karine','Inekobank','loan',7000,18,137000,201000,'205009102232L031',true,''],
-    ['ob-049','Hovhannes','ID Bank','loan',21000,18,'',152400,'118000626572L017',true,'2026-03'],
-    ['ob-050','Alvard','Converse Bank','loan',25000,18,'',620000,'A23722 AR0498235',true,'2026-03'],
-    ['ob-051','Plus 1','Taxes','business',54000,19,'','','',true,''],
-    ['ob-052','Home','Utilities','personal',128800,20,'','','',true,''],
-    ['ob-053','Karine','Ardshininbank','loan',10000,20,0,400000,'247460420539L001',true,''],
-    ['ob-054','Hovhannes','Ardshininbank','loan',20000,20,0,500000,'247002700646L005',true,''],
-    ['ob-055','Hovhannes','VTB Armenia','loan',10000,20,119000,418000,'160482758382L009',true,''],
-    ['ob-056','Plus 1','ACBA Bank','loan',240000,20,8295000,8680000,'220554307037L005',true,'2026-03'],
-    ['ob-057','Plus 1','ACBA Bank','loan',46000,20,799000,1300000,'220554307037L004',true,''],
-    ['ob-058','Hovhannes','AMIO Bank','loan',52000,20,'',2000000,'',true,''],
-    ['ob-059','Karine','Inekobank','loan',20000,21,59000,525000,'205009102232L013',true,''],
-    ['ob-060','Hovhannes','Ardshininbank','loan',10000,21,104000,350000,'247002700646L003',true,''],
-    ['ob-061','Hovhannes','Inekobank','loan',3500,21,115000,136680,'205055868553L066',true,'2026-01'],
-    ['ob-062','Karine','Inekobank','loan',80000,21,2976000,3157000,'205009102232L039',true,'2026-01'],
-    ['ob-063','Alvard','Converse Bank','loan',10000,23,'',224000,'C39212 AR0498235',true,''],
-    ['ob-064','Grigor','Unibank','loan',22000,25,'',600000,'241010036226L002',true,''],
-    ['ob-065','Grigor','Unibank','loan',30000,25,'',731000,'241010036226L001',true,''],
-    ['ob-066','Grigor','Ardshininbank','loan',15000,25,283000,400000,'247004702939L002',true,''],
-    ['ob-067','Hovhannes','Ardshininbank','loan',6000,25,140000,186970,'247002700646L006',true,''],
-    ['ob-068','Grigor','Ardshininbank','loan',6000,25,119000,186970,'247004702939L003',true,''],
-    ['ob-069','Hovhannes','Converse Bank','loan',10000,25,'',220000,'L68365 009987561',true,''],
-    ['ob-070','Hovhannes','Ardshininbank','loan',3000,25,128000,150185,'247002700646L007',true,''],
-    ['ob-071','Karine','Ardshininbank','loan',20000,25,573000,600000,'247460420539L003',true,'2025-12'],
-    ['ob-072','Alvard','Ardshininbank','loan',12000,25,'',400000,'247500269987L005',true,'2026-02'],
-    ['ob-073','Karine','ID Bank','loan',6000,29,'',100000,'118008125809L001',true,''],
-    ['ob-074','Plus 1','Office Rent','business',2460500,30,'','','',true,''],
-    ['ob-075','GPS','GPS Service','business',28000,30,'','','',true,''],
-    // 7 obligations added from full Excel data
-    ['ob-076','Grigor','ID Bank','loan',0,15,'',20000,'payment due Jun 2026',true,'2025-12'],
-    ['ob-077','Plus 1','Payroll','business',0,30,'','','',true,''],
-    ['ob-078','Alvard','Inekobank /Credit Line/','loan',0,30,'',1000000,'2050252194737003',true,''],
-    ['ob-079','Hovhannes','Inekobank /Credit Line/','loan',0,30,0,500000,'2050558685537000',true,''],
-    ['ob-080','Karine','Inekobank /Credit Line/','loan',0,30,0,100000,'2050091022327003',true,''],
-    ['ob-081','Plus 1','ACBA Bank','loan',0,0,1000000,1000000,'',true,''],
-    ['ob-082','Hovhannes','Karine Avetisyan','personal',0,0,2000500,'','',true,'']
-  ];
+function isoNow() {
+  return new Date().toISOString();
+}
 
-  ob.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
-
-  // Use setRichTextValues on contractNumber column — rich text is ALWAYS stored
-  // as plain text, so no number (pure digits or alphanumeric) gets auto-converted
-  var richContracts = rows.map(function(r) {
-    return [SpreadsheetApp.newRichTextValue().setText(String(r[8])).build()];
-  });
-  ob.getRange(2, 9, rows.length, 1).setRichTextValues(richContracts);
-
-  SpreadsheetApp.flush();
-  Logger.log('Setup complete: ' + rows.length + ' obligations seeded.');
+function withLock(callback) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    return callback();
+  } finally {
+    lock.releaseLock();
+  }
 }
