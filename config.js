@@ -1,2 +1,2 @@
 // Replace with your deployed Apps Script Web App URL
-const API_URL = 'https://script.google.com/macros/s/AKfycbyFWkT7oexCuowL_PdzBVr5ZJ_SDdPd69DxW7ytj2OBt8EyD8wgmy0U-MpIN_2vBKY/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzwTy-BQZGp5IVqxH8GgGaV4mKCKFCl0JzeO34aMUX6KHDLsCi1loxgKFQPSlSa2yA/exec';
