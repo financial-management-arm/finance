@@ -8,7 +8,7 @@ const state = {
   payments: {},   // "id__YYYY-MM" -> true/false
   income: [],
   month: todayMonth(),
-  tab: 'schedule',
+  tab: 'dashboard',
   filter: 'all',
   statusFilter: 'unpaid',
   search: '',
@@ -131,13 +131,22 @@ async function fetchAll() {
 async function togglePayment(id) {
   const key = pkey(id, state.month);
   const was = !!state.payments[key];
+  const row = document.querySelector(`[data-payment-id="${id}"]`);
+  if (!was && row) {
+    row.classList.add('is-completing');
+    const button = row.querySelector('.check-btn');
+    if (button) button.classList.add('is-checked');
+    await new Promise(resolve => setTimeout(resolve, 240));
+  }
   state.payments[key] = !was;
   renderCurrentTab();
   try {
     await callApi({ action: 'setPayment', key, paid: !was });
-  } catch {
+    if (!was) showToast('Payment completed.');
+  } catch (err) {
     state.payments[key] = was;
     renderCurrentTab();
+    showError('Could not update payment: ' + err.message);
   }
 }
 
@@ -152,15 +161,14 @@ async function saveBalance(id, balance) {
   }
 }
 
-async function updateLoan(id, changes) {
-  const button = q('loan-edit-save');
+async function updateLoan(id, changes, sourceButton = null) {
+  const button = sourceButton || q('loan-edit-save');
   button.disabled = true;
   button.textContent = 'Saving...';
   try {
     await callApi({ action: 'updateLoan', id, ...changes });
     const loan = state.obligations.find(o => String(o.id) === String(id));
     if (loan) Object.assign(loan, changes);
-    closeLoanEditor();
     renderLoans();
     showToast('Loan updated.');
   } catch (err) {
@@ -185,7 +193,7 @@ async function addIncome(entry) {
 // UI helpers
 // ================================================================
 function showLoading(on) {
-  document.getElementById('loading').classList.toggle('hidden', !on);
+  document.body.classList.toggle('is-loading', on);
 }
 
 function showError(msg) {
@@ -249,7 +257,7 @@ function renderDashboard() {
   const today = currentMonthDay();
   const unpaid = all.filter(o => !isPaid(o.id));
   const overdue = today ? unpaid.filter(o => Number(o.dueDay) > 0 && Number(o.dueDay) < today) : [];
-  const dueSoon = today ? unpaid.filter(o => Number(o.dueDay) >= today && Number(o.dueDay) <= today + 7) : [];
+  const dueSoon = today ? unpaid.filter(o => Number(o.dueDay) >= today && Number(o.dueDay) <= today + 3) : [];
 
   const monthIncome = state.income
     .filter(i => String(i.date).startsWith(state.month))
@@ -258,23 +266,42 @@ function renderDashboard() {
   q('stat-total').textContent  = amd(totalA);
   q('stat-paid').textContent   = amd(paidAmt);
   q('stat-unpaid').textContent = amd(unpaidA);
-  q('stat-income').textContent = monthIncome ? amd(monthIncome) : '—';
+  q('stat-income').textContent = amd(monthIncome);
   const net = monthIncome - totalA;
   q('stat-net').textContent = amd(net);
   q('stat-net-card').classList.toggle('net-positive', net >= 0);
   q('stat-net-card').classList.toggle('net-negative', net < 0);
-  q('stat-attention').textContent = today ? String(overdue.length + dueSoon.length) : '—';
-  q('stat-attention-sub').textContent = today
-    ? `${overdue.length} overdue · ${dueSoon.length} due in 7 days`
-    : 'Open the current month for due dates';
-  q('stat-sub').textContent    = `${paid.length} of ${all.length} paid`;
-  q('prog-fill').style.width   = pct + '%';
-  q('prog-label').textContent  = `${pct}% complete`;
-  q('prog-paid').textContent   = amd(paidAmt) + ' paid';
-  q('prog-left').textContent   = amd(unpaidA) + ' remaining';
+  q('stat-sub').textContent = `${paid.length} paid · ${unpaid.length} still open`;
+  q('prog-label').textContent = `${pct}%`;
+  const circumference = 2 * Math.PI * 49;
+  q('progress-ring-value').style.strokeDashoffset = String(circumference * (1 - pct / 100));
 
+  renderUrgentStrip(overdue, dueSoon);
   renderPayerBars();
-  renderDashCategoryChart();
+}
+
+function renderUrgentStrip(overdue, dueSoon) {
+  const urgent = [
+    ...overdue.map(o => ({ ...o, urgency: 'overdue' })),
+    ...dueSoon.map(o => ({ ...o, urgency: 'soon' }))
+  ].sort((a, b) => Number(a.dueDay) - Number(b.dueDay));
+
+  q('urgent-strip').innerHTML = urgent.length ? urgent.map(o => `
+    <button class="urgent-card ${o.urgency === 'overdue' ? 'is-overdue' : ''}"
+            type="button" data-jump-payment="${escapeHtml(o.id)}">
+      <span>
+        <span class="urgent-status">${o.urgency === 'overdue' ? `Overdue · day ${o.dueDay}` : `Due soon · day ${o.dueDay}`}</span>
+        <span class="urgent-bank">${escapeHtml(o.bank)}</span>
+        <span class="urgent-payer">${escapeHtml(o.payer)}</span>
+      </span>
+      <strong class="urgent-amount">${amd(o.amount)}</strong>
+    </button>
+  `).join('') : `
+    <div class="urgent-empty">
+      <span aria-hidden="true">✓</span>
+      <strong>${currentMonthDay() ? 'Nothing urgent today' : 'No current-day alerts for this month'}</strong>
+    </div>
+  `;
 }
 
 function renderPayerBars() {
@@ -285,13 +312,13 @@ function renderPayerBars() {
     const tot  = totalAmt(obs);
     const paid = totalAmt(obs.filter(o => isPaid(o.id)));
     const pct  = tot ? Math.round(paid / tot * 100) : 0;
-    return `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-        <span class="fw7" style="color:${payerColor(p)}">${escapeHtml(p)}</span>
-        <span class="muted" style="font-size:11px">${amd(paid)} / ${amd(tot)}</span>
+    return `<div class="payer-row" style="--payer-color:${payerColor(p)}">
+      <div class="payer-row-head">
+        <span class="payer-name" style="color:var(--payer-color)">${escapeHtml(p)}</span>
+        <span class="payer-amount">${amd(paid)} / ${amd(tot)}</span>
       </div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width:${pct}%;background:${payerColor(p)}"></div>
+      <div class="payer-track">
+        <div class="payer-fill" style="width:${pct}%;background:var(--payer-color)"></div>
       </div>
     </div>`;
   }).join('');
@@ -329,10 +356,18 @@ function renderSchedule() {
   const obs = filteredObs().sort((a, b) => Number(a.dueDay) - Number(b.dueDay));
   const tbody = q('sched-tbody');
 
-  tbody.innerHTML = obs.length ? obs.map(o => {
+  const today = currentMonthDay();
+  tbody.innerHTML = obs.length ? obs.map((o, index) => {
     const paid = isPaid(o.id);
-    return `<tr class="${paid ? 'is-paid' : ''}">
-      <td class="fw7" style="color:${payerColor(o.payer)}">${escapeHtml(o.payer)}</td>
+    const dueDay = Number(o.dueDay);
+    const urgency = !paid && today && dueDay > 0
+      ? (dueDay < today ? 'is-overdue' : dueDay <= today + 3 ? 'is-due-soon' : '')
+      : '';
+    const revealDelay = Math.min(index * 30, 200);
+    return `<tr class="payment-row row-reveal ${paid ? 'is-paid' : ''} ${urgency}"
+                data-payment-id="${escapeHtml(o.id)}"
+                style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
+      <td class="fw7 payment-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</td>
       <td>${escapeHtml(o.bank)}</td>
       <td><span class="badge ${escapeHtml(o.category)}">${escapeHtml(o.category)}</span></td>
       <td class="tr amt fw7">${Number(o.amount) > 0 ? amd(o.amount) : '—'}</td>
@@ -340,12 +375,16 @@ function renderSchedule() {
       <td class="tc">
         <button class="check-btn ${paid ? 'is-checked' : ''}"
                 onclick="togglePayment('${escapeHtml(o.id)}')"
+                aria-label="${paid ? 'Mark payment unpaid' : 'Mark payment paid'}"
                 title="${paid ? 'Mark unpaid' : 'Mark paid'}">
-          ${paid ? '↶ Undo' : '✓ Done'}
         </button>
       </td>
     </tr>`;
-  }).join('') : '<tr><td colspan="6" class="empty-state">No payments match these filters.</td></tr>';
+  }).join('') : `<tr><td colspan="6" class="empty-state">
+    ${state.statusFilter === 'unpaid' && !state.search
+      ? `All payments done for ${monthLabel(state.month)} ✓`
+      : 'No payments match these filters.'}
+  </td></tr>`;
 
   const all     = activeObs();
   const allPaid = all.filter(o => isPaid(o.id));
@@ -354,6 +393,23 @@ function renderSchedule() {
   q('sched-total').textContent  = amd(totalAmt(obs));
   q('sched-count').textContent  = `${visPaid.length}/${obs.length}`;
   q('sched-grand').textContent  = `Total: ${amd(totalAmt(all))} — ${allPaid.length}/${all.length} paid`;
+}
+
+function jumpToPayment(id) {
+  state.filter = 'all';
+  state.search = '';
+  state.statusFilter = 'unpaid';
+  q('schedule-search').value = '';
+  q('show-completed').checked = false;
+  switchTab('schedule');
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`[data-payment-id="${id}"]`);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.add('is-completing');
+      setTimeout(() => row.classList.remove('is-completing'), 700);
+    }
+  });
 }
 
 // ================================================================
@@ -384,21 +440,45 @@ function loanCard(o) {
   const pctOff     = (tot && bal !== null) ? Math.round((1 - bal / tot) * 100) : 0;
   const hasPayment = Number(o.amount) > 0;
   const contracts  = contractParts(o.contractNumber);
+  const paidOff = balKnown && bal === 0;
+  const arcLength = 157;
+  const arcOffset = arcLength * (1 - Math.max(0, Math.min(100, pctOff)) / 100);
+  const bankColor = bankColorFor(o.bank);
 
-  return `<div class="loan-card">
+  return `<article class="loan-card ${!balKnown ? 'is-unverified' : ''} ${paidOff ? 'is-paid-off' : ''}"
+                   style="--bank-color:${bankColor}">
     <div class="loan-card-top">
-      <div>
-        <div class="loan-bank">${escapeHtml(o.bank)}</div>
-        <div class="loan-meta">${escapeHtml(o.payer)}</div>
-        ${o.startDate ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">Started ${fmtStartDate(o.startDate)}</div>` : ''}
+      <div class="loan-identity">
+        <div class="bank-avatar">${escapeHtml(String(o.bank || '?').trim().charAt(0).toUpperCase())}</div>
+        <div>
+          <div class="loan-bank">${escapeHtml(o.bank)}</div>
+          <div class="loan-meta">${escapeHtml(o.payer)}${o.startDate ? ` · Started ${fmtStartDate(o.startDate)}` : ''}</div>
+        </div>
       </div>
       <div class="loan-card-actions">
-        <div style="text-align:right">
-          ${hasPayment
-            ? `<div class="loan-monthly">${amd(o.amount)}</div><div class="loan-mo-label">/month</div>`
-            : `<div class="loan-mo-label" style="margin-top:6px;color:var(--muted)">credit / no payment</div>`}
+        ${paidOff ? '<span class="paid-off-badge">Paid off</span>' : ''}
+        <button class="button button-ghost loan-edit-toggle" type="button"
+                onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
+      </div>
+    </div>
+    <div class="loan-financials">
+      <div class="loan-arc-wrap">
+        <svg class="loan-arc" viewBox="0 0 120 68" aria-hidden="true">
+          <path class="loan-arc-track" d="M10 60 A50 50 0 0 1 110 60"></path>
+          <path class="loan-arc-value" d="M10 60 A50 50 0 0 1 110 60"
+                style="stroke-dashoffset:${arcOffset}"></path>
+        </svg>
+        <div class="loan-arc-copy"><strong>${balKnown && tot ? pctOff + '%' : '—'}</strong><span>paid</span></div>
+      </div>
+      <div class="loan-balance-copy">
+        <div class="loan-balance-line">
+          ${balKnown
+            ? `<strong>${amd(bal)}</strong>${tot ? ` of ${amd(tot)} remaining` : ' owed'}`
+            : '<strong>Balance unverified</strong>'}
         </div>
-        <button class="btn-edit" type="button" onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
+        <div class="loan-monthly-line">
+          ${hasPayment ? `${amd(o.amount)} monthly · due day ${Number(o.dueDay) || '—'}` : 'No monthly payment recorded'}
+        </div>
       </div>
     </div>
     ${contracts.length ? `
@@ -409,26 +489,51 @@ function loanCard(o) {
                   title="Copy ${escapeHtml(part)}">${escapeHtml(part)} <span>Copy</span></button>
         `).join('')}
       </div>` : ''}
-    ${(tot || balKnown) ? `
-    <div class="balance-row">
-      <label>${tot ? 'Balance ֏' : 'Amount owed ֏'}</label>
-      <input class="balance-input" type="number" id="bal-${o.id}"
-             value="${bal !== null ? bal : ''}" min="0"
-             placeholder="${balKnown ? '' : 'not yet verified'}">
-      <button class="btn-save" onclick="saveBalFromInput('${o.id}')">Save</button>
-    </div>
-    ${!balKnown ? `<div style="font-size:10px;color:var(--warning);margin-bottom:6px">⚠ Balance not yet verified</div>` : ''}
-    ${balKnown && tot ? `
-    <div class="loan-progress">
-      <div class="loan-progress-bar">
-        <div class="loan-progress-fill" style="width:${pctOff}%"></div>
+    <form class="inline-loan-edit hidden" id="inline-edit-${escapeHtml(o.id)}"
+          onsubmit="submitInlineLoanEdit(event, '${escapeHtml(o.id)}')">
+      <label>Bank / Payee<input name="bank" value="${escapeHtml(o.bank)}" required></label>
+      <label>Monthly payment<input name="amount" type="number" min="0" value="${Number(o.amount) || 0}" required></label>
+      <label>Due day<input name="dueDay" type="number" min="0" max="31" value="${Number(o.dueDay) || 0}" required></label>
+      <label>Current balance<input name="currentBalance" type="number" min="0" value="${balKnown ? bal : ''}"></label>
+      <label>Original total<input name="loanTotal" type="number" min="0" value="${tot || ''}"></label>
+      <label>Start month<input name="startDate" type="month" value="${inputMonth(o.startDate)}"></label>
+      <label class="inline-edit-wide">Contract number<input name="contractNumber" value="${escapeHtml(o.contractNumber || '')}"></label>
+      <div class="inline-edit-actions">
+        <button class="button button-ghost" type="button" onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Cancel</button>
+        <button class="button button-primary" type="submit">Save changes</button>
       </div>
-      <div class="loan-progress-labels">
-        <span>${pctOff}% paid off</span>
-        <span>Total: ${amd(tot)}</span>
-      </div>
-    </div>` : ''}` : ''}
-  </div>`;
+    </form>
+  </article>`;
+}
+
+function bankColorFor(name) {
+  const text = String(name || '');
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) hash = ((hash << 5) - hash) + text.charCodeAt(i);
+  return PALETTE[Math.abs(hash) % PALETTE.length];
+}
+
+function toggleInlineLoanEdit(id) {
+  const panel = q('inline-edit-' + id);
+  if (!panel) return;
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) panel.querySelector('input')?.focus();
+}
+
+function submitInlineLoanEdit(event, id) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const value = name => form.elements[name].value;
+  const optionalNumber = name => value(name) === '' ? '' : Number(value(name));
+  updateLoan(id, {
+    bank: value('bank').trim(),
+    amount: Number(value('amount')),
+    dueDay: Number(value('dueDay')),
+    currentBalance: optionalNumber('currentBalance'),
+    loanTotal: optionalNumber('loanTotal'),
+    startDate: value('startDate'),
+    contractNumber: value('contractNumber').trim()
+  }, form.querySelector('[type="submit"]'));
 }
 
 function contractParts(value) {
@@ -438,6 +543,7 @@ function contractParts(value) {
 async function copyContract(value, button) {
   try {
     await navigator.clipboard.writeText(value);
+    if ('vibrate' in navigator) navigator.vibrate(10);
     const label = button.querySelector('span');
     label.textContent = 'Copied';
     setTimeout(() => { label.textContent = 'Copy'; }, 1200);
@@ -612,6 +718,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.sidebar-nav a').forEach(a => {
     a.addEventListener('click', e => { e.preventDefault(); switchTab(a.dataset.tab); });
   });
+
+  q('urgent-strip').addEventListener('click', event => {
+    const card = event.target.closest('[data-jump-payment]');
+    if (card) jumpToPayment(card.dataset.jumpPayment);
+  });
+  q('view-all-payments').addEventListener('click', () => switchTab('schedule'));
 
   // Month nav (all pages share the same class)
   document.addEventListener('click', e => {
