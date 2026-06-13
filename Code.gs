@@ -106,11 +106,20 @@ function setup() {
     var s = ss.getSheetByName(def.name);
     if (!s) s = ss.insertSheet(def.name);
     s.clear();
-    s.appendRow(def.headers);
     s.setFrozenRows(1);
   });
 
+  // Set contractNumber column (I) to plain text BEFORE any data is written
+  // so Google Sheets never auto-converts values to numbers
   var ob = ss.getSheetByName('Obligations');
+  ob.getRange('I:I').setNumberFormat('@');
+  SpreadsheetApp.flush();
+
+  // Write headers now (after format is committed)
+  sheetDefs.forEach(function(def) {
+    ss.getSheetByName(def.name).appendRow(def.headers);
+  });
+  SpreadsheetApp.flush();
 
   // --- Seed obligations ---
   // Columns: id, payer, bank, category, amount, dueDay, currentBalance, loanTotal, contractNumber, active, startDate
@@ -204,14 +213,6 @@ function setup() {
   ];
 
   ob.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
-
-  // contractNumber column (I=9): set format to text, flush to commit it,
-  // then re-write that column so values are stored as text strings not numbers
-  var cnRange = ob.getRange(2, 9, rows.length, 1);
-  cnRange.setNumberFormat('@');
-  SpreadsheetApp.flush();
-  cnRange.setValues(rows.map(function(r) { return [String(r[8])]; }));
-
   SpreadsheetApp.flush();
   Logger.log('Setup complete: ' + rows.length + ' obligations seeded.');
 }
