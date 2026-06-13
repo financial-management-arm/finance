@@ -204,8 +204,14 @@ function setup() {
   ];
 
   ob.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
-  // Apply text format to contractNumber column AFTER writing to prevent scientific notation
-  ob.getRange(2, 9, rows.length, 1).setNumberFormat('@');
+
+  // contractNumber column (I=9): set format to text, flush to commit it,
+  // then re-write that column so values are stored as text strings not numbers
+  var cnRange = ob.getRange(2, 9, rows.length, 1);
+  cnRange.setNumberFormat('@');
+  SpreadsheetApp.flush();
+  cnRange.setValues(rows.map(function(r) { return [String(r[8])]; }));
+
   SpreadsheetApp.flush();
   Logger.log('Setup complete: ' + rows.length + ' obligations seeded.');
 }
