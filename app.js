@@ -269,8 +269,8 @@ function renderSchedule() {
       <td class="fw7 ${payerClass(o.payer)}">${o.payer}</td>
       <td>${o.bank}</td>
       <td><span class="badge ${o.category}">${o.category}</span></td>
-      <td class="tr amt fw7">${amd(o.amount)}</td>
-      <td class="tc muted">${o.dueDay}</td>
+      <td class="tr amt fw7">${Number(o.amount) > 0 ? amd(o.amount) : '—'}</td>
+      <td class="tc muted">${Number(o.dueDay) > 0 ? o.dueDay : '—'}</td>
       <td class="tc">
         <button class="check-btn ${paid ? 'is-checked' : ''}"
                 onclick="togglePayment('${o.id}')"
@@ -294,7 +294,9 @@ function renderSchedule() {
 // Loans
 // ================================================================
 function renderLoans() {
-  const loans = activeObs().filter(o => o.category === 'loan' || Number(o.loanTotal) > 0);
+  const loans = activeObs().filter(o =>
+    o.category === 'loan' || Number(o.loanTotal) > 0 || Number(o.currentBalance) > 0
+  );
 
   const html = PAYERS.map(p => {
     const pLoans = loans.filter(o => o.payer === p);
@@ -309,27 +311,36 @@ function renderLoans() {
 }
 
 function loanCard(o) {
-  const bal    = Number(o.currentBalance) || 0;
-  const tot    = Number(o.loanTotal)      || 0;
-  const pctOff = tot ? Math.round((1 - bal / tot) * 100) : 0;
+  const balRaw     = o.currentBalance;
+  const balKnown   = balRaw !== '' && balRaw !== null && balRaw !== undefined && balRaw !== false;
+  const bal        = balKnown ? Number(balRaw) : null;
+  const tot        = Number(o.loanTotal) || 0;
+  const pctOff     = (tot && bal !== null) ? Math.round((1 - bal / tot) * 100) : 0;
+  const hasPayment = Number(o.amount) > 0;
 
   return `<div class="loan-card">
     <div class="loan-card-top">
       <div>
         <div class="loan-bank">${o.bank}</div>
         <div class="loan-meta">${o.payer}${o.contractNumber ? ' · #' + o.contractNumber : ''}</div>
+        ${o.startDate ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">Started ${fmtStartDate(o.startDate)}</div>` : ''}
       </div>
       <div style="text-align:right">
-        <div class="loan-monthly">${amd(o.amount)}</div>
-        <div class="loan-mo-label">/month</div>
+        ${hasPayment
+          ? `<div class="loan-monthly">${amd(o.amount)}</div><div class="loan-mo-label">/month</div>`
+          : `<div class="loan-mo-label" style="margin-top:6px;color:var(--muted)">credit / no payment</div>`}
       </div>
     </div>
     ${tot ? `
     <div class="balance-row">
       <label>Balance ֏</label>
-      <input class="balance-input" type="number" id="bal-${o.id}" value="${bal}" min="0">
+      <input class="balance-input" type="number" id="bal-${o.id}"
+             value="${bal !== null ? bal : ''}" min="0"
+             placeholder="${balKnown ? '' : 'not yet verified'}">
       <button class="btn-save" onclick="saveBalFromInput('${o.id}')">Save</button>
     </div>
+    ${!balKnown ? `<div style="font-size:10px;color:var(--warning);margin-bottom:6px">⚠ Balance not yet verified</div>` : ''}
+    ${balKnown ? `
     <div class="loan-progress">
       <div class="loan-progress-bar">
         <div class="loan-progress-fill" style="width:${pctOff}%"></div>
@@ -338,8 +349,14 @@ function loanCard(o) {
         <span>${pctOff}% paid off</span>
         <span>Total: ${amd(tot)}</span>
       </div>
-    </div>` : ''}
+    </div>` : ''}` : ''}
   </div>`;
+}
+
+function fmtStartDate(d) {
+  if (!d) return '';
+  const [y, m] = d.split('-');
+  return new Date(+y, +m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
 function saveBalFromInput(id) {
