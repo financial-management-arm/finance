@@ -4,7 +4,7 @@
 // then deploy as Web App: Execute as Me, Access: Anyone
 // ================================================================
 
-const SS_ID = 'YOUR_GOOGLE_SHEET_ID_HERE'; // ← paste your Sheet ID
+const SS_ID = '14tjp5lUfjZL9RTNMz8eCoxFOogbGSj-Op0C4WI7UNTY';
 
 function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || 'all';

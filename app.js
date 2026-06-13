@@ -72,10 +72,16 @@ const PAYER_COLORS = {
 async function callApi(params) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  const res = await fetch(url.toString());
-  const json = await res.json();
-  if (json.error) throw new Error(json.error);
-  return json;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    return json;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchAll() {
