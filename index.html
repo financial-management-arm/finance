@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>Finances · Harutyunyan</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading" class="loading-overlay">
+  <div class="spinner"></div> Loading finances…
+</div>
+<div id="error-toast" class="error-toast hidden"></div>
+
+<div class="app">
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">֏</div>
+      <div>
+        <div class="sidebar-title">Finance Manager</div>
+        <div class="sidebar-sub">Harutyunyan Family</div>
+      </div>
+    </div>
+    <ul class="sidebar-nav">
+      <li><a href="#" data-tab="dashboard" class="active"><span class="icon">◈</span> Dashboard</a></li>
+      <li><a href="#" data-tab="schedule"><span class="icon">☰</span> Schedule</a></li>
+      <li><a href="#" data-tab="loans"><span class="icon">⊟</span> Loans</a></li>
+      <li><a href="#" data-tab="income"><span class="icon">↑</span> Income</a></li>
+      <li><a href="#" data-tab="reports"><span class="icon">⊞</span> Reports</a></li>
+    </ul>
+  </nav>
+
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <main class="main">
+
+    <!-- ─── DASHBOARD ─── -->
+    <section id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <div class="month-nav">
+          <button class="btn-nav btn-prev">‹</button>
+          <span class="month-label"></span>
+          <button class="btn-nav btn-next">›</button>
+          <button class="btn-today">Today</button>
+        </div>
+      </div>
+      <div class="page-body">
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Obligations</div>
+            <div class="stat-value" id="stat-total">—</div>
+          </div>
+          <div class="stat-card s-paid">
+            <div class="stat-label">Paid</div>
+            <div class="stat-value" id="stat-paid">—</div>
+            <div class="stat-sub" id="stat-sub"></div>
+          </div>
+          <div class="stat-card s-unpaid">
+            <div class="stat-label">Remaining</div>
+            <div class="stat-value" id="stat-unpaid">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Income This Month</div>
+            <div class="stat-value" id="stat-income">—</div>
+          </div>
+        </div>
+
+        <div class="progress-card">
+          <div class="progress-header">
+            <span id="prog-label">0% complete</span>
+          </div>
+          <div class="progress-bar" style="height:10px">
+            <div class="progress-fill" id="prog-fill" style="width:0%"></div>
+          </div>
+          <div class="progress-footer">
+            <span id="prog-paid"></span>
+            <span id="prog-left"></span>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">By Payer</div>
+            <div id="payer-bars"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">By Category</div>
+            <canvas id="chart-cat"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ─── SCHEDULE ─── -->
+    <section id="page-schedule" class="page">
+      <div class="page-header">
+        <h1>Payment Schedule</h1>
+        <div class="month-nav">
+          <button class="btn-nav btn-prev">‹</button>
+          <span class="month-label"></span>
+          <button class="btn-nav btn-next">›</button>
+          <button class="btn-today">Today</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <button class="pill active" data-filter="all">All</button>
+        <button class="pill" data-filter="Hovhannes">Hovhannes</button>
+        <button class="pill" data-filter="Karine">Karine</button>
+        <button class="pill" data-filter="Grigor">Grigor</button>
+        <button class="pill" data-filter="Alvard">Alvard</button>
+        <button class="pill" data-filter="Plus 1">Plus 1</button>
+        <button class="pill" data-filter="Home">Home</button>
+        <button class="pill" data-filter="Business">Business</button>
+        <button class="pill" data-filter="GPS">GPS</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Payer</th>
+              <th>Bank / Payee</th>
+              <th>Category</th>
+              <th class="tr">Amount</th>
+              <th class="tc">Due</th>
+              <th class="tc" style="width:46px">Paid</th>
+            </tr>
+          </thead>
+          <tbody id="sched-tbody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" id="sched-grand" class="muted" style="font-size:11px;font-weight:400"></td>
+              <td class="tr" id="sched-total"></td>
+              <td></td>
+              <td class="tc muted" id="sched-count" style="font-size:11px"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─── LOANS ─── -->
+    <section id="page-loans" class="page">
+      <div class="page-header">
+        <h1>Loans &amp; Balances</h1>
+      </div>
+      <div class="page-body" id="loans-container"></div>
+    </section>
+
+    <!-- ─── INCOME ─── -->
+    <section id="page-income" class="page">
+      <div class="page-header">
+        <h1>Income</h1>
+        <div class="month-nav">
+          <button class="btn-nav btn-prev">‹</button>
+          <span class="month-label"></span>
+          <button class="btn-nav btn-next">›</button>
+          <button class="btn-today">Today</button>
+        </div>
+      </div>
+      <div class="page-body">
+        <div class="income-layout">
+
+          <div class="income-form">
+            <h3>Log Income</h3>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input type="date" class="form-input" id="f-date">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amount (֏)</label>
+              <input type="number" class="form-input" id="f-amount" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Source</label>
+              <select class="form-select" id="f-stream">
+                <option value="car_rental">Car Rental</option>
+                <option value="legal">Legal</option>
+                <option value="real_estate">Real Estate</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Note (optional)</label>
+              <input type="text" class="form-input" id="f-note" placeholder="e.g. BMW, June rent">
+            </div>
+            <button class="btn-add" id="btn-add-income">Add Income</button>
+          </div>
+
+          <div class="income-list">
+            <div class="income-list-header">
+              <h3>Income Log</h3>
+              <span class="muted" style="font-size:12px">
+                This month: <strong id="income-month-total">—</strong>
+              </span>
+            </div>
+            <table style="width:100%">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Source</th>
+                  <th class="tr">Amount</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody id="income-tbody"></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── REPORTS ─── -->
+    <section id="page-reports" class="page">
+      <div class="page-header">
+        <h1>Reports</h1>
+      </div>
+      <div class="page-body">
+        <div class="reports-grid">
+          <div class="chart-card">
+            <div class="chart-title">Obligations by Category</div>
+            <canvas id="chart-cat2"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Paid vs Total — last 6 months</div>
+            <canvas id="chart-monthly"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
