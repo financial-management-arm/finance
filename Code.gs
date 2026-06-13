@@ -110,11 +110,7 @@ function setup() {
     s.setFrozenRows(1);
   });
 
-  // Force contractNumber column (I) to plain text so large numbers aren't converted to scientific notation
   var ob = ss.getSheetByName('Obligations');
-  ob.getRange('I:I').setNumberFormat('@');
-
-  SpreadsheetApp.flush();
 
   // --- Seed obligations ---
   // Columns: id, payer, bank, category, amount, dueDay, currentBalance, loanTotal, contractNumber, active, startDate
@@ -208,6 +204,8 @@ function setup() {
   ];
 
   ob.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+  // Apply text format to contractNumber column AFTER writing to prevent scientific notation
+  ob.getRange(2, 9, rows.length, 1).setNumberFormat('@');
   SpreadsheetApp.flush();
   Logger.log('Setup complete: ' + rows.length + ' obligations seeded.');
 }
