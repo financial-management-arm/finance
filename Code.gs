@@ -213,6 +213,14 @@ function setup() {
   ];
 
   ob.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+
+  // Use setRichTextValues on contractNumber column — rich text is ALWAYS stored
+  // as plain text, so no number (pure digits or alphanumeric) gets auto-converted
+  var richContracts = rows.map(function(r) {
+    return [SpreadsheetApp.newRichTextValue().setText(String(r[8])).build()];
+  });
+  ob.getRange(2, 9, rows.length, 1).setRichTextValues(richContracts);
+
   SpreadsheetApp.flush();
   Logger.log('Setup complete: ' + rows.length + ' obligations seeded.');
 }
