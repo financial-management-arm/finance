@@ -105,10 +105,14 @@ function setup() {
   sheetDefs.forEach(function(def) {
     var s = ss.getSheetByName(def.name);
     if (!s) s = ss.insertSheet(def.name);
-    s.clearContents();
+    s.clear();
     s.appendRow(def.headers);
     s.setFrozenRows(1);
   });
+
+  // Force contractNumber column (I) to plain text so large numbers aren't converted to scientific notation
+  var ob = ss.getSheetByName('Obligations');
+  ob.getRange('I:I').setNumberFormat('@');
 
   SpreadsheetApp.flush();
 
@@ -116,8 +120,6 @@ function setup() {
   // Columns: id, payer, bank, category, amount, dueDay, currentBalance, loanTotal, contractNumber, active, startDate
   // currentBalance = '' means "not yet verified / still to check"
   // startDate = 'YYYY-MM' (loan creation month) or '' if unknown
-
-  var ob = ss.getSheetByName('Obligations');
 
   var rows = [
     ['ob-001','Hovhannes','Unibank','loan',20000,1,570000,600000,'241400148490L004',true,'2026-03'],
