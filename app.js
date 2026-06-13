@@ -331,16 +331,16 @@ function loanCard(o) {
           : `<div class="loan-mo-label" style="margin-top:6px;color:var(--muted)">credit / no payment</div>`}
       </div>
     </div>
-    ${tot ? `
+    ${(tot || balKnown) ? `
     <div class="balance-row">
-      <label>Balance ֏</label>
+      <label>${tot ? 'Balance ֏' : 'Amount owed ֏'}</label>
       <input class="balance-input" type="number" id="bal-${o.id}"
              value="${bal !== null ? bal : ''}" min="0"
              placeholder="${balKnown ? '' : 'not yet verified'}">
       <button class="btn-save" onclick="saveBalFromInput('${o.id}')">Save</button>
     </div>
     ${!balKnown ? `<div style="font-size:10px;color:var(--warning);margin-bottom:6px">⚠ Balance not yet verified</div>` : ''}
-    ${balKnown ? `
+    ${balKnown && tot ? `
     <div class="loan-progress">
       <div class="loan-progress-bar">
         <div class="loan-progress-fill" style="width:${pctOff}%"></div>
