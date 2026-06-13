@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0f172a">
-  <title>Finances · Harutyunyan</title>
+  <title>Finance Manager · Harutyunyan</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -26,10 +26,10 @@
   <!-- ═══════════════ SIDEBAR ═══════════════ -->
   <nav class="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-logo">֏</div>
+      <div class="sidebar-logo">F</div>
       <div>
         <div class="sidebar-title">Finance Manager</div>
-        <div class="sidebar-sub">Harutyunyan Family</div>
+        <div class="sidebar-sub">Family command center</div>
       </div>
     </div>
     <ul class="sidebar-nav">
@@ -75,6 +75,16 @@
             <div class="stat-label">Income This Month</div>
             <div class="stat-value" id="stat-income">—</div>
           </div>
+          <div class="stat-card" id="stat-net-card">
+            <div class="stat-label">Net Cash Flow</div>
+            <div class="stat-value" id="stat-net">—</div>
+            <div class="stat-sub">Income minus obligations</div>
+          </div>
+          <div class="stat-card s-warning">
+            <div class="stat-label">Needs Attention</div>
+            <div class="stat-value" id="stat-attention">—</div>
+            <div class="stat-sub" id="stat-attention-sub"></div>
+          </div>
         </div>
 
         <div class="progress-card">
@@ -115,16 +125,19 @@
           <button class="btn-today">Today</button>
         </div>
       </div>
-      <div class="filter-bar">
-        <button class="pill active" data-filter="all">All</button>
-        <button class="pill" data-filter="Hovhannes">Hovhannes</button>
-        <button class="pill" data-filter="Karine">Karine</button>
-        <button class="pill" data-filter="Grigor">Grigor</button>
-        <button class="pill" data-filter="Alvard">Alvard</button>
-        <button class="pill" data-filter="Plus 1">Plus 1</button>
-        <button class="pill" data-filter="Home">Home</button>
-        <button class="pill" data-filter="Business">Business</button>
-        <button class="pill" data-filter="GPS">GPS</button>
+      <div class="schedule-tools">
+        <div class="filter-bar" id="payer-filters">
+          <button class="pill active" data-filter="all">All payers</button>
+        </div>
+        <div class="schedule-actions">
+          <select class="compact-select" id="status-filter" aria-label="Payment status">
+            <option value="all">All statuses</option>
+            <option value="unpaid">Unpaid only</option>
+            <option value="paid">Paid only</option>
+          </select>
+          <input class="search-input" id="schedule-search" type="search"
+                 placeholder="Search bank, payer, category..." aria-label="Search payments">
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -246,7 +259,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<script src="config.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=2"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

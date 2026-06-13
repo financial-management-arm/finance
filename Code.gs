@@ -22,27 +22,37 @@ function doGet(e) {
     } else if (action === 'setPayment') {
       var key  = e.parameter.key;
       var paid = e.parameter.paid === 'true';
+      if (!key || key.length > 100) throw new Error('Invalid payment key');
       upsertRow(ss, 'Payments', 'key', key, { key: key, paid: paid });
       result = { success: true };
 
     } else if (action === 'addIncome') {
+      var amount = Number(e.parameter.amount);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(e.parameter.date || '')) throw new Error('Invalid income date');
+      if (!isFinite(amount) || amount <= 0) throw new Error('Income amount must be positive');
       var id    = 'inc-' + Date.now();
       var sheet = ss.getSheetByName('Income');
-      sheet.appendRow([id, e.parameter.date, Number(e.parameter.amount), e.parameter.stream, e.parameter.note || '']);
+      var note = String(e.parameter.note || '').slice(0, 250);
+      sheet.appendRow([id, e.parameter.date, amount, e.parameter.stream, note]);
       result = { success: true, id: id };
 
     } else if (action === 'updateBalance') {
+      var balance = Number(e.parameter.balance);
+      if (!isFinite(balance) || balance < 0) throw new Error('Invalid balance');
       var obs  = ss.getSheetByName('Obligations');
       var data = obs.getDataRange().getValues();
       var hdrs = data[0].map(function(h) { return String(h).trim(); });
       var idCol  = hdrs.indexOf('id');
       var balCol = hdrs.indexOf('currentBalance');
+      var updated = false;
       for (var r = 1; r < data.length; r++) {
         if (String(data[r][idCol]) === String(e.parameter.id)) {
-          obs.getRange(r + 1, balCol + 1).setValue(Number(e.parameter.balance));
+          obs.getRange(r + 1, balCol + 1).setValue(balance);
+          updated = true;
           break;
         }
       }
+      if (!updated) throw new Error('Obligation not found');
       result = { success: true };
 
     } else {
@@ -92,8 +102,16 @@ function upsertRow(ss, sheetName, keyField, keyValue, newRow) {
 // ----------------------------------------------------------------
 // Run ONCE: creates sheets and seeds all 82 obligations
 // ----------------------------------------------------------------
-function setup() {
+function setup(forceReset) {
   var ss = SpreadsheetApp.openById(SS_ID);
+  var existing = ['Obligations', 'Payments', 'Income'].some(function(name) {
+    var sheet = ss.getSheetByName(name);
+    return sheet && sheet.getLastRow() > 1;
+  });
+
+  if (existing && forceReset !== true) {
+    throw new Error('Setup stopped: finance data already exists. Call setup(true) only for an intentional full reset.');
+  }
 
   // --- Create / reset sheets ---
   var sheetDefs = [
@@ -213,6 +231,14 @@ function setup() {
   ];
 
   ob.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+
+  // Use setRichTextValues on contractNumber column — rich text is ALWAYS stored
+  // as plain text, so no number (pure digits or alphanumeric) gets auto-converted
+  var richContracts = rows.map(function(r) {
+    return [SpreadsheetApp.newRichTextValue().setText(String(r[8])).build()];
+  });
+  ob.getRange(2, 9, rows.length, 1).setRichTextValues(richContracts);
+
   SpreadsheetApp.flush();
   Logger.log('Setup complete: ' + rows.length + ' obligations seeded.');
 }

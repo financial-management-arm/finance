@@ -3,8 +3,6 @@
 // ================================================================
 // State
 // ================================================================
-const PAYERS = ['Hovhannes','Karine','Grigor','Alvard','Plus 1','Home','Business','GPS'];
-
 const state = {
   obligations: [],
   payments: {},   // "id__YYYY-MM" -> true/false
@@ -12,6 +10,8 @@ const state = {
   month: todayMonth(),
   tab: 'dashboard',
   filter: 'all',
+  statusFilter: 'all',
+  search: '',
 };
 
 let charts = {};
@@ -36,7 +36,7 @@ function shiftMonth(m, delta) {
 }
 
 function amd(n) {
-  return Number(n).toLocaleString('ru-RU') + '֏'; // ֏
+  return Number(n || 0).toLocaleString('hy-AM') + ' ֏';
 }
 
 function pkey(id, month) { return `${id}__${month}`; }
@@ -48,8 +48,18 @@ function activeObs() {
 }
 
 function filteredObs() {
-  const all = activeObs();
-  return state.filter === 'all' ? all : all.filter(o => o.payer === state.filter);
+  let rows = activeObs();
+  if (state.filter !== 'all') rows = rows.filter(o => o.payer === state.filter);
+  if (state.statusFilter === 'paid') rows = rows.filter(o => isPaid(o.id));
+  if (state.statusFilter === 'unpaid') rows = rows.filter(o => !isPaid(o.id));
+  if (state.search) {
+    const needle = state.search.toLocaleLowerCase();
+    rows = rows.filter(o =>
+      [o.payer, o.bank, o.category, o.contractNumber]
+        .some(value => String(value || '').toLocaleLowerCase().includes(needle))
+    );
+  }
+  return rows;
 }
 
 function totalAmt(obs) {
@@ -57,14 +67,29 @@ function totalAmt(obs) {
 }
 
 function payerClass(p) {
-  return p ? 'p-' + String(p).replace(/\s+/g, '') : '';
+  return p ? 'payer-accent' : '';
 }
 
-const PAYER_COLORS = {
-  'Hovhannes': '#2563eb', 'Karine': '#db2777', 'Grigor': '#16a34a',
-  'Alvard': '#d97706',   'Plus 1': '#7c3aed', 'Home': '#0891b2',
-  'Business': '#9a3412', 'GPS': '#475569',
-};
+const PALETTE = ['#2563eb','#db2777','#16a34a','#d97706','#7c3aed','#0891b2','#9a3412','#475569'];
+
+function payers() {
+  return [...new Set(activeObs().map(o => String(o.payer || '').trim()).filter(Boolean))];
+}
+
+function payerColor(payer) {
+  const index = payers().indexOf(payer);
+  return PALETTE[(index < 0 ? 0 : index) % PALETTE.length];
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+
+function currentMonthDay() {
+  return state.month === todayMonth() ? new Date().getDate() : 0;
+}
 
 // ================================================================
 // API
@@ -94,6 +119,7 @@ async function fetchAll() {
       state.payments[p.key] = (p.paid === true || String(p.paid).toUpperCase() === 'TRUE');
     });
     state.income = data.income || [];
+    renderPayerFilters();
     render();
   } catch (err) {
     showError('Could not load data: ' + err.message);
@@ -192,6 +218,10 @@ function renderDashboard() {
   const totalA   = totalAmt(all);
   const unpaidA  = totalA - paidAmt;
   const pct      = totalA ? Math.round(paidAmt / totalA * 100) : 0;
+  const today = currentMonthDay();
+  const unpaid = all.filter(o => !isPaid(o.id));
+  const overdue = today ? unpaid.filter(o => Number(o.dueDay) > 0 && Number(o.dueDay) < today) : [];
+  const dueSoon = today ? unpaid.filter(o => Number(o.dueDay) >= today && Number(o.dueDay) <= today + 7) : [];
 
   const monthIncome = state.income
     .filter(i => String(i.date).startsWith(state.month))
@@ -201,6 +231,14 @@ function renderDashboard() {
   q('stat-paid').textContent   = amd(paidAmt);
   q('stat-unpaid').textContent = amd(unpaidA);
   q('stat-income').textContent = monthIncome ? amd(monthIncome) : '—';
+  const net = monthIncome - totalA;
+  q('stat-net').textContent = amd(net);
+  q('stat-net-card').classList.toggle('net-positive', net >= 0);
+  q('stat-net-card').classList.toggle('net-negative', net < 0);
+  q('stat-attention').textContent = today ? String(overdue.length + dueSoon.length) : '—';
+  q('stat-attention-sub').textContent = today
+    ? `${overdue.length} overdue · ${dueSoon.length} due in 7 days`
+    : 'Open the current month for due dates';
   q('stat-sub').textContent    = `${paid.length} of ${all.length} paid`;
   q('prog-fill').style.width   = pct + '%';
   q('prog-label').textContent  = `${pct}% complete`;
@@ -213,7 +251,7 @@ function renderDashboard() {
 
 function renderPayerBars() {
   const all = activeObs();
-  const html = PAYERS.map(p => {
+  const html = payers().map(p => {
     const obs  = all.filter(o => o.payer === p);
     if (!obs.length) return '';
     const tot  = totalAmt(obs);
@@ -221,11 +259,11 @@ function renderPayerBars() {
     const pct  = tot ? Math.round(paid / tot * 100) : 0;
     return `<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-        <span class="fw7 ${payerClass(p)}">${p}</span>
+        <span class="fw7" style="color:${payerColor(p)}">${escapeHtml(p)}</span>
         <span class="muted" style="font-size:11px">${amd(paid)} / ${amd(tot)}</span>
       </div>
       <div class="progress-bar">
-        <div class="progress-fill" style="width:${pct}%;background:${PAYER_COLORS[p]}"></div>
+        <div class="progress-fill" style="width:${pct}%;background:${payerColor(p)}"></div>
       </div>
     </div>`;
   }).join('');
@@ -263,23 +301,23 @@ function renderSchedule() {
   const obs = filteredObs().sort((a, b) => Number(a.dueDay) - Number(b.dueDay));
   const tbody = q('sched-tbody');
 
-  tbody.innerHTML = obs.map(o => {
+  tbody.innerHTML = obs.length ? obs.map(o => {
     const paid = isPaid(o.id);
     return `<tr class="${paid ? 'is-paid' : ''}">
-      <td class="fw7 ${payerClass(o.payer)}">${o.payer}</td>
-      <td>${o.bank}</td>
-      <td><span class="badge ${o.category}">${o.category}</span></td>
+      <td class="fw7" style="color:${payerColor(o.payer)}">${escapeHtml(o.payer)}</td>
+      <td>${escapeHtml(o.bank)}</td>
+      <td><span class="badge ${escapeHtml(o.category)}">${escapeHtml(o.category)}</span></td>
       <td class="tr amt fw7">${Number(o.amount) > 0 ? amd(o.amount) : '—'}</td>
       <td class="tc muted">${Number(o.dueDay) > 0 ? o.dueDay : '—'}</td>
       <td class="tc">
         <button class="check-btn ${paid ? 'is-checked' : ''}"
-                onclick="togglePayment('${o.id}')"
+                onclick="togglePayment('${escapeHtml(o.id)}')"
                 title="${paid ? 'Mark unpaid' : 'Mark paid'}">
           ${paid ? '✓' : ''}
         </button>
       </td>
     </tr>`;
-  }).join('');
+  }).join('') : '<tr><td colspan="6" class="empty-state">No payments match these filters.</td></tr>';
 
   const all     = activeObs();
   const allPaid = all.filter(o => isPaid(o.id));
@@ -298,11 +336,11 @@ function renderLoans() {
     o.category === 'loan' || Number(o.loanTotal) > 0 || Number(o.currentBalance) > 0
   );
 
-  const html = PAYERS.map(p => {
+  const html = payers().map(p => {
     const pLoans = loans.filter(o => o.payer === p);
     if (!pLoans.length) return '';
     return `<div class="loans-section">
-      <div class="loans-section-title ${payerClass(p)}">${p}</div>
+      <div class="loans-section-title" style="color:${payerColor(p)}">${escapeHtml(p)}</div>
       <div class="loans-grid">${pLoans.map(loanCard).join('')}</div>
     </div>`;
   }).join('');
@@ -321,8 +359,8 @@ function loanCard(o) {
   return `<div class="loan-card">
     <div class="loan-card-top">
       <div>
-        <div class="loan-bank">${o.bank}</div>
-        <div class="loan-meta">${o.payer}${o.contractNumber ? ' · #' + o.contractNumber : ''}</div>
+        <div class="loan-bank">${escapeHtml(o.bank)}</div>
+        <div class="loan-meta">${escapeHtml(o.payer)}${o.contractNumber ? ' · #' + escapeHtml(o.contractNumber) : ''}</div>
         ${o.startDate ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">Started ${fmtStartDate(o.startDate)}</div>` : ''}
       </div>
       <div style="text-align:right">
@@ -355,8 +393,9 @@ function loanCard(o) {
 
 function fmtStartDate(d) {
   if (!d) return '';
-  const [y, m] = d.split('-');
-  return new Date(+y, +m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return String(d);
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
 function saveBalFromInput(id) {
@@ -377,10 +416,10 @@ function renderIncome() {
 
   const sorted = [...state.income].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   q('income-tbody').innerHTML = sorted.map(i => `<tr>
-    <td>${i.date}</td>
-    <td>${streamLabel[i.stream] || i.stream}</td>
+    <td>${escapeHtml(String(i.date).slice(0, 10))}</td>
+    <td>${escapeHtml(streamLabel[i.stream] || i.stream)}</td>
     <td class="tr fw7">${amd(i.amount)}</td>
-    <td class="muted">${i.note || ''}</td>
+    <td class="muted">${escapeHtml(i.note || '')}</td>
   </tr>`).join('');
 }
 
@@ -484,12 +523,22 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Filter pills
-  document.querySelectorAll('.pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      state.filter = pill.dataset.filter;
-      document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p === pill));
-      renderSchedule();
-    });
+  q('payer-filters').addEventListener('click', event => {
+    const pill = event.target.closest('.pill');
+    if (!pill) return;
+    state.filter = pill.dataset.filter;
+    q('payer-filters').querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p === pill));
+    renderSchedule();
+  });
+
+  q('status-filter').addEventListener('change', event => {
+    state.statusFilter = event.target.value;
+    renderSchedule();
+  });
+
+  q('schedule-search').addEventListener('input', event => {
+    state.search = event.target.value.trim();
+    renderSchedule();
   });
 
   // Income submit
@@ -509,3 +558,13 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAll();
   }
 });
+
+function renderPayerFilters() {
+  const container = q('payer-filters');
+  container.innerHTML = [
+    '<button class="pill active" data-filter="all">All payers</button>',
+    ...payers().map(p =>
+      `<button class="pill" data-filter="${escapeHtml(p)}">${escapeHtml(p)}</button>`
+    )
+  ].join('');
+}

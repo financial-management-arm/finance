@@ -1,5 +1,13 @@
-const CACHE = 'finances-arm-v1';
-const ASSETS = ['./', './index.html', './style.css', './app.js', './config.js', './manifest.json', './icon.svg'];
+const CACHE = 'finances-arm-v2';
+const ASSETS = [
+  './',
+  './index.html',
+  './style.css?v=2',
+  './app.js?v=2',
+  './config.js?v=2',
+  './manifest.json',
+  './icon.svg'
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
