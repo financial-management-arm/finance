@@ -787,13 +787,32 @@ function jumpToPayment(id) {
 // ================================================================
 function renderLoans() {
   const loans = sortLoans(activeLoans());
+  const nonLoans = activeObs().filter(o => !isLoanRecord(o));
   const totalDebt = loans.reduce((sum, loan) => sum + Number(loanBalance(loan) || 0), 0);
-  q('loans-container').innerHTML = `
-    <div class="loan-list-summary">
-      <span>${loans.length} active loans</span>
+
+  const loansSection = loans.length ? `
+    <div class="obligations-section-header">
+      <span>Loans &amp; Balances</span>
       <strong>${amd(totalDebt)} total debt</strong>
     </div>
     <div class="loans-grid">${loans.map(loanCard).join('')}</div>
+  ` : '';
+
+  const nonLoansSection = nonLoans.length ? `
+    <div class="obligations-section-header">
+      <span>Other Obligations</span>
+      <span>${nonLoans.length} item${nonLoans.length !== 1 ? 's' : ''}</span>
+    </div>
+    <div class="loans-grid">${nonLoans.map(nonLoanCard).join('')}</div>
+  ` : '';
+
+  q('loans-container').innerHTML = `
+    <div class="loan-list-summary">
+      <span>${loans.length} loan${loans.length !== 1 ? 's' : ''} · ${nonLoans.length} other obligation${nonLoans.length !== 1 ? 's' : ''}</span>
+      <strong>${amd(totalDebt)} total debt</strong>
+    </div>
+    ${loansSection}
+    ${nonLoansSection}
   `;
 }
 
@@ -898,6 +917,42 @@ function copyChip(part) {
           title="Copy ${escapeHtml(part)}">${escapeHtml(part)} <span>Copy</span></button>`;
 }
 
+function nonLoanCard(o) {
+  const bankColor = bankColorFor(o.bank);
+  const cat = String(o.category || 'other');
+  const catDisplay = cat.charAt(0).toUpperCase() + cat.slice(1);
+  return `<article class="obligation-card" style="--bank-color:${bankColor}">
+    <div class="loan-card-top">
+      <div class="loan-identity">
+        <div class="bank-avatar">${escapeHtml(String(o.bank || '?').trim().charAt(0).toUpperCase())}</div>
+        <div>
+          <div class="loan-bank">${escapeHtml(o.bank)}</div>
+          <div class="loan-meta">${escapeHtml(o.payer)} · ${escapeHtml(catDisplay)}</div>
+        </div>
+      </div>
+      <div class="loan-card-actions">
+        <button class="button button-ghost loan-edit-toggle" type="button"
+                onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
+      </div>
+    </div>
+    <div class="obligation-details">
+      <span class="ob-amount">${Number(o.amount) > 0 ? amd(Number(o.amount)) : '—'}</span>
+      ${Number(o.dueDay) > 0 ? `<span class="ob-due">due day ${Number(o.dueDay)}</span>` : ''}
+    </div>
+    <form class="inline-loan-edit hidden" id="inline-edit-${escapeHtml(o.id)}"
+          onsubmit="submitInlineObligationEdit(event, '${escapeHtml(o.id)}')">
+      <label>Bank / Payee<input name="bank" value="${escapeHtml(o.bank)}" required></label>
+      <label>Monthly payment<input name="amount" type="number" min="0" value="${Number(o.amount) || 0}" required></label>
+      <label>Due day<input name="dueDay" type="number" min="0" max="31" value="${Number(o.dueDay) || 0}" required></label>
+      <div class="inline-edit-actions">
+        <button class="button button-ghost" type="button"
+                onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Cancel</button>
+        <button class="button button-primary" type="submit">Save changes</button>
+      </div>
+    </form>
+  </article>`;
+}
+
 function bankColorFor(name) {
   const text = String(name || '');
   let hash = 0;
@@ -925,6 +980,21 @@ function submitInlineLoanEdit(event, id) {
     loanTotal: optionalNumber('loanTotal'),
     startDate: value('startDate'),
     contractNumber: value('contractNumber').trim()
+  }, form.querySelector('[type="submit"]'));
+}
+
+function submitInlineObligationEdit(event, id) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const value = name => form.elements[name].value;
+  updateLoan(id, {
+    bank: value('bank').trim(),
+    amount: Number(value('amount')),
+    dueDay: Number(value('dueDay')),
+    currentBalance: '',
+    loanTotal: '',
+    startDate: '',
+    contractNumber: ''
   }, form.querySelector('[type="submit"]'));
 }
 

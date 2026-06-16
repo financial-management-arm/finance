@@ -1480,6 +1480,40 @@ tbody tr:hover td { background: transparent; }
   gap: var(--space-2);
 }
 
+.obligations-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 0;
+  margin: var(--space-5) 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-10);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-muted);
+}
+.obligation-card {
+  border-left: 3px solid var(--bank-color, var(--color-primary));
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-1);
+  box-shadow: var(--shadow-flat);
+  transition: transform var(--motion-standard) var(--ease-enter);
+}
+.obligation-card:hover { transform: translateY(-2px); }
+.obligation-card .loan-card-top { margin-bottom: 0; }
+.obligation-details {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.ob-amount { font-size: var(--text-18); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ob-due { color: var(--color-text-muted); font-size: var(--text-12); }
+
 @media (max-width: 480px) {
   .loans-grid { grid-template-columns: 1fr; }
   .loan-card { padding: var(--space-4); }
