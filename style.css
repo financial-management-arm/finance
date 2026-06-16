@@ -954,6 +954,204 @@ tbody tr:hover td { background: transparent; }
   font-size: var(--text-10);
   white-space: nowrap;
 }
+.payments-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-1);
+  font-size: var(--text-12);
+}
+.payments-summary strong {
+  color: var(--color-text);
+  font-size: var(--text-18);
+  font-variant-numeric: tabular-nums;
+}
+.payments-board {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+  align-content: start;
+  gap: var(--space-4);
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-6);
+}
+.payment-loan-card,
+.payment-basic-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-1);
+  box-shadow: var(--shadow-flat);
+  transition: transform var(--motion-standard) var(--ease-enter), border-color var(--motion-standard), opacity var(--motion-standard);
+}
+.payment-loan-card:hover,
+.payment-basic-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border-strong);
+}
+.payment-loan-card {
+  padding: var(--space-5);
+}
+.payment-loan-card.is-paid,
+.payment-basic-card.is-paid {
+  opacity: .62;
+}
+.payment-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: var(--space-4);
+}
+.payment-card-title h2,
+.payment-basic-card h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-20);
+  line-height: var(--leading-tight);
+  letter-spacing: -.02em;
+}
+.payment-card-title div {
+  margin-top: var(--space-2);
+  color: var(--payer-color);
+  font-size: var(--text-12);
+}
+.payment-card-amount {
+  text-align: right;
+  color: var(--color-text-muted);
+}
+.payment-card-amount strong {
+  display: block;
+  color: var(--color-primary);
+  font-size: var(--text-24);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.payment-card-amount span {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-12);
+}
+.payment-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.payment-contract-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-2);
+}
+.payment-contract-row .contract-label {
+  margin-right: var(--space-2);
+  color: var(--color-text-muted);
+}
+.payment-balance-row {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.payment-balance-row label {
+  color: var(--color-text-muted);
+  font-size: var(--text-12);
+}
+.payment-balance-input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-1);
+  color: var(--color-text);
+  box-shadow: var(--shadow-inset);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.payment-balance-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+.payment-save-balance,
+.payment-done {
+  min-height: 44px;
+}
+.payment-progress {
+  margin-top: var(--space-3);
+}
+.payment-progress-bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+}
+.payment-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-success));
+  transition: width var(--motion-enter) var(--ease-enter);
+}
+.payment-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-12);
+}
+.payment-card-time {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--color-success);
+  font-size: var(--text-10);
+  font-weight: 700;
+}
+.payment-basic-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-left: 3px solid transparent;
+}
+.payment-basic-card.is-overdue { border-left-color: var(--color-danger); }
+.payment-basic-card.is-due-soon { border-left-color: var(--color-warning); }
+.payment-basic-payer {
+  margin-bottom: var(--space-1);
+  font-size: var(--text-11);
+  font-weight: 700;
+}
+.payment-basic-meta {
+  display: grid;
+  gap: var(--space-1);
+  text-align: right;
+}
+.payment-basic-meta strong {
+  color: var(--color-primary);
+  font-size: var(--text-18);
+  font-variant-numeric: tabular-nums;
+}
+.payment-basic-meta span {
+  color: var(--color-text-muted);
+  font-size: var(--text-11);
+}
+.payment-empty {
+  grid-column: 1 / -1;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-1);
+  color: var(--color-text-muted);
+}
 .row-reveal { animation: rowReveal var(--motion-enter) var(--ease-enter) both; }
 @keyframes rowReveal {
   from { opacity: 0; transform: translateY(8px); }
@@ -1006,6 +1204,19 @@ tbody tr:hover td { background: transparent; }
   .schedule-actions { gap: var(--space-2); flex-wrap: wrap; }
   .schedule-actions .search-input { flex: 1 1 100%; width: 100%; }
   .schedule-actions .sort-select { flex: 1 1 152px; }
+  .payments-summary { padding: var(--space-3) var(--space-4); flex-wrap: wrap; }
+  .payments-board { grid-template-columns: 1fr; padding: var(--space-4); }
+  .payment-card-head,
+  .payment-basic-card {
+    grid-template-columns: 1fr;
+  }
+  .payment-card-amount,
+  .payment-basic-meta {
+    text-align: left;
+  }
+  .payment-card-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1021,6 +1232,16 @@ tbody tr:hover td { background: transparent; }
   #page-schedule th:nth-child(4), #page-schedule td:nth-child(4) { width: 16%; }
   #page-schedule th:nth-child(5), #page-schedule td:nth-child(5) { width: 6%; }
   #page-schedule .check-btn { width: 100%; height: 48px; min-width: 48px; }
+  .payment-loan-card { padding: var(--space-4); }
+  .payment-balance-row { grid-template-columns: 1fr; }
+  .payment-save-balance,
+  .payment-done {
+    width: 100%;
+  }
+  .payment-progress-labels {
+    flex-direction: column;
+    gap: var(--space-1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

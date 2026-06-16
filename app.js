@@ -10,7 +10,7 @@ const state = {
   income: [],
   loanHistory: [],
   month: todayMonth(),
-  tab: 'dashboard',
+  tab: 'schedule',
   filter: 'all',
   statusFilter: 'unpaid',
   search: '',
@@ -199,7 +199,8 @@ async function saveBalance(id, balance) {
       ob.currentBalance = balance;
       ob.balanceUpdatedMonth = state.month;
     }
-    renderLoans();
+    renderCurrentTab();
+    showToast('Balance saved.');
   } catch (err) {
     alert('Save failed: ' + err.message);
   }
@@ -216,7 +217,7 @@ async function updateLoan(id, changes, sourceButton = null) {
       balanceUpdatedMonth: result.balanceUpdatedMonth || loan.balanceUpdatedMonth
     });
     await refreshData(false);
-    renderLoans();
+    renderCurrentTab();
     showToast('Loan updated.');
   } catch (err) {
     showError('Could not update loan: ' + err.message);
@@ -238,8 +239,7 @@ async function completeLoan(id, button) {
       loan.currentBalance = 0;
       loan.completedAt = new Date().toISOString();
     }
-    renderLoans();
-    renderDashboard();
+    renderCurrentTab();
     showToast('Loan completed. It will not transfer to next month.');
   } catch (err) {
     showError('Could not complete loan: ' + err.message);
@@ -465,6 +465,23 @@ function renderDashCategoryChart() {
 // ================================================================
 function renderSchedule() {
   const obs = sortPayments(filteredObs());
+  const board = q('payments-board');
+  if (board) {
+    board.innerHTML = obs.length ? obs.map(paymentCard).join('') : `
+      <div class="empty-state payment-empty">
+        ${state.statusFilter === 'unpaid' && !state.search
+          ? `All payments done for ${monthLabel(state.month)}`
+          : 'No payments match these filters.'}
+      </div>`;
+
+    const all = activeObs();
+    const allPaid = all.filter(o => isPaid(o.id));
+    const visPaid = obs.filter(o => isPaid(o.id));
+    q('sched-total').textContent = amd(totalAmt(obs));
+    q('sched-count').textContent = `${visPaid.length}/${obs.length}`;
+    q('sched-grand').textContent = `Total: ${amd(totalAmt(all))} · ${allPaid.length}/${all.length} paid`;
+    return;
+  }
   const tbody = q('sched-tbody');
 
   const today = currentMonthDay();
@@ -507,6 +524,98 @@ function renderSchedule() {
   q('sched-total').textContent  = amd(totalAmt(obs));
   q('sched-count').textContent  = `${visPaid.length}/${obs.length}`;
   q('sched-grand').textContent  = `Total: ${amd(totalAmt(all))} — ${allPaid.length}/${all.length} paid`;
+}
+
+function paymentCard(o, index) {
+  return isLoanRecord(o) ? loanPaymentCard(o, index) : standardPaymentCard(o, index);
+}
+
+function loanPaymentCard(o, index) {
+  const paid = isPaid(o.id);
+  const balRaw = loanBalance(o);
+  const balKnown = balRaw !== '' && balRaw !== null && balRaw !== undefined && balRaw !== false;
+  const bal = balKnown ? Number(balRaw) : null;
+  const total = Number(o.loanTotal) || 0;
+  const pctOff = total && bal !== null ? Math.round((1 - bal / total) * 100) : 0;
+  const pct = Math.max(0, Math.min(100, pctOff));
+  const contracts = contractParts(o.contractNumber);
+  const completedAt = state.paymentMeta[pkey(o.id, state.month)]?.completedAt;
+  const sourceMonth = balanceSourceMonth(o);
+  const staleBalance = balKnown && sourceMonth !== state.month;
+  const revealDelay = Math.min((index || 0) * 30, 200);
+
+  return `<article class="payment-loan-card row-reveal ${paid ? 'is-paid' : ''} ${staleBalance ? 'is-stale' : ''}"
+                  data-payment-id="${escapeHtml(o.id)}"
+                  style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
+    <div class="payment-card-head">
+      <div class="payment-card-title">
+        <h2>${escapeHtml(o.bank || 'Loan')}</h2>
+        <div>${escapeHtml(o.payer || '')}</div>
+      </div>
+      <div class="payment-card-amount">
+        <strong>${Number(o.amount) > 0 ? amd(o.amount) : '—'}</strong>
+        <span>/month${Number(o.dueDay) > 0 ? ` · due ${Number(o.dueDay)}` : ''}</span>
+      </div>
+      <div class="payment-card-actions">
+        <button class="button button-ghost loan-edit-toggle" type="button"
+                onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
+        <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
+                type="button" onclick="togglePayment('${escapeHtml(o.id)}')">${paid ? 'Paid' : 'Done'}</button>
+      </div>
+    </div>
+    ${contracts.length ? `
+      <div class="payment-contract-row">
+        <span class="contract-label">Contract</span>
+        ${contracts.map(part => copyChip(part)).join('')}
+      </div>` : ''}
+    <div class="payment-balance-row">
+      <label for="pay-bal-${escapeHtml(o.id)}">Balance ֏</label>
+      <input class="payment-balance-input" id="pay-bal-${escapeHtml(o.id)}"
+             type="number" min="0" value="${balKnown ? bal : ''}"
+             placeholder="Enter current balance">
+      <button class="button button-primary payment-save-balance" type="button"
+              onclick="savePaymentBalanceFromInput('${escapeHtml(o.id)}')">Save</button>
+    </div>
+    <div class="payment-progress">
+      <div class="payment-progress-bar">
+        <div class="payment-progress-fill" style="width:${pct}%"></div>
+      </div>
+      <div class="payment-progress-labels">
+        <span>${balKnown && total ? `${pct}% paid off` : 'Balance not verified'}</span>
+        <span>Total: ${total ? amd(total) : '—'}</span>
+      </div>
+      ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
+      ${staleBalance ? `<div class="balance-stale">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>` : ''}
+    </div>
+  </article>`;
+}
+
+function standardPaymentCard(o, index) {
+  const paid = isPaid(o.id);
+  const completedAt = state.paymentMeta[pkey(o.id, state.month)]?.completedAt;
+  const dueDay = Number(o.dueDay);
+  const today = currentMonthDay();
+  const urgency = !paid && today && dueDay > 0
+    ? (dueDay < today ? 'is-overdue' : dueDay <= today + 3 ? 'is-due-soon' : '')
+    : '';
+  const revealDelay = Math.min((index || 0) * 30, 200);
+
+  return `<article class="payment-basic-card row-reveal ${paid ? 'is-paid' : ''} ${urgency}"
+                  data-payment-id="${escapeHtml(o.id)}"
+                  style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
+    <div>
+      <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
+      <h2>${escapeHtml(o.bank)}</h2>
+      <span class="badge ${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
+    </div>
+    <div class="payment-basic-meta">
+      <strong>${Number(o.amount) > 0 ? amd(o.amount) : '—'}</strong>
+      <span>${Number(o.dueDay) > 0 ? `Due day ${o.dueDay}` : 'No due day'}</span>
+      ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
+    </div>
+    <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
+            type="button" onclick="togglePayment('${escapeHtml(o.id)}')">${paid ? 'Paid' : 'Done'}</button>
+  </article>`;
 }
 
 function sortPayments(rows) {
@@ -656,6 +765,13 @@ function loanCard(o) {
   </article>`;
 }
 
+function copyChip(part) {
+  const encoded = encodeURIComponent(part);
+  return `<button class="copy-chip" type="button"
+          onclick="copyContract(decodeURIComponent('${encoded}'), this)"
+          title="Copy ${escapeHtml(part)}">${escapeHtml(part)} <span>Copy</span></button>`;
+}
+
 function bankColorFor(name) {
   const text = String(name || '');
   let hash = 0;
@@ -754,6 +870,12 @@ function submitLoanEdit(event) {
 
 function saveBalFromInput(id) {
   const val = Number(document.getElementById('bal-' + id).value);
+  if (!isNaN(val) && val >= 0) saveBalance(id, val);
+}
+
+function savePaymentBalanceFromInput(id) {
+  const input = document.getElementById('pay-bal-' + id);
+  const val = Number(input?.value);
   if (!isNaN(val) && val >= 0) saveBalance(id, val);
 }
 

@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 
@@ -31,8 +31,8 @@
       </div>
     </div>
     <ul class="sidebar-nav">
-      <li><a href="#" data-tab="dashboard" class="active" aria-label="Today"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg><span class="nav-label">Today</span></a></li>
-      <li><a href="#" data-tab="schedule" aria-label="Payments"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 4h10M7 12h6M7 16h4"/></svg><span class="nav-label">Payments</span></a></li>
+      <li><a href="#" data-tab="schedule" class="active" aria-label="Payments"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 4h10M7 12h6M7 16h4"/></svg><span class="nav-label">Payments</span></a></li>
+      <li><a href="#" data-tab="dashboard" aria-label="Today"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg><span class="nav-label">Today</span></a></li>
       <li><a href="#" data-tab="loans" aria-label="Loans"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4V7Zm3-3h10v3H7V4Zm1 8h8M8 16h5"/></svg><span class="nav-label">Loans</span></a></li>
       <li><a href="#" data-tab="income" aria-label="Income"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income</span></a></li>
       <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10m7 10V4m7 16v-7"/></svg><span class="nav-label">Reports</span></a></li>
@@ -43,7 +43,7 @@
   <main class="main">
 
     <!-- ─── DASHBOARD ─── -->
-    <section id="page-dashboard" class="page active">
+    <section id="page-dashboard" class="page">
       <div class="page-header">
         <div>
           <div class="page-kicker">Family finances</div>
@@ -112,7 +112,7 @@
     </section>
 
     <!-- ─── SCHEDULE ─── -->
-    <section id="page-schedule" class="page">
+    <section id="page-schedule" class="page active">
       <div class="page-header">
         <h1>Payment Schedule</h1>
         <div class="month-nav">
@@ -142,29 +142,12 @@
                  placeholder="Search bank, payer, category..." aria-label="Search payments">
         </div>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Payer</th>
-              <th>Bank / Payee</th>
-              <th>Category</th>
-              <th class="tr">Amount</th>
-              <th class="tc">Due</th>
-              <th class="tc" style="width:46px">Paid</th>
-            </tr>
-          </thead>
-          <tbody id="sched-tbody"></tbody>
-          <tfoot>
-            <tr>
-              <td colspan="3" id="sched-grand" class="muted" style="font-size:11px;font-weight:400"></td>
-              <td class="tr" id="sched-total"></td>
-              <td></td>
-              <td class="tc muted" id="sched-count" style="font-size:11px"></td>
-            </tr>
-          </tfoot>
-        </table>
+      <div class="payments-summary">
+        <span id="sched-grand" class="muted"></span>
+        <strong id="sched-total"></strong>
+        <span id="sched-count" class="muted"></span>
       </div>
+      <div class="payments-board" id="payments-board"></div>
     </section>
 
     <!-- ─── LOANS ─── -->
