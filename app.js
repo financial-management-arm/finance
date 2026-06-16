@@ -194,41 +194,95 @@ async function setPaymentStatus(id, status) {
   const previousPaid = !!state.payments[key];
   const previousMeta = state.paymentMeta[key] ? { ...state.paymentMeta[key] } : null;
   const paid = status === 'paid';
-  const row = document.querySelector(`[data-payment-id="${id}"]`);
-  if (paid && row) {
-    row.classList.add('is-completing');
-    const button = row.querySelector('.check-btn');
-    if (button) button.classList.add('is-checked');
-    await new Promise(resolve => setTimeout(resolve, 240));
-  }
+
   state.payments[key] = paid;
   state.paymentMeta[key] = {
-    key,
-    paid,
-    status,
+    key, paid, status,
     completedAt: paid ? new Date().toISOString() : '',
     updatedAt: new Date().toISOString()
   };
-  renderCurrentTab();
+  patchPaymentEl(id);
+
   try {
     const result = await callApi({ action: 'setPayment', key, paid, status, month: state.month });
     state.paymentMeta[key] = {
-      key,
-      paid,
+      key, paid,
       status: result.status || status,
       completedAt: result.completedAt || '',
       updatedAt: new Date().toISOString()
     };
     if (status === 'paid') showToast('Payment completed.');
-    if (status === 'not_done') showToast('Marked did not done.');
+    if (status === 'not_done') showToast('Marked as did not pay.');
     if (status === 'no_need') showToast('Marked no need.');
   } catch (err) {
     state.payments[key] = previousPaid;
     if (previousMeta) state.paymentMeta[key] = previousMeta;
     else delete state.paymentMeta[key];
-    renderCurrentTab();
-    showError('Could not update payment status: ' + err.message);
+    patchPaymentEl(id);
+    showError('Could not save — will retry automatically.');
   }
+}
+
+function patchPaymentEl(id) {
+  const el = document.querySelector(`[data-payment-id="${CSS.escape(id)}"]`);
+  if (!el) { renderCurrentTab(); return; }
+
+  const paid = isPaid(id);
+  const status = paymentStatus(id);
+
+  // Paid / status classes
+  el.classList.toggle('is-paid', paid);
+  el.className = el.className.replace(/\bis-(?:paid|unpaid|not-done|no-need)\b/g, '').trim();
+  el.classList.add(`is-${status.replace('_', '-')}`);
+
+  // Urgency — restore when un-paying, clear when paying
+  el.classList.remove('is-overdue', 'is-due-soon');
+  if (!paid) {
+    const o = activeObs().find(ob => String(ob.id) === String(id));
+    if (o) {
+      const today = currentMonthDay();
+      const dueDay = Number(o.dueDay);
+      if (today && dueDay > 0) {
+        if (dueDay < today) el.classList.add('is-overdue');
+        else if (dueDay <= today + 3) el.classList.add('is-due-soon');
+      }
+    }
+  }
+
+  // Done/Paid button (card view)
+  const doneBtn = el.querySelector('.payment-done');
+  if (doneBtn) {
+    doneBtn.textContent = paid ? 'Paid' : 'Done';
+    doneBtn.classList.toggle('button-primary', !paid);
+    doneBtn.classList.toggle('button-secondary', paid);
+  }
+
+  // Check button (table view)
+  const checkBtn = el.querySelector('.check-btn');
+  if (checkBtn) {
+    checkBtn.classList.toggle('is-checked', paid);
+    checkBtn.setAttribute('aria-label', paid ? 'Mark payment unpaid' : 'Mark payment paid');
+    checkBtn.title = paid ? 'Mark unpaid' : 'Mark paid';
+  }
+
+  // Status badge
+  const badge = el.querySelector('.payment-status-badge');
+  const newBadge = paymentStatusBadge(status);
+  if (badge) badge.outerHTML = newBadge || '';
+  else if (newBadge) {
+    const anchor = el.querySelector('.payment-card-head, .payment-basic-payer')?.closest('div');
+    if (anchor) anchor.insertAdjacentHTML('afterend', newBadge);
+  }
+
+  // Footer counts
+  const obs = sortPayments(filteredObs());
+  const all = activeObs();
+  const allResolved = all.filter(o => isPaymentResolved(o.id));
+  const visResolved = obs.filter(o => isPaymentResolved(o.id));
+  const t = q('sched-total'), c = q('sched-count'), g = q('sched-grand');
+  if (t) t.textContent = amd(totalAmt(obs));
+  if (c) c.textContent = `${visResolved.length}/${obs.length}`;
+  if (g) g.textContent = `Total: ${amd(totalAmt(all))} · ${allResolved.length}/${all.length} resolved`;
 }
 
 async function saveBalance(id, balance) {
