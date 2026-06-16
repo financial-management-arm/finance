@@ -1398,13 +1398,20 @@ function renderMonthlyChart() {
 
   const paidData = months.map(mo => {
     let total = 0;
-    all.forEach(o => {
-      const key = pkey(o.id, mo);
+    const suffix = '__' + mo;
+    Object.keys(state.paymentMeta).forEach(key => {
+      if (!key.endsWith(suffix)) return;
       if (!state.payments[key]) return;
       const meta = state.paymentMeta[key];
       const paidAmt = (meta && meta.paidAmount !== '' && meta.paidAmount !== undefined)
-        ? Number(meta.paidAmount) : Number(o.amount) || 0;
-      total += paidAmt;
+        ? Number(meta.paidAmount) : null;
+      if (paidAmt !== null) {
+        total += paidAmt;
+      } else {
+        const obId = key.slice(0, -suffix.length);
+        const ob = state.obligations.find(o => String(o.id) === obId);
+        if (ob) total += Number(ob.amount) || 0;
+      }
     });
     return total;
   });
