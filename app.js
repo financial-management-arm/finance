@@ -137,18 +137,28 @@ function activeLoans() {
 // ================================================================
 // API
 // ================================================================
-async function callApi(params) {
+async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
-  try {
-    const res = await fetch(url.toString(), { signal: controller.signal });
-    const json = await res.json();
-    if (json.error) throw new Error(json.error);
-    return json;
-  } finally {
-    clearTimeout(timer);
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(url.toString(), { signal: controller.signal });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      return json;
+    } catch (err) {
+      clearTimeout(timer);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 
