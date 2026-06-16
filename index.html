@@ -3,23 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f172a">
-  <title>Finances · Harutyunyan</title>
+  <meta name="theme-color" content="#080d18">
+  <title>Finance Manager · Harutyunyan</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 
 <!-- Loading overlay -->
-<div id="loading" class="loading-overlay">
-  <div class="spinner"></div> Loading finances…
-</div>
-<div id="error-toast" class="error-toast hidden"></div>
+<div id="loading" class="loading-overlay hidden" aria-hidden="true"></div>
+<div id="error-toast" class="error-toast hidden" role="status" aria-live="polite"></div>
 
 <div class="app">
 
@@ -29,15 +27,15 @@
       <div class="sidebar-logo">֏</div>
       <div>
         <div class="sidebar-title">Finance Manager</div>
-        <div class="sidebar-sub">Harutyunyan Family</div>
+        <div class="sidebar-sub">Family command center</div>
       </div>
     </div>
     <ul class="sidebar-nav">
-      <li><a href="#" data-tab="dashboard" class="active"><span class="icon">◈</span> Dashboard</a></li>
-      <li><a href="#" data-tab="schedule"><span class="icon">☰</span> Schedule</a></li>
-      <li><a href="#" data-tab="loans"><span class="icon">⊟</span> Loans</a></li>
-      <li><a href="#" data-tab="income"><span class="icon">↑</span> Income</a></li>
-      <li><a href="#" data-tab="reports"><span class="icon">⊞</span> Reports</a></li>
+      <li><a href="#" data-tab="schedule" class="active" aria-label="Payments"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 4h10M7 12h6M7 16h4"/></svg><span class="nav-label">Payments</span></a></li>
+      <li><a href="#" data-tab="dashboard" aria-label="Today"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg><span class="nav-label">Today</span></a></li>
+      <li><a href="#" data-tab="loans" aria-label="Loans"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4V7Zm3-3h10v3H7V4Zm1 8h8M8 16h5"/></svg><span class="nav-label">Loans</span></a></li>
+      <li><a href="#" data-tab="income" aria-label="Income"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income</span></a></li>
+      <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10m7 10V4m7 16v-7"/></svg><span class="nav-label">Reports</span></a></li>
     </ul>
   </nav>
 
@@ -45,116 +43,125 @@
   <main class="main">
 
     <!-- ─── DASHBOARD ─── -->
-    <section id="page-dashboard" class="page active">
+    <section id="page-dashboard" class="page">
       <div class="page-header">
-        <h1>Dashboard</h1>
+        <div>
+          <div class="page-kicker">Family finances</div>
+          <h1>Today</h1>
+        </div>
         <div class="month-nav">
-          <button class="btn-nav btn-prev">‹</button>
+          <button class="btn-nav btn-prev" aria-label="Previous month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 15-5-5 5-5"/></svg></button>
           <span class="month-label"></span>
-          <button class="btn-nav btn-next">›</button>
+          <button class="btn-nav btn-next" aria-label="Next month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 5 5 5-5 5"/></svg></button>
           <button class="btn-today">Today</button>
         </div>
       </div>
-      <div class="page-body">
+      <div class="page-body today-body">
+        <section class="today-hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Total due this month</div>
+            <div class="hero-amount" id="stat-total">—</div>
+            <div class="hero-sub" id="stat-sub">Loading payment status…</div>
+          </div>
+          <div class="progress-ring-wrap" aria-label="Monthly payment progress">
+            <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="progress-ring-track" cx="60" cy="60" r="49"></circle>
+              <circle class="progress-ring-value" id="progress-ring-value" cx="60" cy="60" r="49"></circle>
+            </svg>
+            <div class="progress-ring-copy">
+              <strong id="prog-label">0%</strong>
+              <span>complete</span>
+            </div>
+          </div>
+        </section>
 
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label">Total Obligations</div>
-            <div class="stat-value" id="stat-total">—</div>
+        <section class="urgent-section">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">Attention</div>
+              <h2>What needs action</h2>
+            </div>
+            <button class="button button-ghost" id="view-all-payments" type="button">View all payments</button>
           </div>
-          <div class="stat-card s-paid">
-            <div class="stat-label">Paid</div>
-            <div class="stat-value" id="stat-paid">—</div>
-            <div class="stat-sub" id="stat-sub"></div>
-          </div>
-          <div class="stat-card s-unpaid">
-            <div class="stat-label">Remaining</div>
-            <div class="stat-value" id="stat-unpaid">—</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Income This Month</div>
-            <div class="stat-value" id="stat-income">—</div>
-          </div>
-        </div>
+          <div class="urgent-strip" id="urgent-strip"></div>
+        </section>
 
-        <div class="progress-card">
-          <div class="progress-header">
-            <span id="prog-label">0% complete</span>
-          </div>
-          <div class="progress-bar" style="height:10px">
-            <div class="progress-fill" id="prog-fill" style="width:0%"></div>
-          </div>
-          <div class="progress-footer">
-            <span id="prog-paid"></span>
-            <span id="prog-left"></span>
-          </div>
-        </div>
+        <div class="today-grid">
+          <section class="surface-card net-card" id="stat-net-card">
+            <div class="eyebrow">Net cash flow</div>
+            <div class="net-amount" id="stat-net">—</div>
+            <div class="net-detail">
+              <span>Income <strong id="stat-income">—</strong></span>
+              <span>Remaining <strong id="stat-unpaid">—</strong></span>
+            </div>
+          </section>
 
-        <div class="charts-grid">
-          <div class="chart-card">
-            <div class="chart-title">By Payer</div>
+          <section class="surface-card payer-card">
+            <div class="section-heading compact">
+              <div>
+                <div class="eyebrow">Total debt</div>
+                <h2>Debt by payer</h2>
+              </div>
+              <strong class="debt-total" id="stat-debt">—</strong>
+            </div>
+            <div class="debt-freshness" id="debt-freshness"></div>
             <div id="payer-bars"></div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-title">By Category</div>
-            <canvas id="chart-cat"></canvas>
-          </div>
+          </section>
         </div>
-
       </div>
     </section>
 
     <!-- ─── SCHEDULE ─── -->
-    <section id="page-schedule" class="page">
+    <section id="page-schedule" class="page active">
       <div class="page-header">
         <h1>Payment Schedule</h1>
         <div class="month-nav">
-          <button class="btn-nav btn-prev">‹</button>
+          <button class="btn-nav btn-prev" aria-label="Previous month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 15-5-5 5-5"/></svg></button>
           <span class="month-label"></span>
-          <button class="btn-nav btn-next">›</button>
+          <button class="btn-nav btn-next" aria-label="Next month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 5 5 5-5 5"/></svg></button>
           <button class="btn-today">Today</button>
         </div>
       </div>
-      <div class="filter-bar">
-        <button class="pill active" data-filter="all">All</button>
-        <button class="pill" data-filter="Hovhannes">Hovhannes</button>
-        <button class="pill" data-filter="Karine">Karine</button>
-        <button class="pill" data-filter="Grigor">Grigor</button>
-        <button class="pill" data-filter="Alvard">Alvard</button>
-        <button class="pill" data-filter="Plus 1">Plus 1</button>
-        <button class="pill" data-filter="Home">Home</button>
-        <button class="pill" data-filter="Business">Business</button>
-        <button class="pill" data-filter="GPS">GPS</button>
+      <div class="schedule-tools">
+        <div class="filter-bar" id="payer-filters">
+          <button class="pill active" data-filter="all">All payers</button>
+        </div>
+        <div class="schedule-actions">
+          <select class="sort-select" id="schedule-sort" aria-label="Sort payments">
+            <option value="due-asc">Due date</option>
+            <option value="amount-desc">Amount: high to low</option>
+            <option value="amount-asc">Amount: low to high</option>
+            <option value="payer-asc">Payer name</option>
+            <option value="bank-asc">Bank name</option>
+          </select>
+          <label class="completed-toggle">
+            <input id="show-completed" type="checkbox">
+            <span>Show completed</span>
+          </label>
+          <input class="search-input" id="schedule-search" type="search"
+                 placeholder="Search bank, payer, category..." aria-label="Search payments">
+        </div>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Payer</th>
-              <th>Bank / Payee</th>
-              <th>Category</th>
-              <th class="tr">Amount</th>
-              <th class="tc">Due</th>
-              <th class="tc" style="width:46px">Paid</th>
-            </tr>
-          </thead>
-          <tbody id="sched-tbody"></tbody>
-          <tfoot>
-            <tr>
-              <td colspan="3" id="sched-grand" class="muted" style="font-size:11px;font-weight:400"></td>
-              <td class="tr" id="sched-total"></td>
-              <td></td>
-              <td class="tc muted" id="sched-count" style="font-size:11px"></td>
-            </tr>
-          </tfoot>
-        </table>
+      <div class="payments-summary">
+        <span id="sched-grand" class="muted"></span>
+        <strong id="sched-total"></strong>
+        <span id="sched-count" class="muted"></span>
       </div>
+      <div class="payments-board" id="payments-board"></div>
     </section>
 
     <!-- ─── LOANS ─── -->
     <section id="page-loans" class="page">
       <div class="page-header">
         <h1>Loans &amp; Balances</h1>
+        <select class="sort-select" id="loan-sort" aria-label="Sort loans">
+          <option value="debt-desc">Debt: high to low</option>
+          <option value="debt-asc">Debt: low to high</option>
+          <option value="payer-asc">Payer name</option>
+          <option value="bank-asc">Bank name</option>
+          <option value="due-asc">Due date</option>
+          <option value="freshness">Needs update first</option>
+        </select>
       </div>
       <div class="page-body" id="loans-container"></div>
     </section>
@@ -202,9 +209,16 @@
           <div class="income-list">
             <div class="income-list-header">
               <h3>Income Log</h3>
-              <span class="muted" style="font-size:12px">
-                This month: <strong id="income-month-total">—</strong>
-              </span>
+              <div class="list-header-actions">
+                <select class="sort-select" id="income-sort" aria-label="Sort income">
+                  <option value="date-desc">Newest first</option>
+                  <option value="date-asc">Oldest first</option>
+                  <option value="amount-desc">Amount: high to low</option>
+                  <option value="amount-asc">Amount: low to high</option>
+                  <option value="source-asc">Source</option>
+                </select>
+                <span class="muted">This month: <strong id="income-month-total">—</strong></span>
+              </div>
             </div>
             <table style="width:100%">
               <thead>
@@ -227,6 +241,11 @@
     <section id="page-reports" class="page">
       <div class="page-header">
         <h1>Reports</h1>
+        <select class="sort-select" id="report-period" aria-label="Report period">
+          <option value="6">Last 6 months</option>
+          <option value="12">Last 12 months</option>
+          <option value="24">Last 24 months</option>
+        </select>
       </div>
       <div class="page-body">
         <div class="reports-grid">
@@ -235,7 +254,7 @@
             <canvas id="chart-cat2"></canvas>
           </div>
           <div class="chart-card">
-            <div class="chart-title">Paid vs Total — last 6 months</div>
+            <div class="chart-title">Payments and total debt over time</div>
             <canvas id="chart-monthly"></canvas>
           </div>
         </div>
@@ -245,8 +264,36 @@
   </main>
 </div>
 
+<div class="modal-backdrop hidden" id="loan-edit-modal">
+  <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="loan-edit-title">
+    <div class="edit-modal-header">
+      <div>
+        <div class="eyebrow">Loan details</div>
+        <h2 id="loan-edit-title">Edit loan</h2>
+      </div>
+      <button class="modal-close" id="loan-edit-close" type="button" aria-label="Close">×</button>
+    </div>
+    <form id="loan-edit-form">
+      <input id="edit-id" type="hidden">
+      <div class="edit-grid">
+        <label>Bank / Payee<input id="edit-bank" type="text" required></label>
+        <label>Monthly Payment<input id="edit-amount" type="number" min="0" required></label>
+        <label>Due Day<input id="edit-due-day" type="number" min="0" max="31" required></label>
+        <label>Current Balance<input id="edit-balance" type="number" min="0"></label>
+        <label>Original Loan Total<input id="edit-total" type="number" min="0"></label>
+        <label>Start Month<input id="edit-start-date" type="month"></label>
+        <label class="edit-wide">Contract Number<input id="edit-contract" type="text"></label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="loan-edit-cancel" type="button">Cancel</button>
+        <button class="btn-primary" id="loan-edit-save" type="submit">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<script src="config.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=11"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
