@@ -494,3 +494,29 @@ function withLock(callback) {
     lock.releaseLock();
   }
 }
+
+// Run ONCE in Apps Script editor to rename Inekobank → Inecobank in all sheets.
+function fixBankName() {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var fixed = 0;
+
+  ['Obligations', 'Loans'].forEach(function(sheetName) {
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    var headers = SCHEMAS[sheetName];
+    var bankCol = headers.indexOf('bank') + 1;
+    if (bankCol < 1) return;
+
+    var range = sheet.getRange(2, bankCol, sheet.getLastRow() - 1, 1);
+    var values = range.getValues();
+    values.forEach(function(row, i) {
+      var old = String(row[0]);
+      var updated = old.replace(/Inekobank/gi, 'Inecobank');
+      if (updated !== old) { values[i][0] = updated; fixed++; }
+    });
+    range.setValues(values);
+  });
+
+  Logger.log('fixBankName: updated ' + fixed + ' cells.');
+  return 'Done — ' + fixed + ' cells updated.';
+}
