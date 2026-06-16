@@ -154,14 +154,17 @@
     <section id="page-loans" class="page">
       <div class="page-header">
         <h1>Obligations</h1>
-        <select class="sort-select" id="loan-sort" aria-label="Sort loans">
-          <option value="debt-desc">Debt: high to low</option>
-          <option value="debt-asc">Debt: low to high</option>
-          <option value="payer-asc">Payer name</option>
-          <option value="bank-asc">Bank name</option>
-          <option value="due-asc">Due date</option>
-          <option value="freshness">Needs update first</option>
-        </select>
+        <div class="page-header-actions">
+          <select class="sort-select" id="loan-sort" aria-label="Sort loans">
+            <option value="debt-desc">Debt: high to low</option>
+            <option value="debt-asc">Debt: low to high</option>
+            <option value="payer-asc">Payer name</option>
+            <option value="bank-asc">Bank name</option>
+            <option value="due-asc">Due date</option>
+            <option value="freshness">Needs update first</option>
+          </select>
+          <button class="button button-primary" type="button" onclick="openAddObligationModal()">+ Add</button>
+        </div>
       </div>
       <div class="page-body" id="loans-container"></div>
     </section>
@@ -264,6 +267,48 @@
   </main>
 </div>
 
+<div class="modal-backdrop hidden" id="add-ob-modal">
+  <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="add-ob-title">
+    <div class="edit-modal-header">
+      <div>
+        <div class="eyebrow">New obligation</div>
+        <h2 id="add-ob-title">Add Obligation</h2>
+      </div>
+      <button class="modal-close" type="button" onclick="closeAddObligationModal()" aria-label="Close">×</button>
+    </div>
+    <form id="add-ob-form" onsubmit="submitAddObligation(event)">
+      <datalist id="add-ob-payer-list"></datalist>
+      <div class="edit-grid">
+        <label>Bank / Payee<input id="add-ob-bank" name="bank" type="text" required placeholder="e.g. Inecobank, Office Rent"></label>
+        <label>Payer<input id="add-ob-payer" name="payer" type="text" required placeholder="e.g. Hovhannes"></label>
+        <label>Category
+          <select name="category">
+            <option value="business">Business</option>
+            <option value="personal">Personal</option>
+            <option value="loan">Loan</option>
+          </select>
+        </label>
+        <label>Frequency
+          <select name="frequency" onchange="onAddObFreqChange(this)">
+            <option value="monthly">Every month</option>
+            <option value="quarterly">Every 3 months</option>
+            <option value="one_time">One time only</option>
+          </select>
+        </label>
+        <label>Monthly amount<input name="amount" type="number" min="0" value="0" required></label>
+        <label>Due day<input name="dueDay" type="number" min="0" max="31" value="0"></label>
+        <label class="edit-wide hidden" id="add-ob-startdate-row">Start month
+          <input id="add-ob-startdate" name="startDate" type="month">
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" type="button" onclick="closeAddObligationModal()">Cancel</button>
+        <button class="btn-primary" type="submit">Add Obligation</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="modal-backdrop hidden" id="loan-edit-modal">
   <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="loan-edit-title">
     <div class="edit-modal-header">
@@ -294,6 +339,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="config.js?v=12"></script>
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

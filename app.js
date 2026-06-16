@@ -65,7 +65,7 @@ function activeObs() {
 }
 
 function filteredObs() {
-  let rows = activeObs();
+  let rows = dueThisMonth();
   if (state.filter !== 'all') rows = rows.filter(o => o.payer === state.filter);
   if (state.statusFilter === 'paid') rows = rows.filter(o => isPaid(o.id));
   if (state.statusFilter === 'unpaid') rows = rows.filter(o => !isPaymentResolved(o.id));
@@ -132,6 +132,29 @@ function isLoanRecord(obligation) {
 
 function activeLoans() {
   return activeObs().filter(isLoanRecord);
+}
+
+function isObligationDueThisMonth(ob, month) {
+  month = month || state.month;
+  const freq = String(ob.frequency || 'monthly').toLowerCase().trim();
+  if (!freq || freq === 'monthly') return true;
+  if (freq === 'one_time') {
+    const dueMon = String(ob.startDate || '').slice(0, 7);
+    return dueMon === month;
+  }
+  if (freq === 'quarterly') {
+    const start = String(ob.startDate || '').slice(0, 7);
+    if (!start) return true;
+    const [sy, sm] = start.split('-').map(Number);
+    const [cy, cm] = month.split('-').map(Number);
+    const diff = (cy * 12 + cm) - (sy * 12 + sm);
+    return diff >= 0 && diff % 3 === 0;
+  }
+  return true;
+}
+
+function dueThisMonth() {
+  return activeObs().filter(o => isObligationDueThisMonth(o));
 }
 
 // ================================================================
@@ -304,6 +327,57 @@ async function saveBalance(id, balance) {
   }
 }
 
+function openAddObligationModal() {
+  const payerList = [...new Set(activeObs().map(o => String(o.payer || '').trim()).filter(Boolean))];
+  q('add-ob-payer').setAttribute('list', 'add-ob-payer-list');
+  q('add-ob-payer-list').innerHTML = payerList.map(p => `<option value="${escapeHtml(p)}">`).join('');
+  q('add-ob-startdate-row').classList.add('hidden');
+  q('add-ob-startdate').required = false;
+  q('add-ob-modal').classList.remove('hidden');
+  q('add-ob-bank').focus();
+}
+
+function closeAddObligationModal() {
+  q('add-ob-modal').classList.add('hidden');
+  q('add-ob-form').reset();
+}
+
+function onAddObFreqChange(sel) {
+  const needs = sel.value !== 'monthly';
+  q('add-ob-startdate-row').classList.toggle('hidden', !needs);
+  q('add-ob-startdate').required = needs;
+}
+
+async function submitAddObligation(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const v = id => form.elements[id].value;
+  const btn = form.querySelector('[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  try {
+    await callApi({
+      action: 'addObligation',
+      payer: v('payer').trim(),
+      bank: v('bank').trim(),
+      category: v('category'),
+      amount: Number(v('amount')) || 0,
+      dueDay: Number(v('dueDay')) || 0,
+      startDate: v('startDate') || '',
+      frequency: v('frequency')
+    });
+    await refreshData(false);
+    renderCurrentTab();
+    closeAddObligationModal();
+    showToast('Obligation added.');
+  } catch (err) {
+    showError('Could not add obligation: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add Obligation';
+  }
+}
+
 async function updateLoan(id, changes, sourceButton = null) {
   const button = sourceButton || q('loan-edit-save');
   button.disabled = true;
@@ -435,7 +509,7 @@ function q(id) { return document.getElementById(id); }
 // Dashboard
 // ================================================================
 function renderDashboard() {
-  const all  = activeObs();
+  const all  = dueThisMonth();
   const paid = all.filter(o => isPaid(o.id));
   const resolved = all.filter(o => isPaymentResolved(o.id));
   const paidAmt  = totalAmt(paid);
@@ -573,7 +647,7 @@ function renderSchedule() {
           : 'No payments match these filters.'}
       </div>`;
 
-    const all = activeObs();
+    const all = dueThisMonth();
     const allResolved = all.filter(o => isPaymentResolved(o.id));
     const visResolved = obs.filter(o => isPaymentResolved(o.id));
     q('sched-total').textContent = amd(totalAmt(obs));
@@ -898,9 +972,10 @@ function loanCard(o) {
       <label>Bank / Payee<input name="bank" value="${escapeHtml(o.bank)}" required></label>
       <label>Monthly payment<input name="amount" type="number" min="0" value="${Number(o.amount) || 0}" required></label>
       <label>Due day<input name="dueDay" type="number" min="0" max="31" value="${Number(o.dueDay) || 0}" required></label>
+      <label>Frequency${freqSelect(o.frequency || 'monthly')}</label>
       <label>Current balance<input name="currentBalance" type="number" min="0" value="${balKnown ? bal : ''}"></label>
       <label>Original total<input name="loanTotal" type="number" min="0" value="${tot || ''}"></label>
-      <label>Start month<input name="startDate" type="month" value="${inputMonth(o.startDate)}"></label>
+      <label class="start-month-field">Start month<input name="startDate" type="month" value="${inputMonth(o.startDate)}"></label>
       <label class="inline-edit-wide">Contract number<input name="contractNumber" value="${escapeHtml(o.contractNumber || '')}"></label>
       <div class="inline-edit-actions">
         <button class="button button-ghost" type="button" onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Cancel</button>
@@ -917,10 +992,16 @@ function copyChip(part) {
           title="Copy ${escapeHtml(part)}">${escapeHtml(part)} <span>Copy</span></button>`;
 }
 
+function freqLabel(freq) {
+  return { monthly: '', quarterly: 'Every 3 mo.', one_time: 'One time' }[freq] || '';
+}
+
 function nonLoanCard(o) {
   const bankColor = bankColorFor(o.bank);
   const cat = String(o.category || 'other');
   const catDisplay = cat.charAt(0).toUpperCase() + cat.slice(1);
+  const freq = o.frequency || 'monthly';
+  const badge = freqLabel(freq) ? `<span class="freq-badge freq-${freq}">${freqLabel(freq)}</span>` : '';
   return `<article class="obligation-card" style="--bank-color:${bankColor}">
     <div class="loan-card-top">
       <div class="loan-identity">
@@ -938,12 +1019,15 @@ function nonLoanCard(o) {
     <div class="obligation-details">
       <span class="ob-amount">${Number(o.amount) > 0 ? amd(Number(o.amount)) : '—'}</span>
       ${Number(o.dueDay) > 0 ? `<span class="ob-due">due day ${Number(o.dueDay)}</span>` : ''}
+      ${badge}
     </div>
     <form class="inline-loan-edit hidden" id="inline-edit-${escapeHtml(o.id)}"
           onsubmit="submitInlineObligationEdit(event, '${escapeHtml(o.id)}')">
       <label>Bank / Payee<input name="bank" value="${escapeHtml(o.bank)}" required></label>
       <label>Monthly payment<input name="amount" type="number" min="0" value="${Number(o.amount) || 0}" required></label>
       <label>Due day<input name="dueDay" type="number" min="0" max="31" value="${Number(o.dueDay) || 0}" required></label>
+      <label>Frequency${freqSelect(o.frequency || 'monthly')}</label>
+      <label class="start-month-field${(o.frequency || 'monthly') === 'monthly' ? ' hidden' : ''}">Start month<input name="startDate" type="month" value="${inputMonth(o.startDate)}"></label>
       <div class="inline-edit-actions">
         <button class="button button-ghost" type="button"
                 onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Cancel</button>
@@ -958,6 +1042,22 @@ function bankColorFor(name) {
   let hash = 0;
   for (let i = 0; i < text.length; i++) hash = ((hash << 5) - hash) + text.charCodeAt(i);
   return PALETTE[Math.abs(hash) % PALETTE.length];
+}
+
+function freqSelect(currentFreq) {
+  const opts = [['monthly','Every month'],['quarterly','Every 3 months'],['one_time','One time only']];
+  return `<select name="frequency" onchange="toggleStartDateField(this)">${
+    opts.map(([v, l]) => `<option value="${v}"${currentFreq === v ? ' selected' : ''}>${l}</option>`).join('')
+  }</select>`;
+}
+
+function toggleStartDateField(sel) {
+  const startField = sel.closest('form').querySelector('.start-month-field');
+  if (!startField) return;
+  const needs = sel.value !== 'monthly';
+  startField.classList.toggle('hidden', !needs);
+  const inp = startField.querySelector('input');
+  if (inp) inp.required = needs;
 }
 
 function toggleInlineLoanEdit(id) {
@@ -976,6 +1076,7 @@ function submitInlineLoanEdit(event, id) {
     bank: value('bank').trim(),
     amount: Number(value('amount')),
     dueDay: Number(value('dueDay')),
+    frequency: value('frequency'),
     currentBalance: optionalNumber('currentBalance'),
     loanTotal: optionalNumber('loanTotal'),
     startDate: value('startDate'),
@@ -991,9 +1092,10 @@ function submitInlineObligationEdit(event, id) {
     bank: value('bank').trim(),
     amount: Number(value('amount')),
     dueDay: Number(value('dueDay')),
+    frequency: value('frequency'),
+    startDate: value('startDate') || '',
     currentBalance: '',
     loanTotal: '',
-    startDate: '',
     contractNumber: ''
   }, form.querySelector('[type="submit"]'));
 }

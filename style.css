@@ -1480,6 +1480,18 @@ tbody tr:hover td { background: transparent; }
   gap: var(--space-2);
 }
 
+.page-header-actions { display: flex; align-items: center; gap: var(--space-3); }
+
+.freq-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-10); font-weight: 700; letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.freq-quarterly { background: color-mix(in srgb, #d97706 14%, transparent); color: #d97706; }
+.freq-one_time  { background: color-mix(in srgb, #7c3aed 14%, transparent); color: #7c3aed; }
+
 .obligations-section-header {
   display: flex;
   justify-content: space-between;

@@ -7,7 +7,7 @@ var SCHEMAS = {
   Obligations: [
     'id', 'payer', 'bank', 'category', 'amount', 'dueDay',
     'currentBalance', 'loanTotal', 'contractNumber', 'active', 'startDate',
-    'balanceUpdatedMonth', 'completedAt', 'updatedAt'
+    'balanceUpdatedMonth', 'completedAt', 'updatedAt', 'frequency'
   ],
   Payments: ['key', 'paid', 'completedAt', 'updatedAt', 'status'],
   Income: ['id', 'date', 'amount', 'stream', 'note', 'createdAt', 'updatedAt'],
@@ -59,6 +59,10 @@ function doGet(e) {
     } else if (action === 'completeLoan') {
       result = withLock(function() {
         return completeLoan(ss, params, month);
+      });
+    } else if (action === 'addObligation') {
+      result = withLock(function() {
+        return addObligation(ss, params);
       });
     } else if (action === 'repairSchema') {
       ensureSchema(ss);
@@ -167,6 +171,7 @@ function updateLoan(ss, params, month) {
     loanTotal: loanTotal,
     contractNumber: String(params.contractNumber || '').trim().slice(0, 120),
     startDate: startDate,
+    frequency: String(params.frequency || 'monthly').trim(),
     balanceUpdatedMonth: balanceChanged ? month : existing.balanceUpdatedMonth,
     updatedAt: isoNow()
   });
@@ -212,6 +217,46 @@ function completeLoan(ss, params, month) {
   removeFutureLoanSnapshots(ss, id, month);
 
   return { success: true, completedAt: now };
+}
+
+function addObligation(ss, params) {
+  var payer = String(params.payer || '').trim();
+  var bank = String(params.bank || '').trim().slice(0, 120);
+  var category = String(params.category || 'personal').trim();
+  var amount = Number(params.amount) || 0;
+  var dueDay = Math.round(Number(params.dueDay) || 0);
+  var startDate = String(params.startDate || '');
+  var frequency = String(params.frequency || 'monthly').trim();
+
+  if (!bank) throw new Error('Bank/Payee name is required');
+  if (!payer) throw new Error('Payer is required');
+  if (amount < 0) throw new Error('Invalid amount');
+  if (dueDay < 0 || dueDay > 31) throw new Error('Invalid due day');
+
+  var newId = 'ob-' + Date.now();
+  var now = isoNow();
+  var row = SCHEMAS.Obligations.map(function(col) {
+    switch (col) {
+      case 'id': return newId;
+      case 'payer': return payer;
+      case 'bank': return bank;
+      case 'category': return category;
+      case 'amount': return amount;
+      case 'dueDay': return dueDay;
+      case 'currentBalance': return '';
+      case 'loanTotal': return '';
+      case 'contractNumber': return '';
+      case 'active': return true;
+      case 'startDate': return startDate;
+      case 'balanceUpdatedMonth': return '';
+      case 'completedAt': return '';
+      case 'updatedAt': return now;
+      case 'frequency': return frequency;
+      default: return '';
+    }
+  });
+  ss.getSheetByName('Obligations').appendRow(row);
+  return { ok: true, id: newId };
 }
 
 // Creates one immutable monthly row per active loan. Existing rows are not
