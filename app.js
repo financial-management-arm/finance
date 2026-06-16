@@ -170,12 +170,13 @@ function dueThisMonth() {
 async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
+  url.searchParams.set('_t', Date.now());
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const res = await fetch(url.toString(), { signal: controller.signal });
+      const res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       return json;
