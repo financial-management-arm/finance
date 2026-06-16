@@ -1396,9 +1396,18 @@ function renderMonthlyChart() {
   const all   = activeObs();
   const total = totalAmt(all);
 
-  const paidData = months.map(mo =>
-    totalAmt(all.filter(o => state.payments[pkey(o.id, mo)]))
-  );
+  const paidData = months.map(mo => {
+    let total = 0;
+    all.forEach(o => {
+      const key = pkey(o.id, mo);
+      if (!state.payments[key]) return;
+      const meta = state.paymentMeta[key];
+      const paidAmt = (meta && meta.paidAmount !== '' && meta.paidAmount !== undefined)
+        ? Number(meta.paidAmount) : Number(o.amount) || 0;
+      total += paidAmt;
+    });
+    return total;
+  });
   const debtData = months.map(mo => {
     const snapshots = state.loanHistory.filter(row => String(row.month) === mo && !row.completed);
     if (snapshots.length) {
