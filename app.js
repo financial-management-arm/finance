@@ -1215,8 +1215,11 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAll();
   }
 
-  window.addEventListener('focus', () => {
-    if (!document.body.classList.contains('is-loading')) refreshData(false).catch(() => {});
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (document.body.classList.contains('is-loading')) return;
+    if (!q('loan-edit-modal').classList.contains('hidden')) return;
+    refreshData(false).catch(() => {});
   });
 });
 
