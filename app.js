@@ -1404,23 +1404,13 @@ function renderMonthlyChart() {
   const total = totalAmt(all);
 
   const paidData = months.map(mo => {
-    let total = 0;
     const suffix = '__' + mo;
-    Object.keys(state.paymentMeta).forEach(key => {
-      if (!key.endsWith(suffix)) return;
-      if (!state.payments[key]) return;
+    return Object.keys(state.paymentMeta).reduce((total, key) => {
+      if (!key.endsWith(suffix)) return total;
+      if (!state.payments[key]) return total;
       const meta = state.paymentMeta[key];
-      const paidAmt = (meta && meta.paidAmount !== '' && meta.paidAmount !== undefined)
-        ? Number(meta.paidAmount) : null;
-      if (paidAmt !== null) {
-        total += paidAmt;
-      } else {
-        const obId = key.slice(0, -suffix.length);
-        const ob = state.obligations.find(o => String(o.id) === obId);
-        if (ob) total += Number(ob.amount) || 0;
-      }
-    });
-    return total;
+      return total + (Number(meta.paidAmount) || 0);
+    }, 0);
   });
   const debtData = months.map(mo => {
     const snapshots = state.loanHistory.filter(row => String(row.month) === mo && !row.completed);
