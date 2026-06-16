@@ -293,6 +293,10 @@ async function saveBalance(id, balance) {
       ob.currentBalance = balance;
       ob.balanceUpdatedMonth = state.month;
     }
+    const snap = state.loanHistory.find(s =>
+      String(s.obligationId) === String(id) && String(s.month) === state.month
+    );
+    if (snap) { snap.currentBalance = balance; snap.balanceSourceMonth = state.month; }
     renderCurrentTab();
     showToast('Balance saved.');
   } catch (err) {
