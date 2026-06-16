@@ -165,6 +165,7 @@ function updateLoan(ss, params, month) {
 
   updateObjectByKey(ss.getSheetByName('Obligations'), 'id', id, {
     bank: String(params.bank || '').trim().slice(0, 120),
+    category: String(params.category || existing.category || 'personal').trim(),
     amount: amount,
     dueDay: dueDay,
     currentBalance: currentBalance,

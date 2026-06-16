@@ -972,6 +972,7 @@ function loanCard(o) {
       <label>Bank / Payee<input name="bank" value="${escapeHtml(o.bank)}" required></label>
       <label>Monthly payment<input name="amount" type="number" min="0" value="${Number(o.amount) || 0}" required></label>
       <label>Due day<input name="dueDay" type="number" min="0" max="31" value="${Number(o.dueDay) || 0}" required></label>
+      <label>Category<select name="category"><option value="loan"${o.category==='loan'?' selected':''}>Loan</option><option value="business"${o.category==='business'?' selected':''}>Business</option><option value="personal"${o.category==='personal'?' selected':''}>Personal</option></select></label>
       <label>Frequency${freqSelect(o.frequency || 'monthly')}</label>
       <label>Current balance<input name="currentBalance" type="number" min="0" value="${balKnown ? bal : ''}"></label>
       <label>Original total<input name="loanTotal" type="number" min="0" value="${tot || ''}"></label>
@@ -1026,6 +1027,7 @@ function nonLoanCard(o) {
       <label>Bank / Payee<input name="bank" value="${escapeHtml(o.bank)}" required></label>
       <label>Monthly payment<input name="amount" type="number" min="0" value="${Number(o.amount) || 0}" required></label>
       <label>Due day<input name="dueDay" type="number" min="0" max="31" value="${Number(o.dueDay) || 0}" required></label>
+      <label>Category<select name="category"><option value="business"${o.category==='business'?' selected':''}>Business</option><option value="personal"${o.category==='personal'?' selected':''}>Personal</option><option value="loan"${o.category==='loan'?' selected':''}>Loan</option></select></label>
       <label>Frequency${freqSelect(o.frequency || 'monthly')}</label>
       <label class="start-month-field${(o.frequency || 'monthly') === 'monthly' ? ' hidden' : ''}">Start month<input name="startDate" type="month" value="${inputMonth(o.startDate)}"></label>
       <div class="inline-edit-actions">
@@ -1076,6 +1078,7 @@ function submitInlineLoanEdit(event, id) {
     bank: value('bank').trim(),
     amount: Number(value('amount')),
     dueDay: Number(value('dueDay')),
+    category: value('category'),
     frequency: value('frequency'),
     currentBalance: optionalNumber('currentBalance'),
     loanTotal: optionalNumber('loanTotal'),
@@ -1092,6 +1095,7 @@ function submitInlineObligationEdit(event, id) {
     bank: value('bank').trim(),
     amount: Number(value('amount')),
     dueDay: Number(value('dueDay')),
+    category: value('category'),
     frequency: value('frequency'),
     startDate: value('startDate') || '',
     currentBalance: '',
