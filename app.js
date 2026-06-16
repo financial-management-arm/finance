@@ -1360,6 +1360,13 @@ function submitIncome() {
 // ================================================================
 // Reports
 // ================================================================
+async function syncReports() {
+  const btn = document.getElementById('btn-sync-reports');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
+  await fetchAll();
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Sync'; }
+}
+
 function renderReports() {
   renderCategoryChart();
   renderMonthlyChart();

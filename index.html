@@ -244,11 +244,14 @@
     <section id="page-reports" class="page">
       <div class="page-header">
         <h1>Reports</h1>
-        <select class="sort-select" id="report-period" aria-label="Report period">
-          <option value="6">Last 6 months</option>
-          <option value="12">Last 12 months</option>
-          <option value="24">Last 24 months</option>
-        </select>
+        <div class="page-header-actions">
+          <select class="sort-select" id="report-period" aria-label="Report period">
+            <option value="6">Last 6 months</option>
+            <option value="12">Last 12 months</option>
+            <option value="24">Last 24 months</option>
+          </select>
+          <button class="button button-ghost" id="btn-sync-reports" type="button" onclick="syncReports()" title="Re-fetch latest data from sheet">↻ Sync</button>
+        </div>
       </div>
       <div class="page-body">
         <div class="reports-grid">
@@ -339,6 +342,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="config.js?v=14"></script>
-<script src="app.js?v=22"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>
