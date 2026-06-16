@@ -47,7 +47,18 @@ function amd(n) {
 
 function pkey(id, month) { return `${id}__${month}`; }
 
-function isPaid(id) { return !!state.payments[pkey(id, state.month)]; }
+function paymentStatus(id, month = state.month) {
+  const key = pkey(id, month);
+  const meta = state.paymentMeta[key] || {};
+  if (meta.status) return String(meta.status).toLowerCase();
+  return state.payments[key] ? 'paid' : 'unpaid';
+}
+
+function isPaid(id, month = state.month) { return paymentStatus(id, month) === 'paid'; }
+
+function isPaymentResolved(id, month = state.month) {
+  return ['paid', 'not_done', 'no_need'].includes(paymentStatus(id, month));
+}
 
 function activeObs() {
   return state.obligations.filter(o => o.active === true || String(o.active).toUpperCase() === 'TRUE');
@@ -57,7 +68,7 @@ function filteredObs() {
   let rows = activeObs();
   if (state.filter !== 'all') rows = rows.filter(o => o.payer === state.filter);
   if (state.statusFilter === 'paid') rows = rows.filter(o => isPaid(o.id));
-  if (state.statusFilter === 'unpaid') rows = rows.filter(o => !isPaid(o.id));
+  if (state.statusFilter === 'unpaid') rows = rows.filter(o => !isPaymentResolved(o.id));
   if (state.search) {
     const needle = state.search.toLocaleLowerCase();
     rows = rows.filter(o =>
@@ -164,30 +175,49 @@ async function fetchAll() {
 }
 
 async function togglePayment(id) {
+  const next = isPaid(id) ? 'unpaid' : 'paid';
+  return setPaymentStatus(id, next);
+}
+
+async function setPaymentStatus(id, status) {
   const key = pkey(id, state.month);
-  const was = !!state.payments[key];
+  const previousPaid = !!state.payments[key];
+  const previousMeta = state.paymentMeta[key] ? { ...state.paymentMeta[key] } : null;
+  const paid = status === 'paid';
   const row = document.querySelector(`[data-payment-id="${id}"]`);
-  if (!was && row) {
+  if (paid && row) {
     row.classList.add('is-completing');
     const button = row.querySelector('.check-btn');
     if (button) button.classList.add('is-checked');
     await new Promise(resolve => setTimeout(resolve, 240));
   }
-  state.payments[key] = !was;
+  state.payments[key] = paid;
+  state.paymentMeta[key] = {
+    key,
+    paid,
+    status,
+    completedAt: paid ? new Date().toISOString() : '',
+    updatedAt: new Date().toISOString()
+  };
   renderCurrentTab();
   try {
-    const result = await callApi({ action: 'setPayment', key, paid: !was, month: state.month });
+    const result = await callApi({ action: 'setPayment', key, paid, status, month: state.month });
     state.paymentMeta[key] = {
       key,
-      paid: !was,
+      paid,
+      status: result.status || status,
       completedAt: result.completedAt || '',
       updatedAt: new Date().toISOString()
     };
-    if (!was) showToast('Payment completed.');
+    if (status === 'paid') showToast('Payment completed.');
+    if (status === 'not_done') showToast('Marked did not done.');
+    if (status === 'no_need') showToast('Marked no need.');
   } catch (err) {
-    state.payments[key] = was;
+    state.payments[key] = previousPaid;
+    if (previousMeta) state.paymentMeta[key] = previousMeta;
+    else delete state.paymentMeta[key];
     renderCurrentTab();
-    showError('Could not update payment: ' + err.message);
+    showError('Could not update payment status: ' + err.message);
   }
 }
 
@@ -339,12 +369,13 @@ function q(id) { return document.getElementById(id); }
 function renderDashboard() {
   const all  = activeObs();
   const paid = all.filter(o => isPaid(o.id));
+  const resolved = all.filter(o => isPaymentResolved(o.id));
   const paidAmt  = totalAmt(paid);
   const totalA   = totalAmt(all);
-  const unpaidA  = totalA - paidAmt;
-  const pct      = totalA ? Math.round(paidAmt / totalA * 100) : 0;
+  const unpaid = all.filter(o => !isPaymentResolved(o.id));
+  const unresolvedA = totalAmt(unpaid);
+  const pct      = totalA ? Math.round(totalAmt(resolved) / totalA * 100) : 0;
   const today = currentMonthDay();
-  const unpaid = all.filter(o => !isPaid(o.id));
   const overdue = today ? unpaid.filter(o => Number(o.dueDay) > 0 && Number(o.dueDay) < today) : [];
   const dueSoon = today ? unpaid.filter(o => Number(o.dueDay) >= today && Number(o.dueDay) <= today + 3) : [];
 
@@ -353,9 +384,9 @@ function renderDashboard() {
     .reduce((s, i) => s + Number(i.amount), 0);
 
   q('stat-total').textContent  = amd(totalA);
-  q('stat-unpaid').textContent = amd(unpaidA);
+  q('stat-unpaid').textContent = amd(unresolvedA);
   q('stat-income').textContent = amd(monthIncome);
-  const net = monthIncome - totalA;
+  const net = monthIncome - unresolvedA;
   q('stat-net').textContent = amd(net);
   q('stat-net-card').classList.toggle('net-positive', net >= 0);
   q('stat-net-card').classList.toggle('net-negative', net < 0);
@@ -475,11 +506,11 @@ function renderSchedule() {
       </div>`;
 
     const all = activeObs();
-    const allPaid = all.filter(o => isPaid(o.id));
-    const visPaid = obs.filter(o => isPaid(o.id));
+    const allResolved = all.filter(o => isPaymentResolved(o.id));
+    const visResolved = obs.filter(o => isPaymentResolved(o.id));
     q('sched-total').textContent = amd(totalAmt(obs));
-    q('sched-count').textContent = `${visPaid.length}/${obs.length}`;
-    q('sched-grand').textContent = `Total: ${amd(totalAmt(all))} · ${allPaid.length}/${all.length} paid`;
+    q('sched-count').textContent = `${visResolved.length}/${obs.length}`;
+    q('sched-grand').textContent = `Total: ${amd(totalAmt(all))} · ${allResolved.length}/${all.length} resolved`;
     return;
   }
   const tbody = q('sched-tbody');
@@ -532,6 +563,7 @@ function paymentCard(o, index) {
 
 function loanPaymentCard(o, index) {
   const paid = isPaid(o.id);
+  const status = paymentStatus(o.id);
   const balRaw = loanBalance(o);
   const balKnown = balRaw !== '' && balRaw !== null && balRaw !== undefined && balRaw !== false;
   const bal = balKnown ? Number(balRaw) : null;
@@ -544,7 +576,7 @@ function loanPaymentCard(o, index) {
   const staleBalance = balKnown && sourceMonth !== state.month;
   const revealDelay = Math.min((index || 0) * 30, 200);
 
-  return `<article class="payment-loan-card row-reveal ${paid ? 'is-paid' : ''} ${staleBalance ? 'is-stale' : ''}"
+  return `<article class="payment-loan-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_', '-')} ${staleBalance ? 'is-stale' : ''}"
                   data-payment-id="${escapeHtml(o.id)}"
                   style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
     <div class="payment-card-head">
@@ -563,6 +595,7 @@ function loanPaymentCard(o, index) {
                 type="button" onclick="togglePayment('${escapeHtml(o.id)}')">${paid ? 'Paid' : 'Done'}</button>
       </div>
     </div>
+    ${paymentStatusBadge(status)}
     ${contracts.length ? `
       <div class="payment-contract-row">
         <span class="contract-label">Contract</span>
@@ -587,11 +620,18 @@ function loanPaymentCard(o, index) {
       ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
       ${staleBalance ? `<div class="balance-stale">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>` : ''}
     </div>
+    <div class="payment-status-actions">
+      <button class="button button-secondary payment-not-done" type="button"
+              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not done</button>
+      <button class="button button-ghost payment-no-need" type="button"
+              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No Need</button>
+    </div>
   </article>`;
 }
 
 function standardPaymentCard(o, index) {
   const paid = isPaid(o.id);
+  const status = paymentStatus(o.id);
   const completedAt = state.paymentMeta[pkey(o.id, state.month)]?.completedAt;
   const dueDay = Number(o.dueDay);
   const today = currentMonthDay();
@@ -600,22 +640,40 @@ function standardPaymentCard(o, index) {
     : '';
   const revealDelay = Math.min((index || 0) * 30, 200);
 
-  return `<article class="payment-basic-card row-reveal ${paid ? 'is-paid' : ''} ${urgency}"
+  return `<article class="payment-basic-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_', '-')} ${urgency}"
                   data-payment-id="${escapeHtml(o.id)}"
                   style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
     <div>
       <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
       <h2>${escapeHtml(o.bank)}</h2>
       <span class="badge ${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
+      ${paymentStatusBadge(status)}
     </div>
     <div class="payment-basic-meta">
       <strong>${Number(o.amount) > 0 ? amd(o.amount) : '—'}</strong>
       <span>${Number(o.dueDay) > 0 ? `Due day ${o.dueDay}` : 'No due day'}</span>
       ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
     </div>
-    <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
-            type="button" onclick="togglePayment('${escapeHtml(o.id)}')">${paid ? 'Paid' : 'Done'}</button>
+    <div class="payment-basic-actions">
+      <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
+              type="button" onclick="togglePayment('${escapeHtml(o.id)}')">${paid ? 'Paid' : 'Done'}</button>
+      <button class="button button-secondary payment-not-done" type="button"
+              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not done</button>
+      <button class="button button-ghost payment-no-need" type="button"
+              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No Need</button>
+    </div>
   </article>`;
+}
+
+function paymentStatusBadge(status) {
+  const labels = {
+    paid: 'Done',
+    not_done: 'Did not done',
+    no_need: 'No Need'
+  };
+  return labels[status]
+    ? `<span class="payment-status-badge status-${status.replace('_', '-')}">${labels[status]}</span>`
+    : '';
 }
 
 function sortPayments(rows) {

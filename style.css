@@ -1038,6 +1038,57 @@ tbody tr:hover td { background: transparent; }
   align-items: center;
   gap: var(--space-2);
 }
+.payment-status-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 28px;
+  margin-top: var(--space-3);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-10);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.payment-status-badge.status-paid {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+.payment-status-badge.status-not-done {
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface-2));
+  color: var(--color-danger);
+}
+.payment-status-badge.status-no-need {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-2));
+  color: var(--color-primary);
+}
+.payment-status-actions,
+.payment-basic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.payment-status-actions {
+  margin-top: var(--space-4);
+}
+.payment-basic-actions {
+  justify-content: flex-end;
+}
+.payment-not-done {
+  color: var(--color-danger);
+}
+.payment-no-need {
+  color: var(--color-primary);
+}
+.payment-loan-card.is-not-done,
+.payment-basic-card.is-not-done {
+  border-color: color-mix(in srgb, var(--color-danger) 32%, var(--color-border));
+}
+.payment-loan-card.is-no-need,
+.payment-basic-card.is-no-need {
+  border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+}
 .payment-contract-row {
   display: flex;
   align-items: center;
@@ -1217,6 +1268,9 @@ tbody tr:hover td { background: transparent; }
   .payment-card-actions {
     justify-content: flex-start;
   }
+  .payment-basic-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1235,7 +1289,9 @@ tbody tr:hover td { background: transparent; }
   .payment-loan-card { padding: var(--space-4); }
   .payment-balance-row { grid-template-columns: 1fr; }
   .payment-save-balance,
-  .payment-done {
+  .payment-done,
+  .payment-not-done,
+  .payment-no-need {
     width: 100%;
   }
   .payment-progress-labels {
