@@ -55,9 +55,16 @@ function paymentStatus(id, month = state.month) {
 }
 
 function isPaid(id, month = state.month) { return paymentStatus(id, month) === 'paid'; }
+function isPartial(id, month = state.month) { return paymentStatus(id, month) === 'partial'; }
+
+function getPaidAmount(id, month = state.month) {
+  const meta = state.paymentMeta[pkey(id, month)];
+  return (meta && meta.paidAmount !== '' && meta.paidAmount !== undefined)
+    ? Number(meta.paidAmount) : null;
+}
 
 function isPaymentResolved(id, month = state.month) {
-  return ['paid', 'not_done', 'no_need'].includes(paymentStatus(id, month));
+  return ['paid', 'partial', 'not_done', 'no_need'].includes(paymentStatus(id, month));
 }
 
 function activeObs() {
@@ -208,35 +215,50 @@ async function fetchAll() {
 }
 
 async function togglePayment(id) {
-  const next = isPaid(id) ? 'unpaid' : 'paid';
-  return setPaymentStatus(id, next);
+  const status = paymentStatus(id);
+  if (status === 'paid' || status === 'partial') return setPaymentStatus(id, 'unpaid');
+  openPaymentPanel(id);
 }
 
 async function setPaymentStatus(id, status) {
+  return setPaymentWithAmount(id, status, null);
+}
+
+async function setPaymentWithAmount(id, status, paidAmt) {
   const key = pkey(id, state.month);
   const previousPaid = !!state.payments[key];
   const previousMeta = state.paymentMeta[key] ? { ...state.paymentMeta[key] } : null;
   const paid = status === 'paid';
+  const resolved = paid || status === 'partial';
 
   state.payments[key] = paid;
   state.paymentMeta[key] = {
     key, paid, status,
-    completedAt: paid ? new Date().toISOString() : '',
+    paidAmount: paidAmt !== null ? paidAmt : '',
+    completedAt: resolved ? new Date().toISOString() : '',
     updatedAt: new Date().toISOString()
   };
   patchPaymentEl(id);
 
   try {
-    const result = await callApi({ action: 'setPayment', key, paid, status, month: state.month });
+    const result = await callApi({
+      action: 'setPayment', key, paid, status, month: state.month,
+      paidAmount: paidAmt !== null ? paidAmt : ''
+    });
     state.paymentMeta[key] = {
       key, paid,
       status: result.status || status,
+      paidAmount: result.paidAmount !== undefined ? result.paidAmount : (paidAmt ?? ''),
       completedAt: result.completedAt || '',
       updatedAt: new Date().toISOString()
     };
-    if (status === 'paid') showToast('Payment completed.');
-    if (status === 'not_done') showToast('Marked as did not pay.');
-    if (status === 'no_need') showToast('Marked no need.');
+    const toasts = {
+      paid: 'Payment completed.',
+      partial: `Partial payment of ${amd(paidAmt)} recorded.`,
+      not_done: 'Marked as did not pay.',
+      no_need: 'Marked no need.'
+    };
+    if (toasts[status]) showToast(toasts[status]);
   } catch (err) {
     state.payments[key] = previousPaid;
     if (previousMeta) state.paymentMeta[key] = previousMeta;
@@ -244,6 +266,74 @@ async function setPaymentStatus(id, status) {
     patchPaymentEl(id);
     showError('Could not save — will retry automatically.');
   }
+}
+
+function openPaymentPanel(id) {
+  document.querySelectorAll('.pay-panel:not(.hidden)').forEach(p => p.classList.add('hidden'));
+  const panel = document.getElementById('pay-panel-' + id);
+  if (!panel) return;
+  const ob = state.obligations.find(o => String(o.id) === String(id));
+  const input = panel.querySelector('.pay-amount-input');
+  if (input && ob) {
+    const existing = getPaidAmount(id);
+    input.value = existing !== null ? existing : (Number(ob.amount) || '');
+  }
+  panel.classList.remove('hidden');
+  updatePayPanelHint(id);
+  setTimeout(() => input?.select(), 50);
+}
+
+function closePaymentPanel(id) {
+  const panel = document.getElementById('pay-panel-' + id);
+  if (panel) panel.classList.add('hidden');
+}
+
+function updatePayPanelHint(id) {
+  const ob = state.obligations.find(o => String(o.id) === String(id));
+  const panel = document.getElementById('pay-panel-' + id);
+  const input = panel?.querySelector('.pay-amount-input');
+  const hint = panel?.querySelector('.pay-panel-hint');
+  if (!ob || !input || !hint) return;
+  const amount = Number(input.value);
+  const scheduled = Number(ob.amount) || 0;
+  if (!input.value.trim() || amount === 0) {
+    hint.className = 'pay-panel-hint hint-muted';
+    hint.textContent = 'Enter 0 to mark as not paid';
+  } else if (scheduled > 0 && amount >= scheduled) {
+    const over = amount - scheduled;
+    hint.className = 'pay-panel-hint hint-success';
+    hint.textContent = over > 0 ? `Full payment (+${amd(over)} extra)` : 'Full payment ✓';
+  } else {
+    const remaining = scheduled > 0 ? scheduled - amount : 0;
+    hint.className = 'pay-panel-hint hint-partial';
+    hint.textContent = remaining > 0 ? `Partial · ${amd(remaining)} still outstanding` : 'Partial payment';
+  }
+}
+
+async function confirmPaymentAmount(id) {
+  const ob = state.obligations.find(o => String(o.id) === String(id));
+  if (!ob) return;
+  const panel = document.getElementById('pay-panel-' + id);
+  const input = panel?.querySelector('.pay-amount-input');
+  const amount = Number(input?.value ?? '');
+  const scheduled = Number(ob.amount) || 0;
+  const status = amount === 0 ? 'not_done'
+    : (scheduled > 0 && amount < scheduled) ? 'partial'
+    : 'paid';
+  closePaymentPanel(id);
+  await setPaymentWithAmount(id, status, amount);
+}
+
+function buildPartialInfo(id, ob) {
+  const amt = getPaidAmount(id);
+  if (amt === null || !isPartial(id)) return '';
+  const scheduled = Number(ob?.amount) || 0;
+  const remaining = scheduled > 0 ? Math.max(0, scheduled - amt) : 0;
+  const pct = scheduled > 0 ? Math.round((amt / scheduled) * 100) : 0;
+  return `<div class="partial-info">
+    <div class="partial-bar"><div class="partial-bar-fill" style="width:${pct}%"></div></div>
+    <div class="partial-label">${amd(amt)} paid · ${remaining > 0 ? amd(remaining) + ' remaining' : 'fully covered'}</div>
+  </div>`;
 }
 
 function patchPaymentEl(id) {
@@ -255,7 +345,7 @@ function patchPaymentEl(id) {
 
   // Paid / status classes
   el.classList.toggle('is-paid', paid);
-  el.className = el.className.replace(/\bis-(?:paid|unpaid|not-done|no-need)\b/g, '').trim();
+  el.className = el.className.replace(/\bis-(?:paid|unpaid|not-done|no-need|partial)\b/g, '').trim();
   el.classList.add(`is-${status.replace('_', '-')}`);
 
   // Urgency — restore when un-paying, clear when paying
@@ -275,9 +365,23 @@ function patchPaymentEl(id) {
   // Done/Paid button (card view)
   const doneBtn = el.querySelector('.payment-done');
   if (doneBtn) {
-    doneBtn.textContent = paid ? 'Paid' : 'Done';
-    doneBtn.classList.toggle('button-primary', !paid);
-    doneBtn.classList.toggle('button-secondary', paid);
+    const resolved = paid || status === 'partial';
+    doneBtn.textContent = paid ? 'Paid' : status === 'partial' ? 'Partial' : 'Record payment';
+    doneBtn.classList.toggle('button-primary', !resolved);
+    doneBtn.classList.toggle('button-secondary', resolved);
+    doneBtn.setAttribute('onclick', resolved
+      ? `setPaymentStatus('${id}', 'unpaid')`
+      : `openPaymentPanel('${id}')`);
+  }
+
+  // Partial info
+  const ob = state.obligations.find(o => String(o.id) === String(id));
+  const existingPartial = el.querySelector('.partial-info');
+  const newPartialHtml = buildPartialInfo(id, ob);
+  if (existingPartial) existingPartial.outerHTML = newPartialHtml || '<div class="partial-info" style="display:none"></div>';
+  else if (newPartialHtml) {
+    const anchor = el.querySelector('.payment-basic-actions, .payment-status-actions');
+    if (anchor) anchor.insertAdjacentHTML('beforebegin', newPartialHtml);
   }
 
   // Check button (table view)
@@ -733,8 +837,11 @@ function loanPaymentCard(o, index) {
       <div class="payment-card-actions">
         <button class="button button-ghost loan-edit-toggle" type="button"
                 onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
-        <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
-                type="button" onclick="togglePayment('${escapeHtml(o.id)}')">${paid ? 'Paid' : 'Done'}</button>
+        <button class="button ${(paid || status === 'partial') ? 'button-secondary' : 'button-primary'} payment-done"
+                type="button"
+                onclick="${(paid || status === 'partial') ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `openPaymentPanel('${escapeHtml(o.id)}')`}">
+          ${paid ? 'Paid ✓' : status === 'partial' ? 'Partial' : 'Record payment'}
+        </button>
       </div>
     </div>
     ${paymentStatusBadge(status)}
@@ -762,22 +869,39 @@ function loanPaymentCard(o, index) {
       ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
       ${staleBalance ? `<div class="balance-stale">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>` : ''}
     </div>
+    ${buildPartialInfo(o.id, o)}
     <div class="payment-status-actions">
       <button class="button button-secondary payment-not-done" type="button"
-              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not done</button>
+              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
       <button class="button button-ghost payment-no-need" type="button"
-              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No Need</button>
+              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No need</button>
+    </div>
+    <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
+      <label class="pay-panel-label">Amount paid ֏</label>
+      <div class="pay-panel-row">
+        <input class="pay-amount-input" type="number" min="0" step="1000"
+               placeholder="${Number(o.amount) || 0}"
+               oninput="updatePayPanelHint('${escapeHtml(o.id)}')"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();confirmPaymentAmount('${escapeHtml(o.id)}');}">
+        <button class="button button-primary" type="button"
+                onclick="confirmPaymentAmount('${escapeHtml(o.id)}')">Confirm</button>
+        <button class="button button-ghost" type="button"
+                onclick="closePaymentPanel('${escapeHtml(o.id)}')">Cancel</button>
+      </div>
+      <div class="pay-panel-hint"></div>
     </div>
   </article>`;
 }
 
 function standardPaymentCard(o, index) {
   const paid = isPaid(o.id);
+  const partial = isPartial(o.id);
   const status = paymentStatus(o.id);
+  const resolved = paid || partial;
   const completedAt = state.paymentMeta[pkey(o.id, state.month)]?.completedAt;
   const dueDay = Number(o.dueDay);
   const today = currentMonthDay();
-  const urgency = !paid && today && dueDay > 0
+  const urgency = !resolved && today && dueDay > 0
     ? (dueDay < today ? 'is-overdue' : dueDay <= today + 3 ? 'is-due-soon' : '')
     : '';
   const revealDelay = Math.min((index || 0) * 30, 200);
@@ -794,25 +918,39 @@ function standardPaymentCard(o, index) {
     <div class="payment-basic-meta">
       <strong>${Number(o.amount) > 0 ? amd(o.amount) : '—'}</strong>
       <span>${Number(o.dueDay) > 0 ? `Due day ${o.dueDay}` : 'No due day'}</span>
-      ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
+      ${resolved && completedAt ? `<time class="payment-card-time">${paid ? 'Paid' : 'Recorded'} ${formatTimestamp(completedAt)}</time>` : ''}
     </div>
+    ${buildPartialInfo(o.id, o)}
     <div class="payment-basic-actions">
-      <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
-              type="button" onclick="togglePayment('${escapeHtml(o.id)}')">${paid ? 'Paid' : 'Done'}</button>
+      <button class="button ${resolved ? 'button-secondary' : 'button-primary'} payment-done"
+              type="button"
+              onclick="${resolved ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `openPaymentPanel('${escapeHtml(o.id)}')`}">
+        ${paid ? 'Paid ✓' : partial ? 'Partial' : 'Record payment'}
+      </button>
       <button class="button button-secondary payment-not-done" type="button"
-              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not done</button>
+              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
       <button class="button button-ghost payment-no-need" type="button"
-              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No Need</button>
+              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No need</button>
+    </div>
+    <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
+      <label class="pay-panel-label">Amount paid ֏</label>
+      <div class="pay-panel-row">
+        <input class="pay-amount-input" type="number" min="0" step="1000"
+               placeholder="${Number(o.amount) || 0}"
+               oninput="updatePayPanelHint('${escapeHtml(o.id)}')"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();confirmPaymentAmount('${escapeHtml(o.id)}');}">
+        <button class="button button-primary" type="button"
+                onclick="confirmPaymentAmount('${escapeHtml(o.id)}')">Confirm</button>
+        <button class="button button-ghost" type="button"
+                onclick="closePaymentPanel('${escapeHtml(o.id)}')">Cancel</button>
+      </div>
+      <div class="pay-panel-hint"></div>
     </div>
   </article>`;
 }
 
 function paymentStatusBadge(status) {
-  const labels = {
-    paid: 'Done',
-    not_done: 'Did not done',
-    no_need: 'No Need'
-  };
+  const labels = { paid: 'Done', partial: 'Partial', not_done: 'Did not pay', no_need: 'No need' };
   return labels[status]
     ? `<span class="payment-status-badge status-${status.replace('_', '-')}">${labels[status]}</span>`
     : '';

@@ -1055,6 +1055,10 @@ tbody tr:hover td { background: transparent; }
   background: var(--color-success-soft);
   color: var(--color-success);
 }
+.payment-status-badge.status-partial {
+  background: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface-2));
+  color: var(--color-warning);
+}
 .payment-status-badge.status-not-done {
   background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface-2));
   color: var(--color-danger);
@@ -1081,6 +1085,87 @@ tbody tr:hover td { background: transparent; }
 .payment-no-need {
   color: var(--color-primary);
 }
+.payment-loan-card.is-partial,
+.payment-basic-card.is-partial {
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  border-left: 3px solid var(--color-warning);
+}
+.partial-info {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface-2));
+}
+.partial-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+.partial-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-warning);
+  transition: width var(--motion-standard) var(--ease-enter);
+}
+.partial-label {
+  font-size: var(--text-10);
+  font-weight: 700;
+  color: var(--color-warning);
+}
+.pay-panel {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  animation: inlineEditIn var(--motion-standard) var(--ease-enter);
+}
+.pay-panel-label {
+  display: block;
+  font-size: var(--text-10);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+.pay-panel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pay-amount-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-1);
+  color: var(--color-text);
+  font-size: var(--text-15);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow-inset);
+}
+.pay-amount-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+.pay-panel-hint {
+  margin-top: var(--space-2);
+  font-size: var(--text-10);
+  font-weight: 700;
+  min-height: 14px;
+  transition: color var(--motion-standard);
+}
+.hint-success { color: var(--color-success); }
+.hint-partial { color: var(--color-warning); }
+.hint-muted { color: var(--color-text-muted); }
+
 .payment-loan-card.is-not-done,
 .payment-basic-card.is-not-done {
   border-color: color-mix(in srgb, var(--color-danger) 32%, var(--color-border));

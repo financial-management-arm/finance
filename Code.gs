@@ -9,7 +9,7 @@ var SCHEMAS = {
     'currentBalance', 'loanTotal', 'contractNumber', 'active', 'startDate',
     'balanceUpdatedMonth', 'completedAt', 'updatedAt', 'frequency'
   ],
-  Payments: ['key', 'paid', 'completedAt', 'updatedAt', 'status'],
+  Payments: ['key', 'paid', 'completedAt', 'updatedAt', 'status', 'paidAmount'],
   Income: ['id', 'date', 'amount', 'stream', 'note', 'createdAt', 'updatedAt'],
   Loans: [
     'snapshotKey', 'month', 'obligationId', 'payer', 'bank', 'amount', 'dueDay',
@@ -84,16 +84,20 @@ function setPayment(ss, params) {
   var status = normalizePaymentStatus(params.status, params.paid);
   var paid = status === 'paid';
   if (!key || key.length > 100) throw new Error('Invalid payment key');
+  var paidAmount = (params.paidAmount !== undefined && params.paidAmount !== '')
+    ? Number(params.paidAmount) : '';
 
   var now = isoNow();
+  var resolved = paid || status === 'partial';
   upsertObject(ss.getSheetByName('Payments'), 'key', key, {
     key: key,
     paid: paid,
-    completedAt: paid ? now : '',
+    completedAt: resolved ? now : '',
     updatedAt: now,
-    status: status
+    status: status,
+    paidAmount: paidAmount
   });
-  return { success: true, paid: paid, status: status, completedAt: paid ? now : '' };
+  return { success: true, paid: paid, status: status, completedAt: resolved ? now : '', paidAmount: paidAmount };
 }
 
 function normalizePaymentStatus(status, paid) {
@@ -102,6 +106,7 @@ function normalizePaymentStatus(status, paid) {
   var allowed = {
     paid: true,
     unpaid: true,
+    partial: true,
     not_done: true,
     no_need: true
   };
