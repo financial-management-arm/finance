@@ -495,6 +495,66 @@ function withLock(callback) {
   }
 }
 
+// Run in Apps Script editor to see what's in the Loans sheet and why.
+function diagnoseLoanHistory() {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var sheet = ss.getSheetByName('Loans');
+  if (!sheet || sheet.getLastRow() < 2) { Logger.log('Loans sheet is empty.'); return; }
+
+  var headers = SCHEMAS.Loans;
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+
+  var byMonth = {}, byKey = {}, dupeKeys = [];
+  values.forEach(function(row) {
+    var key = String(row[headers.indexOf('snapshotKey')]);
+    var month = String(row[headers.indexOf('month')]);
+    byMonth[month] = (byMonth[month] || 0) + 1;
+    if (byKey[key]) dupeKeys.push(key);
+    byKey[key] = true;
+  });
+
+  Logger.log('Total rows: ' + values.length);
+  Logger.log('Rows by month: ' + JSON.stringify(byMonth));
+  Logger.log('Duplicate snapshotKeys: ' + dupeKeys.length + (dupeKeys.length ? ' — ' + dupeKeys.slice(0,5).join(', ') : ''));
+}
+
+// Run in Apps Script editor to remove duplicate rows and keep only the
+// two most recent months. Loans for past months are not needed in the app.
+function cleanupLoanHistory() {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var sheet = ss.getSheetByName('Loans');
+  if (!sheet || sheet.getLastRow() < 2) { Logger.log('Nothing to clean.'); return; }
+
+  var headers = SCHEMAS.Loans;
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+
+  var current = currentMonth();
+  var prev = Utilities.formatDate(
+    new Date(Number(current.split('-')[0]), Number(current.split('-')[1]) - 2, 1),
+    Session.getScriptTimeZone(), 'yyyy-MM'
+  );
+
+  // Keep only rows where month >= prev (last month + current month)
+  // AND no duplicate snapshotKey (keep last occurrence)
+  var seen = {};
+  var kept = [];
+  for (var i = values.length - 1; i >= 0; i--) {
+    var key = String(values[i][headers.indexOf('snapshotKey')]);
+    var month = String(values[i][headers.indexOf('month')]);
+    if (month < prev) continue;      // too old
+    if (seen[key]) continue;         // duplicate — already kept a newer one
+    seen[key] = true;
+    kept.unshift(values[i]);
+  }
+
+  // Rewrite the sheet
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).clearContent();
+  if (kept.length) {
+    sheet.getRange(2, 1, kept.length, headers.length).setValues(kept);
+  }
+  Logger.log('Cleaned. Kept ' + kept.length + ' of ' + values.length + ' rows.');
+}
+
 // Run ONCE in Apps Script editor to rename Inekobank → Inecobank in all sheets.
 function fixBankName() {
   var ss = SpreadsheetApp.openById(SS_ID);
