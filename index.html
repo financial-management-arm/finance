@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -245,6 +245,9 @@
     <section id="page-utilities" class="page">
       <div class="page-header">
         <h1>Utilities</h1>
+        <div class="page-header-actions">
+          <button class="btn-primary" type="button" onclick="openAddUtilityModal()">+ Add utility</button>
+        </div>
         <div class="month-nav">
           <button class="btn-nav btn-prev" aria-label="Previous month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 15-5-5 5-5"/></svg></button>
           <span class="month-label"></span>
@@ -359,8 +362,95 @@
   </div>
 </div>
 
+<!-- ─── ADD UTILITY MODAL ─── -->
+<div class="modal-backdrop hidden" id="add-util-modal">
+  <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="add-util-title">
+    <div class="edit-modal-header">
+      <div>
+        <div class="eyebrow">New utility</div>
+        <h2 id="add-util-title">Add Utility</h2>
+      </div>
+      <button class="modal-close" type="button" onclick="closeAddUtilityModal()" aria-label="Close">×</button>
+    </div>
+    <form id="add-util-form" onsubmit="event.preventDefault(); submitAddUtility();">
+      <datalist id="add-util-payer-list"></datalist>
+      <div class="edit-grid">
+        <label>Name<input id="add-util-name" type="text" required placeholder="e.g. Electricity, Water"></label>
+        <label>Payer<input id="add-util-payer" type="text" required list="add-util-payer-list" placeholder="e.g. Plus 1 Law Group LLC"></label>
+        <label>Provider<input id="add-util-provider" type="text" placeholder="e.g. Electric Networks of Armenia"></label>
+        <label>Abonent Number<input id="add-util-abonent" type="text" placeholder="e.g. 0012345678"></label>
+        <label>Fixed amount ֏<input id="add-util-amount" type="number" min="0" value="0" placeholder="0 = variable"></label>
+        <label>Due day<input id="add-util-dueday" type="number" min="0" max="31" value="0"></label>
+        <label>Type
+          <select id="add-util-type">
+            <option value="variable">Variable</option>
+            <option value="fixed">Fixed</option>
+          </select>
+        </label>
+        <label>Personal expense
+          <select id="add-util-personal">
+            <option value="true">Yes – include in expenses</option>
+            <option value="false">No – track only</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" type="button" onclick="closeAddUtilityModal()">Cancel</button>
+        <button class="btn-primary" type="submit">Add Utility</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── EDIT UTILITY MODAL ─── -->
+<div class="modal-backdrop hidden" id="edit-util-modal">
+  <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-util-title">
+    <div class="edit-modal-header">
+      <div>
+        <div class="eyebrow">Edit utility</div>
+        <h2 id="edit-util-title">Edit Utility</h2>
+      </div>
+      <button class="modal-close" type="button" onclick="closeUtilEdit()" aria-label="Close">×</button>
+    </div>
+    <form id="edit-util-form" onsubmit="event.preventDefault(); submitUtilEdit();">
+      <input type="hidden" id="edit-util-id">
+      <datalist id="edit-util-payer-list"></datalist>
+      <div class="edit-grid">
+        <label>Name<input id="edit-util-name" type="text" required></label>
+        <label>Payer<input id="edit-util-payer" type="text" required list="edit-util-payer-list"></label>
+        <label>Provider<input id="edit-util-provider" type="text"></label>
+        <label>Abonent Number<input id="edit-util-abonent" type="text"></label>
+        <label>Fixed amount ֏<input id="edit-util-amount" type="number" min="0" value="0"></label>
+        <label>Due day<input id="edit-util-dueday" type="number" min="0" max="31" value="0"></label>
+        <label>Type
+          <select id="edit-util-type">
+            <option value="variable">Variable</option>
+            <option value="fixed">Fixed</option>
+          </select>
+        </label>
+        <label>Personal expense
+          <select id="edit-util-personal">
+            <option value="true">Yes – include in expenses</option>
+            <option value="false">No – track only</option>
+          </select>
+        </label>
+        <label>Status
+          <select id="edit-util-active">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" type="button" onclick="closeUtilEdit()">Cancel</button>
+        <button class="btn-primary" type="submit">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="config.js?v=15"></script>
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>

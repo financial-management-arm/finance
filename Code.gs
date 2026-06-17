@@ -66,6 +66,14 @@ function doGet(e) {
       result = withLock(function() {
         return addObligation(ss, params);
       });
+    } else if (action === 'addUtility') {
+      result = withLock(function() {
+        return addUtility(ss, params);
+      });
+    } else if (action === 'updateUtility') {
+      result = withLock(function() {
+        return updateUtility(ss, params);
+      });
     } else if (action === 'repairSchema') {
       ensureSchema(ss);
       result = { success: true, sheets: Object.keys(SCHEMAS), repairedAt: isoNow() };
@@ -265,6 +273,48 @@ function addObligation(ss, params) {
   });
   ss.getSheetByName('Obligations').appendRow(row);
   return { ok: true, id: newId };
+}
+
+function addUtility(ss, params) {
+  var name = String(params.name || '').trim().slice(0, 80);
+  var payer = String(params.payer || '').trim();
+  if (!name) throw new Error('Utility name is required');
+  if (!payer) throw new Error('Payer is required');
+  var id = 'util-' + Date.now();
+  var row = SCHEMAS.Utilities.map(function(col) {
+    switch (col) {
+      case 'id': return id;
+      case 'name': return name;
+      case 'payer': return payer;
+      case 'provider': return String(params.provider || '').trim().slice(0, 120);
+      case 'abonentNumber': return String(params.abonentNumber || '').trim().slice(0, 60);
+      case 'amount': return Number(params.amount) || 0;
+      case 'type': return String(params.type || 'variable').trim();
+      case 'dueDay': return Math.round(Number(params.dueDay) || 0);
+      case 'active': return true;
+      case 'personalExpense': return params.personalExpense === 'true' || params.personalExpense === true;
+      default: return '';
+    }
+  });
+  ss.getSheetByName('Utilities').appendRow(row);
+  return { ok: true, id: id };
+}
+
+function updateUtility(ss, params) {
+  var id = String(params.id || '');
+  if (!id) throw new Error('Utility id is required');
+  updateObjectByKey(ss.getSheetByName('Utilities'), 'id', id, {
+    name: String(params.name || '').trim().slice(0, 80),
+    payer: String(params.payer || '').trim(),
+    provider: String(params.provider || '').trim().slice(0, 120),
+    abonentNumber: String(params.abonentNumber || '').trim().slice(0, 60),
+    amount: Number(params.amount) || 0,
+    type: String(params.type || 'variable').trim(),
+    dueDay: Math.round(Number(params.dueDay) || 0),
+    active: params.active === 'true' || params.active === true,
+    personalExpense: params.personalExpense === 'true' || params.personalExpense === true
+  });
+  return { ok: true };
 }
 
 // Creates one immutable monthly row per active loan. Existing rows are not

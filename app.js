@@ -97,8 +97,27 @@ function payerClass(p) {
 
 const PALETTE = ['#2563eb','#db2777','#16a34a','#d97706','#7c3aed','#0891b2','#9a3412','#475569'];
 
+function personalUtilsAsObs() {
+  return activeUtils().filter(isUtilPersonal).map(u => {
+    const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
+    const isTransfer = !rawAbonent || rawAbonent.toLowerCase() === 'transfer';
+    const suffix = !isTransfer ? ' · ' + rawAbonent : ' · ' + String(u.provider || '');
+    return {
+      id: u.id,
+      payer: String(u.payer || '').trim(),
+      bank: String(u.name || '') + suffix,
+      category: 'utility',
+      amount: isUtilFixed(u) ? (Number(u.amount) || 0) : 0,
+      dueDay: Number(u.dueDay) || 0,
+      frequency: 'monthly',
+      contractNumber: ''
+    };
+  });
+}
+
 function payers() {
-  return [...new Set(activeObs().map(o => String(o.payer || '').trim()).filter(Boolean))];
+  const all = [...activeObs(), ...personalUtilsAsObs()];
+  return [...new Set(all.map(o => String(o.payer || '').trim()).filter(Boolean))];
 }
 
 function payerColor(payer) {
@@ -162,7 +181,8 @@ function isObligationDueThisMonth(ob, month) {
 }
 
 function dueThisMonth() {
-  return activeObs().filter(o => isObligationDueThisMonth(o));
+  const obs = activeObs().filter(o => isObligationDueThisMonth(o));
+  return [...obs, ...personalUtilsAsObs()];
 }
 
 // ================================================================
@@ -275,7 +295,8 @@ function openPaymentPanel(id) {
   document.querySelectorAll('.pay-panel:not(.hidden)').forEach(p => p.classList.add('hidden'));
   const panel = document.getElementById('pay-panel-' + id);
   if (!panel) return;
-  const ob = state.obligations.find(o => String(o.id) === String(id));
+  const ob = state.obligations.find(o => String(o.id) === String(id))
+           || personalUtilsAsObs().find(u => String(u.id) === String(id));
   const input = panel.querySelector('.pay-amount-input');
   if (input && ob) {
     const existing = getPaidAmount(id);
@@ -292,7 +313,8 @@ function closePaymentPanel(id) {
 }
 
 function updatePayPanelHint(id) {
-  const ob = state.obligations.find(o => String(o.id) === String(id));
+  const ob = state.obligations.find(o => String(o.id) === String(id))
+           || personalUtilsAsObs().find(u => String(u.id) === String(id));
   const panel = document.getElementById('pay-panel-' + id);
   const input = panel?.querySelector('.pay-amount-input');
   const hint = panel?.querySelector('.pay-panel-hint');
@@ -302,19 +324,23 @@ function updatePayPanelHint(id) {
   if (!input.value.trim() || amount === 0) {
     hint.className = 'pay-panel-hint hint-muted';
     hint.textContent = 'Enter 0 to mark as not paid';
-  } else if (scheduled > 0 && amount >= scheduled) {
+  } else if (scheduled === 0) {
+    hint.className = 'pay-panel-hint hint-success';
+    hint.textContent = 'Payment recorded ✓';
+  } else if (amount >= scheduled) {
     const over = amount - scheduled;
     hint.className = 'pay-panel-hint hint-success';
     hint.textContent = over > 0 ? `Full payment (+${amd(over)} extra)` : 'Full payment ✓';
   } else {
-    const remaining = scheduled > 0 ? scheduled - amount : 0;
+    const remaining = scheduled - amount;
     hint.className = 'pay-panel-hint hint-partial';
-    hint.textContent = remaining > 0 ? `Partial · ${amd(remaining)} still outstanding` : 'Partial payment';
+    hint.textContent = `Partial · ${amd(remaining)} still outstanding`;
   }
 }
 
 async function confirmPaymentAmount(id) {
-  const ob = state.obligations.find(o => String(o.id) === String(id));
+  const ob = state.obligations.find(o => String(o.id) === String(id))
+           || personalUtilsAsObs().find(u => String(u.id) === String(id));
   if (!ob) return;
   const panel = document.getElementById('pay-panel-' + id);
   const input = panel?.querySelector('.pay-amount-input');
@@ -354,7 +380,7 @@ function patchPaymentEl(id) {
   // Urgency — restore when un-paying, clear when paying
   el.classList.remove('is-overdue', 'is-due-soon');
   if (!paid) {
-    const o = activeObs().find(ob => String(ob.id) === String(id));
+    const o = dueThisMonth().find(ob => String(ob.id) === String(id));
     if (o) {
       const today = currentMonthDay();
       const dueDay = Number(o.dueDay);
@@ -378,7 +404,8 @@ function patchPaymentEl(id) {
   }
 
   // Partial info
-  const ob = state.obligations.find(o => String(o.id) === String(id));
+  const ob = state.obligations.find(o => String(o.id) === String(id))
+           || personalUtilsAsObs().find(u => String(u.id) === String(id));
   const existingPartial = el.querySelector('.partial-info');
   const newPartialHtml = buildPartialInfo(id, ob);
   if (existingPartial) existingPartial.outerHTML = newPartialHtml || '<div class="partial-info" style="display:none"></div>';
@@ -406,7 +433,7 @@ function patchPaymentEl(id) {
 
   // Footer counts
   const obs = sortPayments(filteredObs());
-  const all = activeObs();
+  const all = dueThisMonth();
   const allResolved = all.filter(o => isPaymentResolved(o.id));
   const visResolved = obs.filter(o => isPaymentResolved(o.id));
   const t = q('sched-total'), c = q('sched-count'), g = q('sched-grand');
@@ -799,13 +826,13 @@ function renderSchedule() {
       : 'No payments match these filters.'}
   </td></tr>`;
 
-  const all     = activeObs();
-  const allPaid = all.filter(o => isPaid(o.id));
-  const visPaid = obs.filter(o => isPaid(o.id));
+  const all        = dueThisMonth();
+  const allResolved2 = all.filter(o => isPaymentResolved(o.id));
+  const visResolved2 = obs.filter(o => isPaymentResolved(o.id));
 
   q('sched-total').textContent  = amd(totalAmt(obs));
-  q('sched-count').textContent  = `${visPaid.length}/${obs.length}`;
-  q('sched-grand').textContent  = `Total: ${amd(totalAmt(all))} — ${allPaid.length}/${all.length} paid`;
+  q('sched-count').textContent  = `${visResolved2.length}/${obs.length}`;
+  q('sched-grand').textContent  = `Total: ${amd(totalAmt(all))} · ${allResolved2.length}/${all.length} resolved`;
 }
 
 function paymentCard(o, index) {
@@ -1623,10 +1650,14 @@ function utilityRow(u) {
           ${paid && paidAmt ? `<span class="util-paid-badge">${amd(Number(paidAmt))}</span>` : ''}
         </div>
       </div>
-      <button class="util-toggle${paid ? ' is-done' : ''}" type="button"
-              onclick="toggleUtilityPaid('${escapeHtml(u.id)}')"
-              aria-label="${paid ? 'Mark undone' : 'Mark done'}"
-              title="${paid ? 'Mark undone' : 'Mark done'}"></button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="util-toggle${paid ? ' is-done' : ''}" type="button"
+                onclick="toggleUtilityPaid('${escapeHtml(u.id)}')"
+                aria-label="${paid ? 'Mark undone' : 'Mark done'}"
+                title="${paid ? 'Mark undone' : 'Mark done'}"></button>
+        <button class="btn-icon-edit" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')"
+                title="Edit" aria-label="Edit utility">✎</button>
+      </div>
     </div>
     ${personal && !fixed && !paid ? `<div class="util-amount-panel hidden" id="util-panel-${escapeHtml(u.id)}">
       <label class="util-panel-label">Amount paid ֏</label>
@@ -1638,6 +1669,103 @@ function utilityRow(u) {
       </div>
     </div>` : ''}
   </div>`;
+}
+
+// ================================================================
+// Utility CRUD
+// ================================================================
+function openAddUtilityModal() {
+  const payerList = ['Plus 1 Law Group LLC', 'Home', 'Family',
+    ...new Set(activeUtils().map(u => String(u.payer || '').trim()).filter(Boolean))];
+  q('add-util-payer-list').innerHTML = [...new Set(payerList)].map(p => `<option value="${escapeHtml(p)}">`).join('');
+  q('add-util-modal').classList.remove('hidden');
+  q('add-util-name').focus();
+}
+
+function closeAddUtilityModal() {
+  q('add-util-modal').classList.add('hidden');
+  q('add-util-form').reset();
+}
+
+async function submitAddUtility() {
+  const name = q('add-util-name').value.trim();
+  const payer = q('add-util-payer').value.trim();
+  if (!name || !payer) { alert('Name and Payer are required.'); return; }
+  const params = {
+    action: 'addUtility',
+    name,
+    payer,
+    provider: q('add-util-provider').value.trim(),
+    abonentNumber: q('add-util-abonent').value.trim(),
+    amount: q('add-util-amount').value || '0',
+    type: q('add-util-type').value,
+    dueDay: q('add-util-dueday').value || '0',
+    active: 'true',
+    personalExpense: q('add-util-personal').value
+  };
+  try {
+    const res = await callApi(params);
+    if (res.error) throw new Error(res.error);
+    closeAddUtilityModal();
+    await refreshData();
+    showToast('Utility added.');
+  } catch (err) {
+    alert('Failed to add: ' + err.message);
+  }
+}
+
+function openUtilEdit(id) {
+  const u = state.utilities.find(u => String(u.id) === String(id));
+  if (!u) return;
+  q('edit-util-id').value = u.id;
+  q('edit-util-name').value = u.name || '';
+  q('edit-util-payer').value = u.payer || '';
+  q('edit-util-provider').value = u.provider || '';
+  q('edit-util-abonent').value = u.abonentNumber || '';
+  q('edit-util-amount').value = u.amount || '';
+  q('edit-util-type').value = u.type || 'variable';
+  q('edit-util-dueday').value = u.dueDay || '';
+  q('edit-util-personal').value = String(u.personalExpense) === 'true' ? 'true' : 'false';
+  q('edit-util-active').value = String(u.active) === 'true' || String(u.active).toUpperCase() === 'TRUE' ? 'true' : 'false';
+  const payerList = ['Plus 1 Law Group LLC', 'Home', 'Family',
+    ...new Set(activeUtils().map(u => String(u.payer || '').trim()).filter(Boolean))];
+  q('edit-util-payer-list').innerHTML = [...new Set(payerList)].map(p => `<option value="${escapeHtml(p)}">`).join('');
+  q('edit-util-modal').classList.remove('hidden');
+  q('edit-util-name').focus();
+}
+
+function closeUtilEdit() {
+  q('edit-util-modal').classList.add('hidden');
+  q('edit-util-form').reset();
+}
+
+async function submitUtilEdit() {
+  const id = q('edit-util-id').value;
+  const name = q('edit-util-name').value.trim();
+  const payer = q('edit-util-payer').value.trim();
+  if (!name || !payer) { alert('Name and Payer are required.'); return; }
+  const params = {
+    action: 'updateUtility',
+    id,
+    name,
+    payer,
+    provider: q('edit-util-provider').value.trim(),
+    abonentNumber: q('edit-util-abonent').value.trim(),
+    amount: q('edit-util-amount').value || '0',
+    type: q('edit-util-type').value,
+    dueDay: q('edit-util-dueday').value || '0',
+    personalExpense: q('edit-util-personal').value,
+    active: q('edit-util-active').value
+  };
+  try {
+    const res = await callApi(params);
+    if (res.error) throw new Error(res.error);
+    closeUtilEdit();
+    await refreshData();
+    showToast('Utility updated.');
+  } catch (err) {
+    alert('Failed to update: ' + err.message);
+  }
 }
 
 // ================================================================
