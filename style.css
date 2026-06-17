@@ -617,6 +617,26 @@ tfoot td {
 }
 .panel-sort-select:focus { border-color: var(--primary); color: var(--text); }
 
+/* KPI summary row */
+.report-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.report-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; box-shadow: var(--shadow); }
+.rk-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 6px; }
+.rk-value { font-size: 20px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.rk-value-ok   { color: var(--success); }
+.rk-value-warn { color: var(--warning); }
+.rk-value-bad  { color: var(--danger); }
+.rk-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* Category / payer bars */
+.cat-list { display: flex; flex-direction: column; gap: 10px; }
+.cat-row  { display: grid; grid-template-columns: 100px 1fr 36px auto; align-items: center; gap: 8px; }
+.cat-label { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-bar-wrap { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.cat-bar  { height: 100%; border-radius: 4px; transition: width .4s ease; }
+.cat-pct  { font-size: 11px; color: var(--muted); text-align: right; }
+.cat-amount { font-size: 12px; font-weight: 600; color: var(--text); text-align: right; white-space: nowrap; }
+.cat-count { font-weight: 400; color: var(--muted); }
+
 /* Health sort header */
 .health-sort-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -663,6 +683,8 @@ tfoot td {
   .health-bars      { border-right: none; border-bottom: 1px solid var(--border); }
   .report-controls  { gap: 7px; }
   .cf-cov, .cf-cov-head { display: none; }
+  .report-kpi-row   { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .cat-row          { grid-template-columns: 80px 1fr 30px auto; gap: 6px; }
 }
 
 @media (max-width: 480px) {

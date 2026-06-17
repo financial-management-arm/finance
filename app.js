@@ -1880,11 +1880,14 @@ function renderReports() {
 
   body.innerHTML = `
     ${payerBar}
+    ${renderReportSummary(d)}
     ${renderCashFlowPanel(d)}
     <div class="report-2col">
       ${renderDebtPanel(d)}
       ${renderLoanProjections(d)}
     </div>
+    ${renderCategoryPanel()}
+    ${renderPayerPanel()}
     ${renderHealthPanel(d)}
   `;
 }
@@ -2109,6 +2112,135 @@ function renderHealthPanel(d) {
         ${missedHtml}
       </div>
     </div>
+  </div>`;
+}
+
+function renderReportSummary(d) {
+  const loans = activeLoans();
+  const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
+  const monthlyObl = activeObs().reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
+  const monthlyUtil = utils.reduce((s, u) => s + (Number(u.amount) || 0), 0);
+  const monthlyTotal = monthlyObl + monthlyUtil;
+  const cfData = d.cashFlow || [];
+  const avgIncome = cfData.length ? Math.round(cfData.reduce((s, r) => s + (r.income || 0), 0) / cfData.length) : 0;
+  const healthData = d.paymentHealth || [];
+  const avgHealth = healthData.length
+    ? Math.round(healthData.reduce((s, r) => s + (r.rate || 0), 0) / healthData.length * 10) / 10 : 0;
+  const healthCls = avgHealth >= 80 ? 'rk-value-ok' : avgHealth >= 60 ? 'rk-value-warn' : 'rk-value-bad';
+
+  return `<div class="report-kpi-row">
+    <div class="report-kpi">
+      <div class="rk-label">Monthly Obligations</div>
+      <div class="rk-value">${amdCompact(monthlyTotal)}</div>
+      <div class="rk-sub">${activeObs().length + utils.length} active items</div>
+    </div>
+    <div class="report-kpi">
+      <div class="rk-label">Avg Monthly Income</div>
+      <div class="rk-value">${amdCompact(avgIncome)}</div>
+      <div class="rk-sub">over ${cfData.length} months</div>
+    </div>
+    <div class="report-kpi">
+      <div class="rk-label">Total Debt</div>
+      <div class="rk-value">${amdCompact(totalDebt)}</div>
+      <div class="rk-sub">${loans.length} active loan${loans.length !== 1 ? 's' : ''}</div>
+    </div>
+    <div class="report-kpi">
+      <div class="rk-label">Avg Payment Health</div>
+      <div class="rk-value ${healthCls}">${avgHealth}%</div>
+      <div class="rk-sub">over ${healthData.length} months</div>
+    </div>
+  </div>`;
+}
+
+function renderCategoryPanel() {
+  const active = activeObs();
+  const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
+  if (!active.length && !utils.length) return '';
+
+  const byCategory = {};
+  const catMeta = {
+    loan:     { label: 'Loans',     color: 'var(--primary)' },
+    personal: { label: 'Personal',  color: 'var(--warning)' },
+    credit:   { label: 'Credit',    color: 'var(--danger)'  },
+    utility:  { label: 'Utilities', color: 'var(--success)' },
+  };
+  active.forEach(o => {
+    const cat = String(o.category || 'other').toLowerCase().trim();
+    if (!byCategory[cat]) byCategory[cat] = { ...( catMeta[cat] || { label: cat.charAt(0).toUpperCase() + cat.slice(1), color: 'var(--muted)' }), count: 0, total: 0 };
+    byCategory[cat].count++;
+    byCategory[cat].total += Number(o.amount) || 0;
+  });
+  if (utils.length) {
+    if (!byCategory.utility) byCategory.utility = { ...catMeta.utility, count: 0, total: 0 };
+    utils.forEach(u => { byCategory.utility.count++; byCategory.utility.total += Number(u.amount) || 0; });
+  }
+
+  const cats = Object.values(byCategory).sort((a, b) => b.total - a.total);
+  const grandTotal = cats.reduce((s, c) => s + c.total, 0);
+  if (!grandTotal) return '';
+
+  const rows = cats.map(c => {
+    const pct = Math.round((c.total / grandTotal) * 100);
+    return `<div class="cat-row">
+      <span class="cat-label">${escapeHtml(c.label)}</span>
+      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${c.color}"></div></div>
+      <span class="cat-pct">${pct}%</span>
+      <span class="cat-amount">${amdCompact(c.total)} <span class="cat-count">· ${c.count}</span></span>
+    </div>`;
+  }).join('');
+
+  return `<div class="report-panel">
+    <div class="report-panel-header">
+      <div class="rp-title">
+        <svg class="rp-icon" viewBox="0 0 20 20"><path d="M3 5h14M3 9h10M3 13h6"/></svg>
+        Expense Breakdown
+      </div>
+      <div class="rp-badge">${amdCompact(grandTotal)}/mo</div>
+    </div>
+    <div class="report-panel-body rp-pad"><div class="cat-list">${rows}</div></div>
+  </div>`;
+}
+
+function renderPayerPanel() {
+  const all = activeObs();
+  const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
+  const colors = ['var(--primary)', '#7c3aed', '#0891b2', '#dc2626', '#d97706'];
+  const byPayer = {};
+  all.forEach(o => {
+    const p = String(o.payer || '').trim(); if (!p) return;
+    if (!byPayer[p]) byPayer[p] = { count: 0, total: 0 };
+    byPayer[p].count++; byPayer[p].total += Number(o.amount) || 0;
+  });
+  utils.forEach(u => {
+    const p = String(u.payer || '').trim(); if (!p) return;
+    if (!byPayer[p]) byPayer[p] = { count: 0, total: 0 };
+    byPayer[p].count++; byPayer[p].total += Number(u.amount) || 0;
+  });
+
+  const payerArr = Object.entries(byPayer).sort((a, b) => b[1].total - a[1].total);
+  if (payerArr.length < 2) return '';
+  const grandTotal = payerArr.reduce((s, [, v]) => s + v.total, 0);
+
+  const rows = payerArr.map(([name, v], i) => {
+    const pct = grandTotal > 0 ? Math.round((v.total / grandTotal) * 100) : 0;
+    return `<div class="cat-row">
+      <span class="cat-label">${escapeHtml(name)}</span>
+      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${colors[i % colors.length]}"></div></div>
+      <span class="cat-pct">${pct}%</span>
+      <span class="cat-amount">${amdCompact(v.total)} <span class="cat-count">· ${v.count}</span></span>
+    </div>`;
+  }).join('');
+
+  return `<div class="report-panel">
+    <div class="report-panel-header">
+      <div class="rp-title">
+        <svg class="rp-icon" viewBox="0 0 20 20"><path d="M13 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 18a5 5 0 0 1 10 0"/></svg>
+        Per-Payer Breakdown
+      </div>
+      <div class="rp-badge">${payerArr.length} payers</div>
+    </div>
+    <div class="report-panel-body rp-pad"><div class="cat-list">${rows}</div></div>
   </div>`;
 }
 
