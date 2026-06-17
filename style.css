@@ -2154,40 +2154,49 @@ tbody tr:hover td { background: transparent; }
 }
 
 /* =========================================================
-   Desktop reports: keep every report section at natural height
+   Reports scrolling and panel sizing
    ========================================================= */
+
+/* Allow the main flex chain to become smaller than its content,
+   so the page-body can own the vertical scrollbar. */
+.main,
+.page,
 #page-reports {
   min-height: 0;
 }
 
 #page-reports .page-body {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
+/* Keep report sections at their natural height instead of
+   shrinking them into thin horizontal lines. */
 #page-reports .report-body {
-  min-height: min-content;
-  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
 }
 
-#page-reports .report-body > *,
+#page-reports .report-body > * {
+  flex: 0 0 auto;
+}
+
 #page-reports .report-panel,
 #page-reports .report-2col,
 #page-reports .report-kpi-row,
 #page-reports .report-filter-bar {
-  flex: 0 0 auto;
-  min-height: 0;
+  flex-shrink: 0;
 }
 
-/* The two-column report row must size itself from its content. */
-#page-reports .report-2col {
-  align-items: stretch;
-}
-
-/* Mobile already uses normal page scrolling. */
+/* On mobile the document-style page can continue using normal flow. */
 @media (max-width: 768px) {
   #page-reports .page-body {
-    overflow: visible;
+    overflow-y: visible;
+    overflow-x: visible;
   }
 }
 
