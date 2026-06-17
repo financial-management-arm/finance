@@ -2152,3 +2152,42 @@ tbody tr:hover td { background: transparent; }
   from { background-position: 180% 0; }
   to { background-position: -40% 0; }
 }
+
+/* =========================================================
+   Desktop reports: keep every report section at natural height
+   ========================================================= */
+#page-reports {
+  min-height: 0;
+}
+
+#page-reports .page-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#page-reports .report-body {
+  min-height: min-content;
+  overflow: visible;
+}
+
+#page-reports .report-body > *,
+#page-reports .report-panel,
+#page-reports .report-2col,
+#page-reports .report-kpi-row,
+#page-reports .report-filter-bar {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+/* The two-column report row must size itself from its content. */
+#page-reports .report-2col {
+  align-items: stretch;
+}
+
+/* Mobile already uses normal page scrolling. */
+@media (max-width: 768px) {
+  #page-reports .page-body {
+    overflow: visible;
+  }
+}
+
