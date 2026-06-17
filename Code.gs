@@ -15,7 +15,8 @@ var SCHEMAS = {
     'snapshotKey', 'month', 'obligationId', 'payer', 'bank', 'amount', 'dueDay',
     'currentBalance', 'loanTotal', 'contractNumber', 'balanceSourceMonth',
     'completed', 'completedAt', 'snapshotAt', 'updatedAt'
-  ]
+  ],
+  Utilities: ['id', 'name', 'payer', 'provider', 'abonentNumber', 'amount', 'type', 'dueDay', 'active', 'personalExpense']
 };
 
 function doGet(e) {
@@ -37,6 +38,7 @@ function doGet(e) {
         payments: sheetToJson(ss, 'Payments'),
         income: sheetToJson(ss, 'Income'),
         loanHistory: sheetToJson(ss, 'Loans'),
+        utilities: sheetToJson(ss, 'Utilities'),
         serverMonth: month,
         syncedAt: isoNow()
       };
@@ -423,6 +425,13 @@ function ensureSchema(ss) {
   var contractCol = SCHEMAS.Obligations.indexOf('contractNumber') + 1;
   var contractRows = Math.max(obligations.getLastRow() - 1, 1);
   obligations.getRange(2, contractCol, contractRows, 1).setNumberFormat('@');
+
+  var utilities = ss.getSheetByName('Utilities');
+  if (utilities && utilities.getLastRow() > 1) {
+    var abonentCol = SCHEMAS.Utilities.indexOf('abonentNumber') + 1;
+    var utilRows = Math.max(utilities.getLastRow() - 1, 1);
+    utilities.getRange(2, abonentCol, utilRows, 1).setNumberFormat('@');
+  }
 }
 
 function looksLikeDataRow(sheetName, firstCell) {
@@ -431,6 +440,7 @@ function looksLikeDataRow(sheetName, firstCell) {
   if (sheetName === 'Payments') return /__\d{4}-\d{2}$/.test(firstCell);
   if (sheetName === 'Income') return /^inc-/i.test(firstCell);
   if (sheetName === 'Loans') return /^\d{4}-\d{2}__/.test(firstCell);
+  if (sheetName === 'Utilities') return /^util-/i.test(firstCell);
   return false;
 }
 

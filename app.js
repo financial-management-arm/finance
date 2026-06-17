@@ -9,6 +9,7 @@ const state = {
   paymentMeta: {},
   income: [],
   loanHistory: [],
+  utilities: [],
   month: todayMonth(),
   tab: 'schedule',
   filter: 'all',
@@ -206,6 +207,7 @@ async function fetchAll() {
     });
     state.income = data.income || [];
     state.loanHistory = data.loanHistory || [];
+    state.utilities = data.utilities || [];
     renderPayerFilters();
     render();
   } catch (err) {
@@ -538,6 +540,7 @@ async function refreshData(showSkeleton = true) {
     });
     state.income = data.income || [];
     state.loanHistory = data.loanHistory || [];
+    state.utilities = data.utilities || [];
     renderPayerFilters();
     render();
   } finally {
@@ -592,11 +595,12 @@ function switchTab(tab) {
 function renderCurrentTab() {
   updateMonthLabels();
   switch (state.tab) {
-    case 'dashboard': renderDashboard(); break;
-    case 'schedule':  renderSchedule();  break;
-    case 'loans':     renderLoans();     break;
-    case 'income':    renderIncome();    break;
-    case 'reports':   renderReports();   break;
+    case 'dashboard':  renderDashboard();  break;
+    case 'schedule':   renderSchedule();   break;
+    case 'loans':      renderLoans();      break;
+    case 'income':     renderIncome();     break;
+    case 'reports':    renderReports();    break;
+    case 'utilities':  renderUtilities();  break;
   }
 }
 
@@ -1448,6 +1452,192 @@ function renderMonthlyChart() {
       responsive: true,
     }
   });
+}
+
+// ================================================================
+// Utilities
+// ================================================================
+function activeUtils() {
+  return state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
+}
+
+function isUtilPersonal(u) {
+  return u.personalExpense === true || String(u.personalExpense).toUpperCase() === 'TRUE';
+}
+
+function isUtilFixed(u) {
+  return String(u.type || '').toLowerCase() === 'fixed';
+}
+
+async function toggleUtilityPaid(id) {
+  const key = pkey(id, state.month);
+  if (state.payments[key]) { await setUtilityPayment(id, 'unpaid', null); return; }
+  const u = state.utilities.find(u => String(u.id) === String(id));
+  if (!u) return;
+  if (isUtilPersonal(u) && !isUtilFixed(u)) { openUtilPanel(id); return; }
+  const amt = isUtilFixed(u) ? (Number(u.amount) || 0) : 0;
+  await setUtilityPayment(id, 'paid', amt);
+}
+
+function openUtilPanel(id) {
+  document.querySelectorAll('.util-amount-panel:not(.hidden)').forEach(p => p.classList.add('hidden'));
+  const panel = document.getElementById('util-panel-' + id);
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  setTimeout(() => panel.querySelector('.util-amount-input')?.focus(), 50);
+}
+
+function closeUtilPanel(id) {
+  const el = document.getElementById('util-panel-' + id);
+  if (el) el.classList.add('hidden');
+}
+
+async function confirmUtilAmount(id) {
+  const panel = document.getElementById('util-panel-' + id);
+  const input = panel?.querySelector('.util-amount-input');
+  const amount = Number(input?.value ?? 0) || 0;
+  closeUtilPanel(id);
+  await setUtilityPayment(id, 'paid', amount);
+}
+
+async function setUtilityPayment(id, status, paidAmt) {
+  const key = pkey(id, state.month);
+  const paid = status === 'paid';
+  const prev = { paid: state.payments[key], meta: state.paymentMeta[key] };
+  state.payments[key] = paid;
+  state.paymentMeta[key] = {
+    key, paid, status,
+    paidAmount: paidAmt !== null ? paidAmt : '',
+    completedAt: paid ? new Date().toISOString() : '',
+    updatedAt: new Date().toISOString()
+  };
+  patchUtilRow(id);
+  try {
+    await callApi({ action: 'setPayment', key, paid, status, month: state.month,
+      paidAmount: paidAmt !== null ? paidAmt : '' });
+    if (paid) showToast('Utility marked done.');
+  } catch (err) {
+    state.payments[key] = prev.paid;
+    if (prev.meta) state.paymentMeta[key] = prev.meta; else delete state.paymentMeta[key];
+    patchUtilRow(id);
+    showError('Could not save — please try again.');
+  }
+}
+
+function patchUtilRow(id) {
+  const row = document.getElementById('util-row-' + id);
+  if (!row) { renderUtilities(); return; }
+  const paid = !!state.payments[pkey(id, state.month)];
+  row.classList.toggle('is-done', paid);
+  const btn = row.querySelector('.util-toggle');
+  if (btn) {
+    btn.classList.toggle('is-done', paid);
+    btn.setAttribute('aria-label', paid ? 'Mark undone' : 'Mark done');
+    btn.title = paid ? 'Mark undone' : 'Mark done';
+  }
+  const panel = row.querySelector('.util-amount-panel');
+  if (panel && paid) panel.classList.add('hidden');
+  const group = row.closest('.util-group');
+  if (group) {
+    const rows = group.querySelectorAll('.util-row');
+    const doneCount = [...rows].filter(r => r.classList.contains('is-done')).length;
+    const prog = group.querySelector('.util-group-progress');
+    if (prog) {
+      prog.textContent = `${doneCount}/${rows.length} done`;
+      prog.classList.toggle('is-complete', doneCount === rows.length);
+    }
+    group.classList.toggle('all-done', doneCount === rows.length);
+  }
+}
+
+async function copyAbonent(value, btn) {
+  try {
+    await navigator.clipboard.writeText(value);
+    if ('vibrate' in navigator) navigator.vibrate(10);
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+  } catch {
+    showError('Copy failed.');
+  }
+}
+
+function renderUtilities() {
+  const utils = activeUtils();
+  const container = q('utils-container');
+  if (!container) return;
+  if (!utils.length) {
+    container.innerHTML = '<div class="empty-state">No utilities loaded. Add rows to the Utilities sheet and sync.</div>';
+    return;
+  }
+  const PAYER_ORDER = ['Plus 1 Law Group LLC', 'Home', 'Family'];
+  const groups = {};
+  utils.forEach(u => { const p = String(u.payer || '').trim(); (groups[p] = groups[p] || []).push(u); });
+  const sortedPayers = Object.keys(groups).sort((a, b) => {
+    const ai = PAYER_ORDER.indexOf(a), bi = PAYER_ORDER.indexOf(b);
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1; if (bi >= 0) return 1;
+    return a.localeCompare(b);
+  });
+  container.innerHTML = sortedPayers.map(payer => {
+    const items = groups[payer];
+    const doneCount = items.filter(u => state.payments[pkey(u.id, state.month)]).length;
+    const allDone = doneCount === items.length;
+    return `<section class="util-group${allDone ? ' all-done' : ''}">
+      <div class="util-group-header">
+        <span class="util-group-name">${escapeHtml(payer)}</span>
+        <span class="util-group-progress${allDone ? ' is-complete' : ''}">${doneCount}/${items.length} done</span>
+      </div>
+      <div class="util-group-list">${items.map(utilityRow).join('')}</div>
+    </section>`;
+  }).join('');
+}
+
+function utilityRow(u) {
+  const key = pkey(u.id, state.month);
+  const paid = !!state.payments[key];
+  const paidAmt = state.paymentMeta[key]?.paidAmount;
+  const personal = isUtilPersonal(u);
+  const fixed = isUtilFixed(u);
+  const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
+  const showAbonent = rawAbonent && rawAbonent !== 'transfer';
+
+  return `<div class="util-row${paid ? ' is-done' : ''}" id="util-row-${escapeHtml(u.id)}" data-util-id="${escapeHtml(u.id)}">
+    <div class="util-row-main">
+      <div>
+        <div class="util-row-info">
+          <span class="util-type">${escapeHtml(u.name)}</span>
+          <span class="util-provider">${escapeHtml(u.provider)}</span>
+          ${showAbonent
+            ? `<div class="util-abonent">
+                <code class="abonent-code">${escapeHtml(rawAbonent)}</code>
+                <button class="util-copy-btn" type="button"
+                        onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy</button>
+              </div>`
+            : `<span class="util-transfer-label">via transfer</span>`}
+        </div>
+        <div class="util-row-meta">
+          ${Number(u.dueDay) > 0 ? `<span class="util-due-badge">day ${Number(u.dueDay)}</span>` : ''}
+          ${fixed && Number(u.amount) > 0 ? `<span class="util-amount-label">${amd(Number(u.amount))}</span>` : ''}
+          ${!personal ? `<span class="util-biz-tag">business</span>` : ''}
+          ${paid && paidAmt ? `<span class="util-paid-badge">${amd(Number(paidAmt))}</span>` : ''}
+        </div>
+      </div>
+      <button class="util-toggle${paid ? ' is-done' : ''}" type="button"
+              onclick="toggleUtilityPaid('${escapeHtml(u.id)}')"
+              aria-label="${paid ? 'Mark undone' : 'Mark done'}"
+              title="${paid ? 'Mark undone' : 'Mark done'}"></button>
+    </div>
+    ${personal && !fixed && !paid ? `<div class="util-amount-panel hidden" id="util-panel-${escapeHtml(u.id)}">
+      <label class="util-panel-label">Amount paid ֏</label>
+      <div class="util-panel-row">
+        <input class="util-amount-input" type="number" min="0" step="1000" placeholder="Enter amount"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();confirmUtilAmount('${escapeHtml(u.id)}');}">
+        <button class="button button-primary" type="button" onclick="confirmUtilAmount('${escapeHtml(u.id)}')">OK</button>
+        <button class="button button-ghost" type="button" onclick="closeUtilPanel('${escapeHtml(u.id)}')">Cancel</button>
+      </div>
+    </div>` : ''}
+  </div>`;
 }
 
 // ================================================================
