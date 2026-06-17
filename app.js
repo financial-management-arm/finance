@@ -18,10 +18,7 @@ const state = {
   scheduleSort: 'due-asc',
   loanSort: 'debt-desc',
   incomeSort: 'date-desc',
-  reportMonths: 6,
 };
-
-let charts = {};
 
 // ================================================================
 // Utilities
@@ -626,7 +623,6 @@ function renderCurrentTab() {
     case 'schedule':   renderSchedule();   break;
     case 'loans':      renderLoans();      break;
     case 'income':     renderIncome();     break;
-    case 'reports':    renderReports();    break;
     case 'utilities':  renderUtilities();  break;
   }
 }
@@ -743,30 +739,6 @@ function renderPayerBars() {
     </div>`;
   }).join('');
   q('payer-bars').innerHTML = html;
-}
-
-function renderDashCategoryChart() {
-  const canvas = q('chart-cat');
-  if (!canvas) return;
-  const all   = activeObs();
-  const cats  = ['loan','business','personal'];
-  const data  = cats.map(c => totalAmt(all.filter(o => o.category === c)));
-  const cols  = ['#2563eb','#d97706','#7c3aed'];
-  if (charts.cat) charts.cat.destroy();
-  charts.cat = new Chart(canvas, {
-    type: 'doughnut',
-    data: {
-      labels: ['Loans','Business','Personal'],
-      datasets: [{ data, backgroundColor: cols, borderWidth: 2, borderColor: '#fff' }]
-    },
-    options: {
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 11 } } },
-        tooltip: { callbacks: { label: ctx => ' ' + amd(ctx.raw) } }
-      },
-      responsive: true, maintainAspectRatio: true,
-    }
-  });
 }
 
 // ================================================================
@@ -1455,98 +1427,6 @@ function submitIncome() {
 }
 
 // ================================================================
-// Reports
-// ================================================================
-async function syncReports() {
-  const btn = document.getElementById('btn-sync-reports');
-  if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
-  await fetchAll();
-  if (btn) { btn.disabled = false; btn.textContent = '↻ Sync'; }
-}
-
-function renderReports() {
-  renderCategoryChart();
-  renderMonthlyChart();
-}
-
-function renderCategoryChart() {
-  const canvas = q('chart-cat2');
-  if (!canvas) return;
-  const all  = activeObs();
-  const cats = ['loan','business','personal'];
-  const data = cats.map(c => totalAmt(all.filter(o => o.category === c)));
-  if (charts.cat2) charts.cat2.destroy();
-  charts.cat2 = new Chart(canvas, {
-    type: 'doughnut',
-    data: {
-      labels: ['Loans','Business','Personal'],
-      datasets: [{ data, backgroundColor: ['#2563eb','#d97706','#7c3aed'], borderWidth: 2, borderColor: '#fff' }]
-    },
-    options: {
-      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: ctx => ' ' + amd(ctx.raw) } } },
-      responsive: true,
-    }
-  });
-}
-
-function renderMonthlyChart() {
-  const canvas = q('chart-monthly');
-  if (!canvas) return;
-
-  const months = [];
-  let m = state.month;
-  for (let i = 0; i < state.reportMonths; i++) { months.unshift(m); m = shiftMonth(m, -1); }
-
-  const all   = activeObs();
-  const total = totalAmt(all);
-
-  const paidData = months.map(mo => {
-    const suffix = '__' + mo;
-    return Object.keys(state.paymentMeta).reduce((total, key) => {
-      if (!key.endsWith(suffix)) return total;
-      if (!state.payments[key]) return total;
-      const meta = state.paymentMeta[key];
-      return total + (Number(meta.paidAmount) || 0);
-    }, 0);
-  });
-  const debtData = months.map(mo => {
-    const snapshots = state.loanHistory.filter(row => String(row.month) === mo && !row.completed);
-    if (snapshots.length) {
-      return snapshots.reduce((sum, row) => sum + Number(row.currentBalance || 0), 0);
-    }
-    return mo === state.month
-      ? activeLoans().reduce((sum, loan) => sum + Number(loanBalance(loan, mo) || 0), 0)
-      : 0;
-  });
-
-  const labels = months.map(mo => {
-    const [y, month] = mo.split('-');
-    return new Date(+y, +month - 1, 1).toLocaleDateString('en-US', { month: 'short' });
-  });
-
-  if (charts.monthly) charts.monthly.destroy();
-  charts.monthly = new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Paid', data: paidData, backgroundColor: '#16a34a', borderRadius: 4 },
-        {
-          label: 'Total debt', data: debtData,
-          type: 'line', borderColor: '#4f7cff', backgroundColor: 'transparent',
-          borderDash: [5,4], pointRadius: 0, borderWidth: 1.5,
-        }
-      ]
-    },
-    options: {
-      plugins: { legend: { display: true } },
-      scales: { y: { ticks: { callback: v => (v/1000000).toFixed(1) + 'M ֏' } } },
-      responsive: true,
-    }
-  });
-}
-
-// ================================================================
 // Utilities
 // ================================================================
 function activeUtils() {
@@ -1957,11 +1837,6 @@ document.addEventListener('DOMContentLoaded', () => {
   q('income-sort').addEventListener('change', event => {
     state.incomeSort = event.target.value;
     renderIncome();
-  });
-
-  q('report-period').addEventListener('change', event => {
-    state.reportMonths = Number(event.target.value);
-    renderReports();
   });
 
   // Income submit

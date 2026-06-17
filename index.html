@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 
@@ -35,7 +35,6 @@
       <li><a href="#" data-tab="dashboard" aria-label="Today"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg><span class="nav-label">Today</span></a></li>
       <li><a href="#" data-tab="loans" aria-label="Obligations"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4V7Zm3-3h10v3H7V4Zm1 8h8M8 16h5"/></svg><span class="nav-label">Obligations</span></a></li>
       <li><a href="#" data-tab="income" aria-label="Income"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income</span></a></li>
-      <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10m7 10V4m7 16v-7"/></svg><span class="nav-label">Reports</span></a></li>
       <li><a href="#" data-tab="utilities" aria-label="Utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Utilities</span></a></li>
     </ul>
   </nav>
@@ -262,32 +261,6 @@
       </div>
     </section>
 
-    <!-- ─── REPORTS ─── -->
-    <section id="page-reports" class="page">
-      <div class="page-header">
-        <h1>Reports</h1>
-        <div class="page-header-actions">
-          <select class="sort-select" id="report-period" aria-label="Report period">
-            <option value="6">Last 6 months</option>
-            <option value="12">Last 12 months</option>
-            <option value="24">Last 24 months</option>
-          </select>
-          <button class="button button-ghost" id="btn-sync-reports" type="button" onclick="syncReports()" title="Re-fetch latest data from sheet">↻ Sync</button>
-        </div>
-      </div>
-      <div class="page-body">
-        <div class="reports-grid">
-          <div class="chart-card">
-            <div class="chart-title">Obligations by Category</div>
-            <canvas id="chart-cat2"></canvas>
-          </div>
-          <div class="chart-card">
-            <div class="chart-title">Payments and total debt over time</div>
-            <canvas id="chart-monthly"></canvas>
-          </div>
-        </div>
-      </div>
-    </section>
 
   </main>
 </div>
@@ -466,8 +439,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="config.js?v=18"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

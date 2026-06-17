@@ -162,16 +162,6 @@ body {
   font-size: 11px; color: var(--muted); margin-top: 6px;
 }
 
-/* ── Charts ──────────────────────────────────────────────── */
-.charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
-.chart-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
-}
-.chart-title {
-  font-size: 11px; font-weight: 600; color: var(--muted);
-  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px;
-}
 
 /* ── Filter pills ────────────────────────────────────────── */
 .schedule-tools {
@@ -353,9 +343,6 @@ tfoot td {
 }
 .income-list-header h3 { font-size: 13px; font-weight: 700; }
 
-/* ── Reports ─────────────────────────────────────────────── */
-.reports-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
 /* ── Loading / Error ─────────────────────────────────────── */
 .loading-overlay {
   position: fixed; inset: 0; background: rgba(255,255,255,.92);
@@ -434,7 +421,7 @@ tfoot td {
     height: 66px; overflow: visible; background: #0f172a;
   }
   .sidebar-header   { display: none; }
-  .sidebar-nav      { display: grid; grid-template-columns: repeat(6, 1fr); padding: 6px; height: 100%; }
+  .sidebar-nav      { display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px; height: 100%; }
   .sidebar-nav li   { margin: 0; }
   .sidebar-nav a    {
     height: 54px; padding: 5px 2px; border-radius: 9px; gap: 2px;
@@ -450,9 +437,7 @@ tfoot td {
   .month-label      { min-width: 100px; font-size: 12px; }
   .btn-today        { display: none; }
   .stats-grid       { grid-template-columns: 1fr 1fr; }
-  .charts-grid      { grid-template-columns: 1fr; }
   .income-layout    { grid-template-columns: 1fr; }
-  .reports-grid     { grid-template-columns: 1fr; }
   .schedule-tools   { padding: 10px 12px; align-items: stretch; flex-direction: column; }
   .filter-bar       { padding-bottom: 3px; }
   .schedule-actions { margin-left: 0; }
@@ -464,7 +449,6 @@ tfoot td {
 
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
-  .charts-grid .chart-card { min-height: 240px; }
   .edit-grid { grid-template-columns: 1fr; }
   .edit-wide { grid-column: auto; }
   #page-schedule table { table-layout: fixed; font-size: 11px; }
