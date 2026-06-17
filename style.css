@@ -492,7 +492,7 @@ tfoot td {
 .debt-neutral { color: var(--muted); }
 
 /* Loan projections */
-.loan-proj-list { padding: 4px 0; }
+.loan-proj-list { padding: 4px 0; max-height: 480px; overflow-y: auto; }
 .loan-proj-row {
   display: flex; align-items: center; gap: 14px;
   padding: 11px 16px; border-bottom: 1px solid var(--border);

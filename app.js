@@ -1906,12 +1906,42 @@ function renderCashFlowPanel(d) {
   const raw = d.cashFlow || [];
   if (!raw.length) return `<div class="report-panel"><div class="report-empty">No income data yet — add income records to generate cash flow analysis.</div></div>`;
 
-  // Enrich with coverage for sorting
-  const enriched = raw.map(r => ({ ...r, cov: r.income > 0 ? Math.round((r.paid / r.income) * 100) : 0 }));
+  // Build payment lookup map once (state.payments starts as {} before fetchAll, guard for that)
+  const payArr = Array.isArray(state.payments) ? state.payments : [];
+  const payMap = new Map();
+  payArr.forEach(p => payMap.set(String(p.key), p));
+
+  const activeUtils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
+
+  function monthPaid(month) {
+    const items = [
+      ...activeObs().filter(o => isObligationDueThisMonth(o, month)),
+      ...activeUtils
+    ];
+    let total = 0;
+    items.forEach(item => {
+      const p = payMap.get(`${item.id}__${month}`);
+      if (!p) return;
+      const isPd = p.paid === true || String(p.paid).toUpperCase() === 'TRUE';
+      const isPartial = String(p.status || '').toLowerCase() === 'partial';
+      if (isPd || isPartial) {
+        total += Number(p.paidAmount) > 0 ? Number(p.paidAmount) : (Number(item.amount) || 0);
+      }
+    });
+    return total;
+  }
+
+  // Use client-side paid amounts (obligation.amount fallback when paidAmount not entered)
+  const enriched = raw.map(r => {
+    const paid = monthPaid(r.month);
+    const net = r.income - paid;
+    const cov = r.income > 0 ? Math.round((paid / r.income) * 100) : 0;
+    return { ...r, paid, net, cov };
+  });
   const sorted = sortRows(enriched, state.reportCfSort);
 
   let totIncome = 0, totPaid = 0;
-  raw.forEach(r => { totIncome += r.income; totPaid += r.paid; });
+  enriched.forEach(r => { totIncome += r.income; totPaid += r.paid; });
 
   const bodyRows = sorted.map(r => {
     const net = r.net, pos = net >= 0;
