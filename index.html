@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 
@@ -441,16 +441,33 @@
           </select>
         </label>
       </div>
-      <div class="modal-actions">
-        <button class="btn-secondary" type="button" onclick="closeUtilEdit()">Cancel</button>
-        <button class="btn-primary" type="submit">Save changes</button>
+      <div class="modal-actions modal-actions-split">
+        <button class="btn-danger" type="button"
+                onclick="confirmDeleteUtility(q('edit-util-id').value)">Delete utility</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary" type="button" onclick="closeUtilEdit()">Cancel</button>
+          <button class="btn-primary" type="submit">Save changes</button>
+        </div>
       </div>
     </form>
   </div>
 </div>
 
+<!-- ─── DELETE CONFIRM MODAL ─── -->
+<div class="modal-backdrop hidden" id="delete-confirm-modal">
+  <div class="edit-modal delete-confirm-dialog" role="dialog" aria-modal="true">
+    <div class="delete-confirm-icon">⚠</div>
+    <h2 style="margin:0 0 8px">Delete item?</h2>
+    <p id="delete-confirm-msg" style="color:var(--color-text-muted);margin:0 0 24px;font-size:14px"></p>
+    <div class="modal-actions">
+      <button class="btn-secondary" type="button" onclick="closeDeleteConfirm()">Cancel</button>
+      <button class="btn-danger" type="button" onclick="executeDeleteConfirm()">Delete</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="config.js?v=16"></script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
 </body>
 </html>

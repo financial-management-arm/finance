@@ -412,8 +412,11 @@ tfoot td {
 .btn-primary, .btn-secondary {
   height: 36px; padding: 0 14px; border-radius: 8px; font: 700 12px Inter, sans-serif; cursor: pointer;
 }
-.btn-primary { border: 0; background: var(--primary); color: #fff; }
+.btn-primary  { border: 0; background: var(--primary); color: #fff; }
 .btn-secondary { border: 1px solid var(--border); background: #fff; color: var(--muted); }
+.btn-danger   { height: 36px; padding: 0 14px; border-radius: 8px; font: 700 12px Inter, sans-serif; cursor: pointer; border: 0; background: #dc2626; color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.modal-actions-split { justify-content: space-between; }
 
 /* ── Utility ─────────────────────────────────────────────── */
 .hidden   { display: none !important; }
@@ -1771,14 +1774,41 @@ tbody tr:hover td { background: transparent; }
 }
 .util-copy-btn:hover { background: var(--color-primary-soft); border-color: var(--color-primary); }
 .util-transfer-label { color: var(--color-text-subtle); font-size: var(--text-12); font-style: italic; }
-.btn-icon-edit {
+.btn-icon-edit,
+.btn-icon-delete {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; border-radius: var(--radius-md);
   border: 1px solid var(--color-border); background: var(--color-surface-2);
   color: var(--color-text-subtle); font-size: 14px; cursor: pointer;
   transition: background var(--motion-snap), border-color var(--motion-snap);
 }
-.btn-icon-edit:hover { background: var(--color-primary-soft); border-color: var(--color-primary); color: var(--color-primary); }
+.btn-icon-edit:hover  { background: var(--color-primary-soft); border-color: var(--color-primary); color: var(--color-primary); }
+.btn-icon-delete:hover { background: #fee2e2; border-color: #dc2626; color: #dc2626; }
+
+.btn-delete-ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-12);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-2);
+  min-height: 28px;
+  transition: background var(--motion-snap), color var(--motion-snap), border-color var(--motion-snap);
+}
+.btn-delete-ghost:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+/* ── Delete confirm dialog ───────────────────────────────────── */
+.delete-confirm-dialog {
+  max-width: 380px;
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+}
+.delete-confirm-icon {
+  font-size: 32px;
+  margin-bottom: var(--space-3);
+  line-height: 1;
+}
 
 .util-due-badge {
   padding: 2px 8px;

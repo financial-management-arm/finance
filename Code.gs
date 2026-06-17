@@ -74,6 +74,14 @@ function doGet(e) {
       result = withLock(function() {
         return updateUtility(ss, params);
       });
+    } else if (action === 'deleteObligation') {
+      result = withLock(function() {
+        return deleteObligation(ss, params);
+      });
+    } else if (action === 'deleteUtility') {
+      result = withLock(function() {
+        return deleteUtility(ss, params);
+      });
     } else if (action === 'repairSchema') {
       ensureSchema(ss);
       result = { success: true, sheets: Object.keys(SCHEMAS), repairedAt: isoNow() };
@@ -298,6 +306,25 @@ function addUtility(ss, params) {
   });
   ss.getSheetByName('Utilities').appendRow(row);
   return { ok: true, id: id };
+}
+
+function deleteObligation(ss, params) {
+  var id = String(params.id || '');
+  if (!id) throw new Error('Obligation id is required');
+  updateObjectByKey(ss.getSheetByName('Obligations'), 'id', id, {
+    active: false,
+    updatedAt: isoNow()
+  });
+  return { ok: true };
+}
+
+function deleteUtility(ss, params) {
+  var id = String(params.id || '');
+  if (!id) throw new Error('Utility id is required');
+  updateObjectByKey(ss.getSheetByName('Utilities'), 'id', id, {
+    active: false
+  });
+  return { ok: true };
 }
 
 function updateUtility(ss, params) {

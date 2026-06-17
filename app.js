@@ -880,6 +880,8 @@ function utilityPaymentCard(o, index) {
                 onclick="${resolved ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `openPaymentPanel('${escapeHtml(o.id)}')`}">
           ${paid ? 'Paid ✓' : partial ? 'Partial' : 'Record'}
         </button>
+        <button class="button btn-delete-ghost util-pay-btn" type="button"
+                onclick="confirmDeleteUtility('${escapeHtml(o.id)}')">Delete</button>
       </div>
     </div>
     ${buildPartialInfo(o.id, o)}
@@ -930,6 +932,8 @@ function loanPaymentCard(o, index) {
       <div class="payment-card-actions">
         <button class="button button-ghost loan-edit-toggle" type="button"
                 onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
+        <button class="button btn-delete-ghost" type="button"
+                onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
         <button class="button ${(paid || status === 'partial') ? 'button-secondary' : 'button-primary'} payment-done"
                 type="button"
                 onclick="${(paid || status === 'partial') ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `openPaymentPanel('${escapeHtml(o.id)}')`}">
@@ -1024,6 +1028,8 @@ function standardPaymentCard(o, index) {
               onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
       <button class="button button-ghost payment-no-need" type="button"
               onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No need</button>
+      <button class="button btn-delete-ghost" type="button"
+              onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
     </div>
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
@@ -1718,6 +1724,8 @@ function utilityRow(u) {
                 title="${paid ? 'Mark undone' : 'Mark done'}"></button>
         <button class="btn-icon-edit" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')"
                 title="Edit" aria-label="Edit utility">✎</button>
+        <button class="btn-icon-delete" type="button" onclick="confirmDeleteUtility('${escapeHtml(u.id)}')"
+                title="Delete" aria-label="Delete utility">✕</button>
       </div>
     </div>
     ${personal && !fixed && !paid ? `<div class="util-amount-panel hidden" id="util-panel-${escapeHtml(u.id)}">
@@ -1730,6 +1738,69 @@ function utilityRow(u) {
       </div>
     </div>` : ''}
   </div>`;
+}
+
+// ================================================================
+// Delete confirm modal
+// ================================================================
+let _deleteConfirmCallback = null;
+
+function openDeleteConfirm(message, onConfirm) {
+  q('delete-confirm-msg').textContent = message;
+  _deleteConfirmCallback = onConfirm;
+  q('delete-confirm-modal').classList.remove('hidden');
+}
+
+function closeDeleteConfirm() {
+  _deleteConfirmCallback = null;
+  q('delete-confirm-modal').classList.add('hidden');
+}
+
+function executeDeleteConfirm() {
+  const fn = _deleteConfirmCallback;
+  closeDeleteConfirm();
+  if (fn) fn();
+}
+
+async function confirmDeleteObligation(id) {
+  const ob = state.obligations.find(o => String(o.id) === String(id));
+  if (!ob) return;
+  openDeleteConfirm(
+    `Delete "${ob.bank || ob.id}" (${ob.payer})? This cannot be undone.`,
+    async () => {
+      try {
+        const res = await callApi({ action: 'deleteObligation', id });
+        if (res.error) throw new Error(res.error);
+        state.obligations = state.obligations.filter(o => String(o.id) !== String(id));
+        renderPayerFilters();
+        renderCurrentTab();
+        showToast('Obligation deleted.');
+      } catch (err) {
+        showError('Delete failed: ' + err.message);
+      }
+    }
+  );
+}
+
+async function confirmDeleteUtility(id) {
+  const u = state.utilities.find(u => String(u.id) === String(id));
+  if (!u) return;
+  openDeleteConfirm(
+    `Delete "${u.name || u.id}" (${u.payer})? This cannot be undone.`,
+    async () => {
+      try {
+        const res = await callApi({ action: 'deleteUtility', id });
+        if (res.error) throw new Error(res.error);
+        state.utilities = state.utilities.filter(u => String(u.id) !== String(id));
+        closeUtilEdit();
+        renderPayerFilters();
+        renderCurrentTab();
+        showToast('Utility deleted.');
+      } catch (err) {
+        showError('Delete failed: ' + err.message);
+      }
+    }
+  );
 }
 
 // ================================================================
