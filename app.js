@@ -880,8 +880,6 @@ function utilityPaymentCard(o, index) {
                 onclick="${resolved ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `openPaymentPanel('${escapeHtml(o.id)}')`}">
           ${paid ? 'Paid ✓' : partial ? 'Partial' : 'Record'}
         </button>
-        <button class="button btn-delete-ghost util-pay-btn" type="button"
-                onclick="confirmDeleteUtility('${escapeHtml(o.id)}')">Delete</button>
       </div>
     </div>
     ${buildPartialInfo(o.id, o)}
@@ -932,8 +930,6 @@ function loanPaymentCard(o, index) {
       <div class="payment-card-actions">
         <button class="button button-ghost loan-edit-toggle" type="button"
                 onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
-        <button class="button btn-delete-ghost" type="button"
-                onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
         <button class="button ${(paid || status === 'partial') ? 'button-secondary' : 'button-primary'} payment-done"
                 type="button"
                 onclick="${(paid || status === 'partial') ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `openPaymentPanel('${escapeHtml(o.id)}')`}">
@@ -1028,8 +1024,6 @@ function standardPaymentCard(o, index) {
               onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
       <button class="button button-ghost payment-no-need" type="button"
               onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No need</button>
-      <button class="button btn-delete-ghost" type="button"
-              onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
     </div>
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
@@ -1171,6 +1165,8 @@ function loanCard(o) {
                 onclick="completeLoan('${escapeHtml(o.id)}', this)">Complete</button>
         <button class="button button-ghost loan-edit-toggle" type="button"
                 onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
+        <button class="button btn-delete-ghost" type="button"
+                onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
       </div>
     </div>
     <div class="loan-financials">
@@ -1252,6 +1248,8 @@ function nonLoanCard(o) {
       <div class="loan-card-actions">
         <button class="button button-ghost loan-edit-toggle" type="button"
                 onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
+        <button class="button btn-delete-ghost" type="button"
+                onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
       </div>
     </div>
     <div class="obligation-details">
