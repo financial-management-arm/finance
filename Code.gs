@@ -9,7 +9,7 @@ var SCHEMAS = {
     'currentBalance', 'loanTotal', 'contractNumber', 'active', 'startDate',
     'balanceUpdatedMonth', 'completedAt', 'updatedAt', 'frequency'
   ],
-  Payments: ['key', 'paid', 'completedAt', 'updatedAt', 'status', 'paidAmount'],
+  Payments: ['key', 'paid', 'completedAt', 'updatedAt', 'status', 'paidAmount', 'month'],
   Income: ['id', 'date', 'amount', 'stream', 'note', 'createdAt', 'updatedAt'],
   Loans: [
     'snapshotKey', 'month', 'obligationId', 'payer', 'bank', 'amount', 'dueDay',
@@ -82,6 +82,8 @@ function doGet(e) {
       result = withLock(function() {
         return deleteUtility(ss, params);
       });
+    } else if (action === 'getReportData') {
+      result = getReportData(ss, params);
     } else if (action === 'repairSchema') {
       ensureSchema(ss);
       result = { success: true, sheets: Object.keys(SCHEMAS), repairedAt: isoNow() };
@@ -105,7 +107,11 @@ function setPayment(ss, params) {
   var paidAmount = (params.paidAmount !== undefined && params.paidAmount !== '')
     ? Number(params.paidAmount) : '';
 
-  var now = isoNow();
+  var keyParts = key.split('__');
+  var month = (keyParts.length === 2 && validMonth(keyParts[1])) ? keyParts[1] : '';
+
+  var now = new Date();
+  var nowIso = now.toISOString();
   var resolved = paid || status === 'partial';
   upsertObject(ss.getSheetByName('Payments'), 'key', key, {
     key: key,
@@ -113,9 +119,10 @@ function setPayment(ss, params) {
     completedAt: resolved ? now : '',
     updatedAt: now,
     status: status,
-    paidAmount: paidAmount
+    paidAmount: paidAmount,
+    month: month
   });
-  return { success: true, paid: paid, status: status, completedAt: resolved ? now : '', paidAmount: paidAmount };
+  return { success: true, paid: paid, status: status, completedAt: resolved ? nowIso : '', paidAmount: paidAmount };
 }
 
 function normalizePaymentStatus(status, paid) {
@@ -509,6 +516,52 @@ function ensureSchema(ss) {
     var utilRows = Math.max(utilities.getLastRow() - 1, 1);
     utilities.getRange(2, abonentCol, utilRows, 1).setNumberFormat('@');
   }
+
+  // Backfill month column for existing Payments rows that have a key but no month
+  backfillPaymentMonths(ss);
+}
+
+function backfillPaymentMonths(ss) {
+  var sheet = ss.getSheetByName('Payments');
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var headers = SCHEMAS.Payments;
+  var keyCol = headers.indexOf('key');
+  var monthCol = headers.indexOf('month');
+  var completedAtCol = headers.indexOf('completedAt');
+  var updatedAtCol = headers.indexOf('updatedAt');
+  if (monthCol < 0) return;
+
+  var numRows = sheet.getLastRow() - 1;
+  var range = sheet.getRange(2, 1, numRows, headers.length);
+  var data = range.getValues();
+  var changed = false;
+
+  data.forEach(function(row) {
+    // Backfill month from key
+    if (row[monthCol] === '' || row[monthCol] === null || row[monthCol] === undefined) {
+      var key = String(row[keyCol] || '');
+      var parts = key.split('__');
+      if (parts.length === 2 && validMonth(parts[1])) {
+        row[monthCol] = parts[1];
+        changed = true;
+      }
+    }
+
+    // Convert completedAt ISO string → real Sheets Date
+    if (completedAtCol >= 0 && typeof row[completedAtCol] === 'string' && row[completedAtCol].length > 0) {
+      var d = new Date(row[completedAtCol]);
+      if (!isNaN(d.getTime())) { row[completedAtCol] = d; changed = true; }
+    }
+
+    // Convert updatedAt ISO string → real Sheets Date
+    if (updatedAtCol >= 0 && typeof row[updatedAtCol] === 'string' && row[updatedAtCol].length > 0) {
+      var d2 = new Date(row[updatedAtCol]);
+      if (!isNaN(d2.getTime())) { row[updatedAtCol] = d2; changed = true; }
+    }
+  });
+
+  // One batch write — much faster than per-row setValue calls
+  if (changed) range.setValues(data);
 }
 
 function looksLikeDataRow(sheetName, firstCell) {
@@ -617,6 +670,120 @@ function validMonth(value) {
 
 function currentMonth() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM');
+}
+
+function shiftMonthGs(m, delta) {
+  var parts = m.split('-').map(Number);
+  var d = new Date(parts[0], parts[1] - 1 + delta, 1);
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+}
+
+function getReportData(ss, params) {
+  var toMonth = validMonth(params.toMonth) ? params.toMonth : currentMonth();
+  var windowSize = Math.min(Math.max(parseInt(params.window) || 6, 1), 24);
+  var fromMonth = shiftMonthGs(toMonth, -(windowSize - 1));
+
+  var months = [];
+  var m = fromMonth;
+  while (m <= toMonth) { months.push(m); m = shiftMonthGs(m, 1); }
+
+  var payments   = sheetToJson(ss, 'Payments');
+  var obligations = sheetToJson(ss, 'Obligations');
+  var utilities  = sheetToJson(ss, 'Utilities');
+  var income     = sheetToJson(ss, 'Income');
+  var loans      = sheetToJson(ss, 'Loans');
+
+  var activeObs = obligations.filter(isActive);
+  var activePersonalUtils = utilities.filter(function(u) {
+    return isActive(u) && (u.personalExpense === true || String(u.personalExpense) === 'true');
+  });
+  var activeLoans = activeObs.filter(isLoan);
+
+  var paymentsByKey = {};
+  payments.forEach(function(p) { paymentsByKey[String(p.key)] = p; });
+
+  var loansByMonth = {};
+  loans.forEach(function(l) {
+    var mo = String(l.month || '');
+    if (!loansByMonth[mo]) loansByMonth[mo] = [];
+    loansByMonth[mo].push(l);
+  });
+
+  var cashFlow = [];
+  var debtArr = [];
+  var paymentHealth = [];
+
+  months.forEach(function(mo) {
+    var monthIncome = income.reduce(function(sum, row) {
+      return String(row.date || '').slice(0, 7) === mo ? sum + (Number(row.amount) || 0) : sum;
+    }, 0);
+
+    var monthPaid = payments.reduce(function(sum, row) {
+      var rowMonth = String(row.month || '');
+      if (!rowMonth) {
+        var pts = String(row.key || '').split('__');
+        rowMonth = pts.length === 2 ? pts[1] : '';
+      }
+      if (rowMonth !== mo) return sum;
+      var p = row.paid === true || String(row.paid).toUpperCase() === 'TRUE';
+      var partial = String(row.status || '').toLowerCase() === 'partial';
+      return (p || partial) ? sum + (Number(row.paidAmount) || 0) : sum;
+    }, 0);
+
+    cashFlow.push({ month: mo, income: monthIncome, paid: monthPaid, net: monthIncome - monthPaid });
+
+    var snapshots = loansByMonth[mo] || [];
+    var totalDebt = snapshots.length
+      ? snapshots.reduce(function(s, snap) { var b = Number(snap.currentBalance); return s + (isNaN(b) ? 0 : b); }, 0)
+      : (mo === toMonth ? activeLoans.reduce(function(s, l) { var b = Number(l.currentBalance); return s + (isNaN(b) ? 0 : b); }, 0) : 0);
+    debtArr.push({ month: mo, totalBalance: totalDebt });
+
+    var monthlyObs = activeObs.filter(function(o) {
+      var freq = String(o.frequency || 'monthly').toLowerCase().trim();
+      if (!freq || freq === 'monthly') return true;
+      if (freq === 'one_time') return String(o.startDate || '').slice(0, 7) === mo;
+      if (freq === 'quarterly') {
+        var start = String(o.startDate || '').slice(0, 7);
+        if (!start) return true;
+        var sy = parseInt(start.split('-')[0]), sm = parseInt(start.split('-')[1]);
+        var cy = parseInt(mo.split('-')[0]),   cm = parseInt(mo.split('-')[1]);
+        var diff = (cy * 12 + cm) - (sy * 12 + sm);
+        return diff >= 0 && diff % 3 === 0;
+      }
+      return true;
+    });
+
+    var paidCount = 0, partialCount = 0, missedItems = [];
+    function countItem(id, name, payer) {
+      var p = paymentsByKey[id + '__' + mo];
+      var status = p ? String(p.status || '').toLowerCase() : 'unpaid';
+      if (!status && p && (p.paid === true || String(p.paid).toUpperCase() === 'TRUE')) status = 'paid';
+      if (status === 'paid') { paidCount++; }
+      else if (status === 'partial') { paidCount++; partialCount++; }
+      else if (status === 'not_done') { missedItems.push({ name: String(name || id), payer: String(payer || '') }); }
+    }
+    monthlyObs.forEach(function(o) { countItem(o.id, o.bank, o.payer); });
+    activePersonalUtils.forEach(function(u) { countItem(u.id, u.name, u.payer); });
+
+    var total = monthlyObs.length + activePersonalUtils.length;
+    paymentHealth.push({
+      month: mo, total: total, paid: paidCount, partial: partialCount,
+      missed: missedItems.length, missedItems: missedItems,
+      rate: total > 0 ? Math.round((paidCount / total) * 1000) / 10 : 0
+    });
+  });
+
+  for (var i = 1; i < debtArr.length; i++) debtArr[i].delta = debtArr[i].totalBalance - debtArr[i - 1].totalBalance;
+  if (debtArr.length > 0) debtArr[0].delta = null;
+
+  var loanProjections = activeLoans.map(function(loan) {
+    var balance = Number(loan.currentBalance) || 0;
+    var monthly = Number(loan.amount) || 0;
+    var payoffDate = (monthly > 0 && balance > 0) ? shiftMonthGs(currentMonth(), Math.ceil(balance / monthly)) : null;
+    return { id: loan.id, bank: String(loan.bank || ''), payer: String(loan.payer || ''), balance: balance, monthly: monthly, payoffDate: payoffDate };
+  });
+
+  return { months: months, cashFlow: cashFlow, debt: debtArr, paymentHealth: paymentHealth, loanProjections: loanProjections };
 }
 
 function isoNow() {

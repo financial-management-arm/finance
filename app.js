@@ -18,6 +18,9 @@ const state = {
   scheduleSort: 'due-asc',
   loanSort: 'debt-desc',
   incomeSort: 'date-desc',
+  reportData: null,
+  reportWindow: 6,
+  reportLoading: false,
 };
 
 // ================================================================
@@ -624,6 +627,7 @@ function renderCurrentTab() {
     case 'loans':      renderLoans();      break;
     case 'income':     renderIncome();     break;
     case 'utilities':  renderUtilities();  break;
+    case 'reports':    renderReports();    break;
   }
 }
 
@@ -1779,6 +1783,234 @@ async function submitUtilEdit() {
 }
 
 // ================================================================
+// Reports
+// ================================================================
+
+function amdCompact(n) {
+  n = Number(n || 0);
+  if (Math.abs(n) >= 1000000) return (n / 1000000).toFixed(1) + 'M ֏';
+  if (Math.abs(n) >= 1000) return Math.round(n / 1000) + 'K ֏';
+  return amd(n);
+}
+
+function shortMonLabel(m) {
+  const [y, mo] = m.split('-');
+  return new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
+async function syncReports() {
+  state.reportLoading = true;
+  state.reportData = null;
+  renderReports();
+  const btn = document.getElementById('btn-sync-reports');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
+  try {
+    const data = await callApi({ action: 'getReportData', toMonth: todayMonth(), window: state.reportWindow });
+    if (data.error) throw new Error(data.error);
+    state.reportData = data;
+  } catch (err) {
+    showError('Could not load reports: ' + err.message);
+  } finally {
+    state.reportLoading = false;
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Sync'; }
+    renderReports();
+  }
+}
+
+function renderReports() {
+  const body = document.getElementById('report-body');
+  if (!body) return;
+  if (!state.reportData && !state.reportLoading) { syncReports(); return; }
+  if (state.reportLoading || !state.reportData) { body.innerHTML = reportsSkeleton(); return; }
+  const d = state.reportData;
+  body.innerHTML = `
+    ${renderCashFlowPanel(d)}
+    <div class="report-2col">
+      ${renderDebtPanel(d)}
+      ${renderLoanProjections(d)}
+    </div>
+    ${renderHealthPanel(d)}
+  `;
+}
+
+function reportsSkeleton() {
+  const r = '<div class="skel skel-row"></div>';
+  const r6 = r.repeat(6), r4 = r.repeat(4);
+  const panel = (rows) => `<div class="report-panel">
+    <div class="report-panel-header"><div class="skel skel-title"></div></div>
+    <div class="report-panel-body rp-pad">${rows}</div>
+  </div>`;
+  return `${panel(r6)}<div class="report-2col">${panel(r4)}${panel(r4)}</div>${panel(r6)}`;
+}
+
+function renderCashFlowPanel(d) {
+  const rows = d.cashFlow || [];
+  if (!rows.length) return `<div class="report-panel"><div class="report-empty">No income data yet — add income records to generate cash flow analysis.</div></div>`;
+
+  let totIncome = 0, totPaid = 0;
+  const bodyRows = rows.map(r => {
+    totIncome += r.income; totPaid += r.paid;
+    const net = r.net, pos = net >= 0;
+    const cov = r.income > 0 ? Math.round((r.paid / r.income) * 100) : 0;
+    const covCol = cov < 60 ? 'var(--success)' : cov < 80 ? 'var(--warning)' : 'var(--danger)';
+    return `<tr>
+      <td class="cf-month">${shortMonLabel(r.month)}</td>
+      <td class="cf-num">${r.income ? amdCompact(r.income) : '<span class="cf-zero">—</span>'}</td>
+      <td class="cf-num">${r.paid ? amdCompact(r.paid) : '<span class="cf-zero">—</span>'}</td>
+      <td class="cf-num ${pos ? 'cf-pos' : 'cf-neg'}">${pos ? '+' : '−'}${amdCompact(Math.abs(net))}</td>
+      <td class="cf-cov">
+        <div class="cf-bar-wrap"><div class="cf-bar" style="width:${Math.min(cov,100)}%;background:${covCol}"></div></div>
+        <span class="cf-pct">${cov}%</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const totNet = totIncome - totPaid, totPos = totNet >= 0;
+  const totCov = totIncome > 0 ? Math.round((totPaid / totIncome) * 100) : 0;
+  const totCovCol = totCov < 60 ? 'var(--success)' : totCov < 80 ? 'var(--warning)' : 'var(--danger)';
+
+  return `<div class="report-panel">
+    <div class="report-panel-header">
+      <div class="rp-title">
+        <svg class="rp-icon" viewBox="0 0 20 20"><path d="M3 15h14M3 10h14M3 5h10"/></svg>
+        Cash Flow Statement
+      </div>
+      <div class="rp-badge">${rows.length} months</div>
+    </div>
+    <div class="report-panel-body">
+      <table class="report-table">
+        <thead><tr>
+          <th>Month</th><th class="cf-num">Income</th><th class="cf-num">Paid out</th>
+          <th class="cf-num">Net</th><th class="cf-cov-head">Coverage</th>
+        </tr></thead>
+        <tbody>${bodyRows}</tbody>
+        <tfoot><tr>
+          <td class="cf-month rp-total">Total</td>
+          <td class="cf-num rp-total">${amdCompact(totIncome)}</td>
+          <td class="cf-num rp-total">${amdCompact(totPaid)}</td>
+          <td class="cf-num rp-total ${totPos ? 'cf-pos' : 'cf-neg'}">${totPos ? '+' : '−'}${amdCompact(Math.abs(totNet))}</td>
+          <td class="cf-cov rp-total">
+            <div class="cf-bar-wrap"><div class="cf-bar" style="width:${Math.min(totCov,100)}%;background:${totCovCol}"></div></div>
+            <span class="cf-pct">${totCov}%</span>
+          </td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderDebtPanel(d) {
+  const rows = d.debt || [];
+  if (!rows.length) return `<div class="report-panel rp-flex"><div class="report-empty">No loan snapshots available.</div></div>`;
+  const bodyRows = rows.map(r => {
+    let deltaHtml = '<span class="debt-neutral">—</span>';
+    if (r.delta !== null && r.delta !== undefined) {
+      if (r.delta < 0) deltaHtml = `<span class="debt-good">▼ ${amdCompact(Math.abs(r.delta))}</span>`;
+      else if (r.delta > 0) deltaHtml = `<span class="debt-bad">▲ ${amdCompact(r.delta)}</span>`;
+      else deltaHtml = `<span class="debt-neutral">= unchanged</span>`;
+    }
+    return `<tr>
+      <td class="cf-month">${shortMonLabel(r.month)}</td>
+      <td class="cf-num"><strong>${r.totalBalance ? amdCompact(r.totalBalance) : '—'}</strong></td>
+      <td>${deltaHtml}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="report-panel rp-flex">
+    <div class="report-panel-header">
+      <div class="rp-title">
+        <svg class="rp-icon" viewBox="0 0 20 20"><path d="M3 17V7l7-4 7 4v10M8 17v-5h4v5"/></svg>
+        Debt Trend
+      </div>
+    </div>
+    <div class="report-panel-body">
+      <table class="report-table">
+        <thead><tr><th>Month</th><th class="cf-num">Total balance</th><th>Change</th></tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderLoanProjections(d) {
+  const loans = d.loanProjections || [];
+  if (!loans.length) return `<div class="report-panel rp-flex"><div class="report-empty">No active loans to project.</div></div>`;
+  const items = loans.map(loan => {
+    let payoffHtml;
+    if (loan.payoffDate) {
+      const [y, mo] = loan.payoffDate.split('-');
+      const label = new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const [ty, tm] = todayMonth().split('-').map(Number);
+      const [py, pm] = loan.payoffDate.split('-').map(Number);
+      const moLeft = (py * 12 + pm) - (ty * 12 + tm);
+      const urgCls = moLeft <= 6 ? 'payoff-urgent' : moLeft <= 18 ? 'payoff-soon' : 'payoff-ok';
+      payoffHtml = `<div class="payoff-date ${urgCls}">${escapeHtml(label)}</div><div class="payoff-months">${moLeft} mo left</div>`;
+    } else {
+      payoffHtml = `<div class="payoff-variable">Variable</div>`;
+    }
+    return `<div class="loan-proj-row">
+      <div class="loan-proj-info">
+        <div class="loan-proj-name">${escapeHtml(loan.bank || loan.id)}</div>
+        <div class="loan-proj-payer">${escapeHtml(loan.payer)}</div>
+      </div>
+      <div class="loan-proj-right">
+        <div class="loan-proj-balance">${amdCompact(loan.balance)}</div>
+        <div class="loan-proj-payoff">${payoffHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="report-panel rp-flex">
+    <div class="report-panel-header">
+      <div class="rp-title">
+        <svg class="rp-icon" viewBox="0 0 20 20"><path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2Zm0 4v4l3 3"/></svg>
+        Loan Payoffs
+      </div>
+      <div class="rp-badge">${loans.length} active</div>
+    </div>
+    <div class="report-panel-body"><div class="loan-proj-list">${items}</div></div>
+  </div>`;
+}
+
+function renderHealthPanel(d) {
+  const rows = d.paymentHealth || [];
+  if (!rows.length) return '';
+  const barsHtml = rows.map(r => {
+    const rate = r.rate || 0;
+    const cls = rate >= 80 ? 'health-green' : rate >= 60 ? 'health-amber' : 'health-red';
+    return `<div class="health-bar-row">
+      <span class="health-month">${shortMonLabel(r.month)}</span>
+      <div class="health-bar-track"><div class="health-bar-fill ${cls}" style="width:${rate}%"></div></div>
+      <span class="health-stat">${r.paid}/${r.total}</span>
+      <span class="health-pct ${cls}-text">${rate}%</span>
+    </div>`;
+  }).join('');
+  const allMissed = [];
+  rows.forEach(r => (r.missedItems || []).forEach(m => allMissed.push({ month: r.month, ...m })));
+  const missedHtml = allMissed.length
+    ? allMissed.map(m => `<div class="missed-item">
+        <span class="missed-month">${shortMonLabel(m.month)}</span>
+        <span class="missed-name">${escapeHtml(m.name)}</span>
+        <span class="missed-payer">${escapeHtml(m.payer)}</span>
+        <span class="missed-badge">missed</span>
+      </div>`).join('')
+    : '<div class="report-empty-ok">✓ No missed payments in this period</div>';
+  return `<div class="report-panel">
+    <div class="report-panel-header">
+      <div class="rp-title">
+        <svg class="rp-icon" viewBox="0 0 20 20"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm-1.5-5 5-5-1.5-1.5-3.5 3.5-1.5-1.5L7 11l1.5 2Z"/></svg>
+        Payment Health
+      </div>
+    </div>
+    <div class="report-panel-body health-layout">
+      <div class="health-bars">${barsHtml}</div>
+      <div class="health-missed">
+        <div class="health-missed-title">Missed payments</div>
+        ${missedHtml}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ================================================================
 // Boot
 // ================================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -1837,6 +2069,27 @@ document.addEventListener('DOMContentLoaded', () => {
   q('income-sort').addEventListener('change', event => {
     state.incomeSort = event.target.value;
     renderIncome();
+  });
+
+  // Report period tabs
+  document.getElementById('report-period-tabs').addEventListener('click', event => {
+    const tab = event.target.closest('.rp-tab');
+    if (!tab) return;
+    const win = Number(tab.dataset.window);
+    if (!win || win === state.reportWindow) return;
+    state.reportWindow = win;
+    document.querySelectorAll('#report-period-tabs .rp-tab').forEach(t =>
+      t.classList.toggle('active', t === tab)
+    );
+    state.reportData = null;
+    state.reportLoading = false;
+    if (state.tab === 'reports') syncReports();
+  });
+
+  document.getElementById('btn-sync-reports').addEventListener('click', () => {
+    state.reportData = null;
+    state.reportLoading = false;
+    if (state.tab === 'reports') syncReports();
   });
 
   // Income submit

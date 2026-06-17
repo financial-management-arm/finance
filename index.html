@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 
@@ -36,6 +36,7 @@
       <li><a href="#" data-tab="loans" aria-label="Obligations"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4V7Zm3-3h10v3H7V4Zm1 8h8M8 16h5"/></svg><span class="nav-label">Obligations</span></a></li>
       <li><a href="#" data-tab="income" aria-label="Income"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income</span></a></li>
       <li><a href="#" data-tab="utilities" aria-label="Utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Utilities</span></a></li>
+      <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V10h4v8H4Zm6 0V4h4v14h-4Zm6 0v-6h4v6h-4Z"/></svg><span class="nav-label">Reports</span></a></li>
     </ul>
   </nav>
 
@@ -426,6 +427,25 @@
   </div>
 </div>
 
+<!-- ─── REPORTS ─── -->
+<section id="page-reports" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-kicker">Financial analysis</div>
+      <h1>Reports</h1>
+    </div>
+    <div class="report-controls">
+      <div class="report-period-tabs" id="report-period-tabs">
+        <button class="rp-tab" data-window="3">3M</button>
+        <button class="rp-tab active" data-window="6">6M</button>
+        <button class="rp-tab" data-window="12">12M</button>
+      </div>
+      <button class="btn-ghost-sm" id="btn-sync-reports" type="button">↻ Sync</button>
+    </div>
+  </div>
+  <div class="page-body report-body" id="report-body"></div>
+</section>
+
 <!-- ─── DELETE CONFIRM MODAL ─── -->
 <div class="modal-backdrop hidden" id="delete-confirm-modal">
   <div class="edit-modal delete-confirm-dialog" role="dialog" aria-modal="true">
@@ -440,6 +460,6 @@
 </div>
 
 <script src="config.js?v=18"></script>
-<script src="app.js?v=31"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>
