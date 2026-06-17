@@ -1807,7 +1807,7 @@ async function syncReports() {
   const btn = document.getElementById('btn-sync-reports');
   if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
   try {
-    const data = await callApi({ action: 'getReportData', toMonth: todayMonth(), window: state.reportWindow });
+    const data = await callApi({ action: 'getReportData', toMonth: todayMonth(), window: state.reportWindow }, { timeout: 55000 });
     if (data.error) throw new Error(data.error);
     state.reportData = data;
   } catch (err) {
@@ -2135,6 +2135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.visibilityState !== 'visible') return;
     if (document.body.classList.contains('is-loading')) return;
     if (!q('loan-edit-modal').classList.contains('hidden')) return;
+    if (state.reportLoading) return;
     refreshData(false).catch(() => {});
   });
 });
