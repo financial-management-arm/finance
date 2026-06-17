@@ -100,12 +100,12 @@ const PALETTE = ['#2563eb','#db2777','#16a34a','#d97706','#7c3aed','#0891b2','#9
 function personalUtilsAsObs() {
   return activeUtils().filter(isUtilPersonal).map(u => {
     const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
-    const isTransfer = !rawAbonent || rawAbonent.toLowerCase() === 'transfer';
-    const suffix = !isTransfer ? ' · ' + rawAbonent : ' · ' + String(u.provider || '');
     return {
       id: u.id,
       payer: String(u.payer || '').trim(),
-      bank: String(u.name || '') + suffix,
+      bank: String(u.name || '').trim(),
+      provider: String(u.provider || '').trim(),
+      abonentNumber: rawAbonent,
       category: 'utility',
       amount: isUtilFixed(u) ? (Number(u.amount) || 0) : 0,
       dueDay: Number(u.dueDay) || 0,
@@ -836,7 +836,68 @@ function renderSchedule() {
 }
 
 function paymentCard(o, index) {
+  if (o.category === 'utility') return utilityPaymentCard(o, index);
   return isLoanRecord(o) ? loanPaymentCard(o, index) : standardPaymentCard(o, index);
+}
+
+function utilityPaymentCard(o, index) {
+  const paid = isPaid(o.id);
+  const partial = isPartial(o.id);
+  const status = paymentStatus(o.id);
+  const resolved = paid || partial;
+  const completedAt = state.paymentMeta[pkey(o.id, state.month)]?.completedAt;
+  const dueDay = Number(o.dueDay);
+  const today = currentMonthDay();
+  const urgency = !resolved && today && dueDay > 0
+    ? (dueDay < today ? 'is-overdue' : dueDay <= today + 3 ? 'is-due-soon' : '')
+    : '';
+  const revealDelay = Math.min((index || 0) * 30, 200);
+  const showAbonent = o.abonentNumber && o.abonentNumber.toLowerCase() !== 'transfer';
+
+  return `<article class="util-pay-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_','-')} ${urgency}"
+                  data-payment-id="${escapeHtml(o.id)}"
+                  style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
+    <div class="util-pay-body">
+      <div class="util-pay-info">
+        <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
+        <div class="util-pay-name">${escapeHtml(o.bank)}
+          <span class="badge utility" style="vertical-align:middle">utility</span>
+          ${paymentStatusBadge(status)}
+        </div>
+        <div class="util-pay-sub">
+          ${o.provider ? `<span>${escapeHtml(o.provider)}</span>` : ''}
+          ${showAbonent ? `<code class="abonent-code" style="font-size:11px">${escapeHtml(o.abonentNumber)}</code>
+            <button class="util-copy-btn" type="button" style="min-height:22px;height:22px;font-size:11px;padding:0 6px"
+                    onclick="copyAbonent('${escapeHtml(o.abonentNumber)}', this)">Copy</button>` : ''}
+          ${resolved && completedAt ? `<time class="payment-card-time">${paid ? 'Paid' : 'Recorded'} ${formatTimestamp(completedAt)}</time>` : ''}
+        </div>
+      </div>
+      <div class="util-pay-actions">
+        ${Number(o.amount) > 0 ? `<strong class="util-pay-amount">${amd(o.amount)}</strong>` : ''}
+        ${dueDay > 0 ? `<span class="util-pay-due">Day ${dueDay}</span>` : ''}
+        <button class="button ${resolved ? 'button-secondary' : 'button-primary'} payment-done util-pay-btn"
+                type="button"
+                onclick="${resolved ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `openPaymentPanel('${escapeHtml(o.id)}')`}">
+          ${paid ? 'Paid ✓' : partial ? 'Partial' : 'Record'}
+        </button>
+      </div>
+    </div>
+    ${buildPartialInfo(o.id, o)}
+    <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
+      <label class="pay-panel-label">Amount paid ֏</label>
+      <div class="pay-panel-row">
+        <input class="pay-amount-input" type="number" min="0" step="1000"
+               placeholder="${Number(o.amount) || 0}"
+               oninput="updatePayPanelHint('${escapeHtml(o.id)}')"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();confirmPaymentAmount('${escapeHtml(o.id)}');}">
+        <button class="button button-primary" type="button"
+                onclick="confirmPaymentAmount('${escapeHtml(o.id)}')">Confirm</button>
+        <button class="button button-ghost" type="button"
+                onclick="closePaymentPanel('${escapeHtml(o.id)}')">Cancel</button>
+      </div>
+      <div class="pay-panel-hint"></div>
+    </div>
+  </article>`;
 }
 
 function loanPaymentCard(o, index) {

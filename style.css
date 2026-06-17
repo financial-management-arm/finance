@@ -181,8 +181,10 @@ body {
   flex-shrink: 0;
 }
 .filter-bar {
-  display: flex; gap: 5px; flex-wrap: wrap;
+  display: flex; gap: 5px; flex-wrap: nowrap;
+  overflow-x: auto; scrollbar-width: none;
 }
+.filter-bar::-webkit-scrollbar { display: none; }
 .schedule-actions { display: flex; gap: 8px; margin-left: auto; }
 .search-input {
   height: 32px; border: 1px solid var(--border); border-radius: 8px;
@@ -449,7 +451,7 @@ tfoot td {
   .income-layout    { grid-template-columns: 1fr; }
   .reports-grid     { grid-template-columns: 1fr; }
   .schedule-tools   { padding: 10px 12px; align-items: stretch; flex-direction: column; }
-  .filter-bar       { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px; }
+  .filter-bar       { padding-bottom: 3px; }
   .schedule-actions { margin-left: 0; }
   .search-input     { min-width: 0; width: 100%; }
   .completed-toggle { flex-shrink: 0; }
@@ -1294,6 +1296,62 @@ tbody tr:hover td { background: transparent; }
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Utility payment card (in Schedule page) ─────────────────── */
+.util-pay-card {
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--payer-color, var(--color-border));
+  border-radius: var(--radius-card);
+  background: var(--color-surface-1);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: border-color var(--motion-snap), opacity var(--motion-standard);
+}
+.util-pay-card.is-paid { opacity: .6; }
+.util-pay-card.is-overdue { border-left-color: var(--color-danger); }
+.util-pay-card.is-due-soon { border-left-color: var(--color-warning); }
+.util-pay-body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.util-pay-info { flex: 1; min-width: 0; }
+.util-pay-name {
+  font-weight: 600;
+  font-size: var(--text-14);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.util-pay-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: var(--text-12);
+  color: var(--color-text-muted);
+}
+.util-pay-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+.util-pay-amount {
+  color: var(--color-primary);
+  font-size: var(--text-16);
+  font-variant-numeric: tabular-nums;
+}
+.util-pay-due {
+  color: var(--color-text-muted);
+  font-size: var(--text-11);
+}
+.util-pay-btn { min-width: 80px; }
 
 @media (max-width: 900px) and (min-width: 769px) {
   :root { --sidebar-w: 72px; }
