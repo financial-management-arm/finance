@@ -263,6 +263,25 @@
     </section>
 
 
+    <!-- ─── REPORTS ─── -->
+    <section id="page-reports" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-kicker">Financial analysis</div>
+          <h1>Reports</h1>
+        </div>
+        <div class="report-controls">
+          <div class="report-period-tabs" id="report-period-tabs">
+            <button class="rp-tab" data-window="3">3M</button>
+            <button class="rp-tab active" data-window="6">6M</button>
+            <button class="rp-tab" data-window="12">12M</button>
+          </div>
+          <button class="btn-ghost-sm" id="btn-sync-reports" type="button">↻ Sync</button>
+        </div>
+      </div>
+      <div class="page-body report-body" id="report-body"></div>
+    </section>
+
   </main>
 </div>
 
@@ -427,25 +446,6 @@
   </div>
 </div>
 
-<!-- ─── REPORTS ─── -->
-<section id="page-reports" class="page">
-  <div class="page-header">
-    <div>
-      <div class="page-kicker">Financial analysis</div>
-      <h1>Reports</h1>
-    </div>
-    <div class="report-controls">
-      <div class="report-period-tabs" id="report-period-tabs">
-        <button class="rp-tab" data-window="3">3M</button>
-        <button class="rp-tab active" data-window="6">6M</button>
-        <button class="rp-tab" data-window="12">12M</button>
-      </div>
-      <button class="btn-ghost-sm" id="btn-sync-reports" type="button">↻ Sync</button>
-    </div>
-  </div>
-  <div class="page-body report-body" id="report-body"></div>
-</section>
-
 <!-- ─── DELETE CONFIRM MODAL ─── -->
 <div class="modal-backdrop hidden" id="delete-confirm-modal">
   <div class="edit-modal delete-confirm-dialog" role="dialog" aria-modal="true">
@@ -459,7 +459,7 @@
   </div>
 </div>
 
-<script src="config.js?v=18"></script>
-<script src="app.js?v=32"></script>
+<script src="config.js?v=19"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>

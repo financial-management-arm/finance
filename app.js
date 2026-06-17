@@ -21,6 +21,7 @@ const state = {
   reportData: null,
   reportWindow: 6,
   reportLoading: false,
+  reportError: false,
 };
 
 // ================================================================
@@ -1800,6 +1801,7 @@ function shortMonLabel(m) {
 
 async function syncReports() {
   state.reportLoading = true;
+  state.reportError = false;
   state.reportData = null;
   renderReports();
   const btn = document.getElementById('btn-sync-reports');
@@ -1809,6 +1811,7 @@ async function syncReports() {
     if (data.error) throw new Error(data.error);
     state.reportData = data;
   } catch (err) {
+    state.reportError = true;
     showError('Could not load reports: ' + err.message);
   } finally {
     state.reportLoading = false;
@@ -1820,7 +1823,14 @@ async function syncReports() {
 function renderReports() {
   const body = document.getElementById('report-body');
   if (!body) return;
-  if (!state.reportData && !state.reportLoading) { syncReports(); return; }
+  if (!state.reportData && !state.reportLoading) {
+    if (state.reportError) {
+      body.innerHTML = `<div class="report-panel"><div class="report-empty">Could not load report data.<br>Tap <strong>↻ Sync</strong> to retry.</div></div>`;
+      return;
+    }
+    syncReports();
+    return;
+  }
   if (state.reportLoading || !state.reportData) { body.innerHTML = reportsSkeleton(); return; }
   const d = state.reportData;
   body.innerHTML = `
@@ -2083,12 +2093,14 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     state.reportData = null;
     state.reportLoading = false;
+    state.reportError = false;
     if (state.tab === 'reports') syncReports();
   });
 
   document.getElementById('btn-sync-reports').addEventListener('click', () => {
     state.reportData = null;
     state.reportLoading = false;
+    state.reportError = false;
     if (state.tab === 'reports') syncReports();
   });
 
