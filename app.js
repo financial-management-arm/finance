@@ -22,6 +22,11 @@ const state = {
   reportWindow: 6,
   reportLoading: false,
   reportError: false,
+  reportPayer: 'all',
+  reportCfSort: 'month-asc',
+  reportDebtSort: 'month-asc',
+  reportLoanSort: 'payoff-asc',
+  reportHealthSort: 'month-asc',
 };
 
 // ================================================================
@@ -1799,6 +1804,26 @@ function shortMonLabel(m) {
   return new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 }
 
+function sortTh(label, col, panel, curSort, extraCls = '') {
+  const [curCol, curDir] = (curSort || 'month-asc').split('-');
+  const active = curCol === col;
+  const nextDir = active && curDir === 'asc' ? 'desc' : 'asc';
+  const ind = active ? (curDir === 'asc' ? '▲' : '▼') : '⇅';
+  const cls = ['sortable-th', extraCls, active ? `sort-${curDir}` : ''].filter(Boolean).join(' ');
+  return `<th class="${cls}" data-sp="${panel}" data-sc="${col}" data-sd="${nextDir}">${label}<span class="sort-ind">${ind}</span></th>`;
+}
+
+function sortRows(arr, sortStr) {
+  const [col, dir] = (sortStr || 'month-asc').split('-');
+  const mult = dir === 'desc' ? -1 : 1;
+  return [...arr].sort((a, b) => {
+    let va = a[col], vb = b[col];
+    if (va == null) va = mult > 0 ? '￿' : '';
+    if (vb == null) vb = mult > 0 ? '￿' : '';
+    return typeof va === 'string' ? va.localeCompare(vb) * mult : (va - vb) * mult;
+  });
+}
+
 async function syncReports() {
   state.reportLoading = true;
   state.reportError = false;
@@ -1807,7 +1832,9 @@ async function syncReports() {
   const btn = document.getElementById('btn-sync-reports');
   if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
   try {
-    const data = await callApi({ action: 'getReportData', toMonth: todayMonth(), window: state.reportWindow }, { timeout: 55000 });
+    const params = { action: 'getReportData', toMonth: todayMonth(), window: state.reportWindow };
+    if (state.reportPayer !== 'all') params.payer = state.reportPayer;
+    const data = await callApi(params, { timeout: 55000 });
     if (data.error) throw new Error(data.error);
     state.reportData = data;
   } catch (err) {
@@ -1833,7 +1860,26 @@ function renderReports() {
   }
   if (state.reportLoading || !state.reportData) { body.innerHTML = reportsSkeleton(); return; }
   const d = state.reportData;
+
+  // Build payer list from loaded obligations+utilities (no extra API call needed)
+  const payerSet = new Set();
+  state.obligations.forEach(o => { if (o.active === true || String(o.active).toUpperCase() === 'TRUE') payerSet.add(String(o.payer || '').trim()); });
+  state.utilities.forEach(u => { if (u.active === true || String(u.active).toUpperCase() === 'TRUE') payerSet.add(String(u.payer || '').trim()); });
+  payerSet.delete('');
+  const payers = [...payerSet].sort();
+
+  const payerBar = payers.length > 1 ? `
+    <div class="report-filter-bar">
+      <span class="rfl-label">Payer</span>
+      <select class="report-payer-select rfl-select">
+        <option value="all"${state.reportPayer === 'all' ? ' selected' : ''}>All payers</option>
+        ${payers.map(p => `<option value="${escapeHtml(p)}"${state.reportPayer === p ? ' selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+      </select>
+      ${state.reportPayer !== 'all' ? `<span class="rfl-active-pill">${escapeHtml(state.reportPayer)}</span>` : ''}
+    </div>` : '';
+
   body.innerHTML = `
+    ${payerBar}
     ${renderCashFlowPanel(d)}
     <div class="report-2col">
       ${renderDebtPanel(d)}
@@ -1854,23 +1900,27 @@ function reportsSkeleton() {
 }
 
 function renderCashFlowPanel(d) {
-  const rows = d.cashFlow || [];
-  if (!rows.length) return `<div class="report-panel"><div class="report-empty">No income data yet — add income records to generate cash flow analysis.</div></div>`;
+  const raw = d.cashFlow || [];
+  if (!raw.length) return `<div class="report-panel"><div class="report-empty">No income data yet — add income records to generate cash flow analysis.</div></div>`;
+
+  // Enrich with coverage for sorting
+  const enriched = raw.map(r => ({ ...r, cov: r.income > 0 ? Math.round((r.paid / r.income) * 100) : 0 }));
+  const sorted = sortRows(enriched, state.reportCfSort);
 
   let totIncome = 0, totPaid = 0;
-  const bodyRows = rows.map(r => {
-    totIncome += r.income; totPaid += r.paid;
+  raw.forEach(r => { totIncome += r.income; totPaid += r.paid; });
+
+  const bodyRows = sorted.map(r => {
     const net = r.net, pos = net >= 0;
-    const cov = r.income > 0 ? Math.round((r.paid / r.income) * 100) : 0;
-    const covCol = cov < 60 ? 'var(--success)' : cov < 80 ? 'var(--warning)' : 'var(--danger)';
+    const covCol = r.cov < 60 ? 'var(--success)' : r.cov < 80 ? 'var(--warning)' : 'var(--danger)';
     return `<tr>
       <td class="cf-month">${shortMonLabel(r.month)}</td>
       <td class="cf-num">${r.income ? amdCompact(r.income) : '<span class="cf-zero">—</span>'}</td>
       <td class="cf-num">${r.paid ? amdCompact(r.paid) : '<span class="cf-zero">—</span>'}</td>
       <td class="cf-num ${pos ? 'cf-pos' : 'cf-neg'}">${pos ? '+' : '−'}${amdCompact(Math.abs(net))}</td>
       <td class="cf-cov">
-        <div class="cf-bar-wrap"><div class="cf-bar" style="width:${Math.min(cov,100)}%;background:${covCol}"></div></div>
-        <span class="cf-pct">${cov}%</span>
+        <div class="cf-bar-wrap"><div class="cf-bar" style="width:${Math.min(r.cov,100)}%;background:${covCol}"></div></div>
+        <span class="cf-pct">${r.cov}%</span>
       </td>
     </tr>`;
   }).join('');
@@ -1878,6 +1928,7 @@ function renderCashFlowPanel(d) {
   const totNet = totIncome - totPaid, totPos = totNet >= 0;
   const totCov = totIncome > 0 ? Math.round((totPaid / totIncome) * 100) : 0;
   const totCovCol = totCov < 60 ? 'var(--success)' : totCov < 80 ? 'var(--warning)' : 'var(--danger)';
+  const s = state.reportCfSort;
 
   return `<div class="report-panel">
     <div class="report-panel-header">
@@ -1885,13 +1936,16 @@ function renderCashFlowPanel(d) {
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M3 15h14M3 10h14M3 5h10"/></svg>
         Cash Flow Statement
       </div>
-      <div class="rp-badge">${rows.length} months</div>
+      <div class="rp-badge">${raw.length} months</div>
     </div>
     <div class="report-panel-body">
       <table class="report-table">
         <thead><tr>
-          <th>Month</th><th class="cf-num">Income</th><th class="cf-num">Paid out</th>
-          <th class="cf-num">Net</th><th class="cf-cov-head">Coverage</th>
+          ${sortTh('Month','month','cf',s)}
+          ${sortTh('Income','income','cf',s,'cf-num')}
+          ${sortTh('Paid out','paid','cf',s,'cf-num')}
+          ${sortTh('Net','net','cf',s,'cf-num')}
+          ${sortTh('Coverage','cov','cf',s,'cf-cov-head')}
         </tr></thead>
         <tbody>${bodyRows}</tbody>
         <tfoot><tr>
@@ -1910,9 +1964,11 @@ function renderCashFlowPanel(d) {
 }
 
 function renderDebtPanel(d) {
-  const rows = d.debt || [];
-  if (!rows.length) return `<div class="report-panel rp-flex"><div class="report-empty">No loan snapshots available.</div></div>`;
-  const bodyRows = rows.map(r => {
+  const raw = d.debt || [];
+  if (!raw.length) return `<div class="report-panel rp-flex"><div class="report-empty">No loan snapshots available.</div></div>`;
+  const sorted = sortRows(raw, state.reportDebtSort);
+  const s = state.reportDebtSort;
+  const bodyRows = sorted.map(r => {
     let deltaHtml = '<span class="debt-neutral">—</span>';
     if (r.delta !== null && r.delta !== undefined) {
       if (r.delta < 0) deltaHtml = `<span class="debt-good">▼ ${amdCompact(Math.abs(r.delta))}</span>`;
@@ -1934,7 +1990,11 @@ function renderDebtPanel(d) {
     </div>
     <div class="report-panel-body">
       <table class="report-table">
-        <thead><tr><th>Month</th><th class="cf-num">Total balance</th><th>Change</th></tr></thead>
+        <thead><tr>
+          ${sortTh('Month','month','debt',s)}
+          ${sortTh('Total balance','totalBalance','debt',s,'cf-num')}
+          ${sortTh('Change','delta','debt',s)}
+        </tr></thead>
         <tbody>${bodyRows}</tbody>
       </table>
     </div>
@@ -1942,8 +2002,28 @@ function renderDebtPanel(d) {
 }
 
 function renderLoanProjections(d) {
-  const loans = d.loanProjections || [];
-  if (!loans.length) return `<div class="report-panel rp-flex"><div class="report-empty">No active loans to project.</div></div>`;
+  const raw = d.loanProjections || [];
+  if (!raw.length) return `<div class="report-panel rp-flex"><div class="report-empty">No active loans to project.</div></div>`;
+
+  const [lsCol, lsDir] = (state.reportLoanSort || 'payoff-asc').split('-');
+  const lsMult = lsDir === 'desc' ? -1 : 1;
+  const loans = [...raw].sort((a, b) => {
+    if (lsCol === 'payoff') {
+      const va = a.payoffDate || '9999-99', vb = b.payoffDate || '9999-99';
+      return va.localeCompare(vb) * lsMult;
+    }
+    if (lsCol === 'balance') return ((a.balance || 0) - (b.balance || 0)) * lsMult;
+    if (lsCol === 'bank')  return (a.bank  || '').localeCompare(b.bank  || '') * lsMult;
+    if (lsCol === 'payer') return (a.payer || '').localeCompare(b.payer || '') * lsMult;
+    return 0;
+  });
+
+  const lsOpts = [
+    ['payoff-asc','Payoff ↑'], ['payoff-desc','Payoff ↓'],
+    ['balance-desc','Balance ↓'], ['balance-asc','Balance ↑'],
+    ['bank-asc','Name A–Z'], ['payer-asc','Payer A–Z'],
+  ].map(([v, l]) => `<option value="${v}"${state.reportLoanSort === v ? ' selected' : ''}>${l}</option>`).join('');
+
   const items = loans.map(loan => {
     let payoffHtml;
     if (loan.payoffDate) {
@@ -1974,15 +2054,24 @@ function renderLoanProjections(d) {
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2Zm0 4v4l3 3"/></svg>
         Loan Payoffs
       </div>
-      <div class="rp-badge">${loans.length} active</div>
+      <div class="rp-header-right">
+        <span class="rp-badge">${raw.length} active</span>
+        <select class="panel-sort-select loan-sort-select">${lsOpts}</select>
+      </div>
     </div>
     <div class="report-panel-body"><div class="loan-proj-list">${items}</div></div>
   </div>`;
 }
 
 function renderHealthPanel(d) {
-  const rows = d.paymentHealth || [];
-  if (!rows.length) return '';
+  const raw = d.paymentHealth || [];
+  if (!raw.length) return '';
+  const rows = sortRows(raw, state.reportHealthSort);
+  const hsOpts = [
+    ['month-asc','Month ↑'], ['month-desc','Month ↓'],
+    ['rate-desc','Health ↓'], ['rate-asc','Health ↑'],
+    ['missed-desc','Missed ↓'],
+  ].map(([v, l]) => `<option value="${v}"${state.reportHealthSort === v ? ' selected' : ''}>${l}</option>`).join('');
   const barsHtml = rows.map(r => {
     const rate = r.rate || 0;
     const cls = rate >= 80 ? 'health-green' : rate >= 60 ? 'health-amber' : 'health-red';
@@ -2008,6 +2097,9 @@ function renderHealthPanel(d) {
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm-1.5-5 5-5-1.5-1.5-3.5 3.5-1.5-1.5L7 11l1.5 2Z"/></svg>
         Payment Health
+      </div>
+      <div class="rp-header-right">
+        <select class="panel-sort-select health-sort-select">${hsOpts}</select>
       </div>
     </div>
     <div class="report-panel-body health-layout">
@@ -2102,6 +2194,40 @@ document.addEventListener('DOMContentLoaded', () => {
     state.reportLoading = false;
     state.reportError = false;
     if (state.tab === 'reports') syncReports();
+  });
+
+  // Report column sort (click on <th data-sp data-sc>)
+  document.getElementById('page-reports').addEventListener('click', e => {
+    const th = e.target.closest('[data-sp][data-sc]');
+    if (!th) return;
+    const sortStr = `${th.dataset.sc}-${th.dataset.sd}`;
+    const panel = th.dataset.sp;
+    if (panel === 'cf')   state.reportCfSort   = sortStr;
+    if (panel === 'debt') state.reportDebtSort  = sortStr;
+    if (state.tab === 'reports' && state.reportData) renderReports();
+  });
+
+  // Report dropdowns (payer, loan sort, health sort) — delegated on page-reports
+  document.getElementById('page-reports').addEventListener('change', e => {
+    if (e.target.matches('.report-payer-select')) {
+      const v = e.target.value;
+      if (v === state.reportPayer) return;
+      state.reportPayer = v;
+      state.reportData = null;
+      state.reportLoading = false;
+      state.reportError = false;
+      if (state.tab === 'reports') syncReports();
+      return;
+    }
+    if (e.target.matches('.loan-sort-select')) {
+      state.reportLoanSort = e.target.value;
+      if (state.tab === 'reports' && state.reportData) renderReports();
+      return;
+    }
+    if (e.target.matches('.health-sort-select')) {
+      state.reportHealthSort = e.target.value;
+      if (state.tab === 'reports' && state.reportData) renderReports();
+    }
   });
 
   // Income submit

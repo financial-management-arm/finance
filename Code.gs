@@ -681,6 +681,7 @@ function shiftMonthGs(m, delta) {
 function getReportData(ss, params) {
   var toMonth = validMonth(params.toMonth) ? params.toMonth : currentMonth();
   var windowSize = Math.min(Math.max(parseInt(params.window) || 6, 1), 24);
+  var filterPayer = String(params.payer || '').trim();
   var fromMonth = shiftMonthGs(toMonth, -(windowSize - 1));
 
   var months = [];
@@ -693,17 +694,37 @@ function getReportData(ss, params) {
   var income     = sheetToJson(ss, 'Income');
   var loans      = sheetToJson(ss, 'Loans');
 
-  var activeObs = obligations.filter(isActive);
+  // Collect all unique payers for the filter dropdown
+  var payerSet = {};
+  obligations.forEach(function(o) { if (isActive(o) && o.payer) payerSet[String(o.payer)] = true; });
+  utilities.forEach(function(u) { if (isActive(u) && u.payer) payerSet[String(u.payer)] = true; });
+  var allPayers = Object.keys(payerSet).sort();
+
+  var activeObs = obligations.filter(function(o) {
+    if (!isActive(o)) return false;
+    return !filterPayer || String(o.payer || '').trim() === filterPayer;
+  });
   var activePersonalUtils = utilities.filter(function(u) {
-    return isActive(u) && (u.personalExpense === true || String(u.personalExpense) === 'true');
+    if (!isActive(u)) return false;
+    if (!(u.personalExpense === true || String(u.personalExpense) === 'true')) return false;
+    return !filterPayer || String(u.payer || '').trim() === filterPayer;
   });
   var activeLoans = activeObs.filter(isLoan);
+
+  // Build allowed-ID set for payment filtering when payer is selected
+  var allowedIds = null;
+  if (filterPayer) {
+    allowedIds = {};
+    activeObs.forEach(function(o) { allowedIds[String(o.id)] = true; });
+    activePersonalUtils.forEach(function(u) { allowedIds[String(u.id)] = true; });
+  }
 
   var paymentsByKey = {};
   payments.forEach(function(p) { paymentsByKey[String(p.key)] = p; });
 
   var loansByMonth = {};
   loans.forEach(function(l) {
+    if (filterPayer && String(l.payer || '').trim() !== filterPayer) return;
     var mo = String(l.month || '');
     if (!loansByMonth[mo]) loansByMonth[mo] = [];
     loansByMonth[mo].push(l);
@@ -725,6 +746,10 @@ function getReportData(ss, params) {
         rowMonth = pts.length === 2 ? pts[1] : '';
       }
       if (rowMonth !== mo) return sum;
+      if (allowedIds !== null) {
+        var keyId = String(row.key || '').split('__')[0];
+        if (!allowedIds[keyId]) return sum;
+      }
       var p = row.paid === true || String(row.paid).toUpperCase() === 'TRUE';
       var partial = String(row.status || '').toLowerCase() === 'partial';
       return (p || partial) ? sum + (Number(row.paidAmount) || 0) : sum;
@@ -783,7 +808,15 @@ function getReportData(ss, params) {
     return { id: loan.id, bank: String(loan.bank || ''), payer: String(loan.payer || ''), balance: balance, monthly: monthly, payoffDate: payoffDate };
   });
 
-  return { months: months, cashFlow: cashFlow, debt: debtArr, paymentHealth: paymentHealth, loanProjections: loanProjections };
+  return {
+    months: months,
+    cashFlow: cashFlow,
+    debt: debtArr,
+    paymentHealth: paymentHealth,
+    loanProjections: loanProjections,
+    payers: allPayers,
+    activeFilter: filterPayer || null
+  };
 }
 
 function isoNow() {

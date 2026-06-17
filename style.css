@@ -579,6 +579,52 @@ tfoot td {
 .skel-title { height: 12px; width: 110px; }
 .skel-row   { height: 38px; border-radius: 0; }
 
+/* Sort indicators */
+.report-table th.sortable-th { cursor: pointer; user-select: none; }
+.report-table th.sortable-th:hover { background: #edf2f7; color: var(--text); }
+.sort-ind { display: inline-block; margin-left: 3px; font-size: 9px; opacity: .45; }
+.sortable-th.sort-asc  .sort-ind,
+.sortable-th.sort-desc .sort-ind { opacity: 1; color: var(--primary); }
+
+/* Payer filter bar */
+.report-filter-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px 6px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  background: #fafbff;
+}
+.rfl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.rfl-select {
+  font-size: 12px; padding: 4px 10px;
+  border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+  cursor: pointer; outline: none; font-weight: 600;
+}
+.rfl-select:focus { border-color: var(--primary); }
+.rfl-active-pill {
+  font-size: 11px; padding: 3px 9px;
+  border-radius: 99px; background: var(--primary-bg);
+  color: var(--primary); font-weight: 700;
+}
+
+/* Panel header right slot (for sort selects) */
+.rp-header-right { display: flex; align-items: center; gap: 6px; }
+.panel-sort-select {
+  font-size: 11px; padding: 3px 8px;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--muted);
+  cursor: pointer; outline: none;
+}
+.panel-sort-select:focus { border-color: var(--primary); color: var(--text); }
+
+/* Health sort header */
+.health-sort-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 18px 4px; border-bottom: 1px solid var(--border);
+  background: var(--bg); font-size: 11px; color: var(--muted);
+}
+.health-sort-labels { display: flex; gap: 6px; align-items: center; }
+
 /* ── Mobile ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
   html, body        { overflow: auto; }
