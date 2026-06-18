@@ -2278,6 +2278,17 @@ function renderPayerPanel() {
 // Boot
 // ================================================================
 document.addEventListener('DOMContentLoaded', () => {
+  // Input-modality tracking: keyboard actions stay instant; pointer/touch actions may animate.
+  const setKeyboardMode = event => {
+    if (event.key === 'Tab' || event.key.startsWith('Arrow') || event.key === 'Enter' || event.key === ' ') {
+      document.body.classList.add('using-keyboard');
+    }
+  };
+  const setPointerMode = () => document.body.classList.remove('using-keyboard');
+  document.addEventListener('keydown', setKeyboardMode, true);
+  document.addEventListener('pointerdown', setPointerMode, true);
+  document.addEventListener('touchstart', setPointerMode, { capture: true, passive: true });
+
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
   // Tab nav
