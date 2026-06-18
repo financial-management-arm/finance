@@ -1588,8 +1588,17 @@ tbody tr:hover td { background: transparent; }
 }
 
 @media (max-width: 768px) {
-  .app { padding-bottom: 72px; }
-  .sidebar { height: 72px; background: color-mix(in srgb, var(--color-sidebar) 94%, transparent); backdrop-filter: blur(20px); }
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  .sidebar {
+    height: calc(72px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: color-mix(in srgb, var(--color-sidebar) 94%, transparent);
+    backdrop-filter: blur(20px);
+  }
   .sidebar-nav { padding: var(--space-2); gap: var(--space-1); }
   .sidebar-nav a {
     height: 56px;
@@ -1610,11 +1619,15 @@ tbody tr:hover td { background: transparent; }
     animation: dotIn 120ms var(--ease-enter);
   }
   @keyframes dotIn { from { transform: scale(0); } to { transform: scale(1); } }
+  .main,
+  .page {
+    min-height: auto;
+  }
   .page-header { min-height: 68px; padding: var(--space-3) var(--space-4); align-items: center; }
   .page-header > div:first-child { min-width: 88px; }
   .month-nav { flex-wrap: nowrap; justify-content: flex-end; }
   .month-label { min-width: 96px; }
-  .page-body { padding: var(--space-4); }
+  .page-body { padding: var(--space-4) var(--space-4) calc(var(--space-4) + 24px); }
   .today-body { gap: var(--space-5); }
   .today-hero { min-height: 184px; padding: var(--space-5); }
   .progress-ring-wrap { width: 112px; height: 112px; flex-basis: 112px; }
@@ -2404,5 +2417,39 @@ button:active,
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
+  }
+}
+
+/* Mobile browsers with bottom toolbars need the document itself to own
+   the scroll height; otherwise the fixed tab bar can cover the last rows. */
+@media (max-width: 768px) {
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .main,
+  .page {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .sidebar {
+    height: calc(72px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
