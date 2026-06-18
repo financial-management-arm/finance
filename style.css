@@ -2200,3 +2200,67 @@ tbody tr:hover td { background: transparent; }
   }
 }
 
+
+/* ═══════════════════════════════════════════════════════════
+   INTERACTION FEEDBACK LAYER  (added for UX polish)
+   Philosophy: daily-use finance tool → fast, functional, restrained.
+   All motion ≤160ms. No decorative animation. The global
+   prefers-reduced-motion block above neutralises every duration.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Unified transition for interactive controls. Covers the properties
+   these elements actually change on hover/press so colour + border
+   keep easing smoothly AND the press transform gets a snappy curve.
+   Later source order → wins over the legacy `transition: all .15s`. */
+.sidebar-nav a,
+.btn-nav, .btn-today, .button, .btn-primary, .btn-secondary,
+.btn-danger, .btn-add, .btn-save, .btn-edit, .btn-ghost-sm,
+.pill, .rp-tab, .modal-close {
+  transition:
+    transform var(--motion-snap) var(--ease-enter),
+    background var(--motion-standard) var(--ease-enter),
+    border-color var(--motion-standard) var(--ease-enter),
+    color var(--motion-standard) var(--ease-enter),
+    box-shadow var(--motion-standard) var(--ease-enter);
+}
+
+/* Tactile press — immediate confirmation on every tap.
+   scale(.97) per the skill; never animate from scale(0). */
+.sidebar-nav a:active,
+.btn-today:active, .button:active,
+.btn-primary:active, .btn-secondary:active, .btn-danger:active,
+.btn-add:active, .btn-save:active, .btn-edit:active,
+.btn-ghost-sm:active, .pill:active, .rp-tab:active {
+  transform: scale(.97);
+}
+
+/* Small icon buttons need a touch more travel to read at their size. */
+.btn-nav:active   { transform: scale(.90); }
+.modal-close:active { transform: scale(.88); }
+
+/* Checkbox row gets the same press cue without a layout-shifting scale. */
+.completed-toggle:active { opacity: .7; }
+
+/* Page settle on tab switch — quick + subtle. Fires on every nav
+   click (frequent), so kept at 160ms with only a 6px rise. */
+.page.active { animation: pageEnter var(--motion-standard) var(--ease-enter); }
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal entrance — backdrop fades, surface rises from it instead of
+   snapping in. Exit stays instant (the .hidden toggle). */
+.modal-backdrop:not(.hidden) {
+  animation: backdropFade var(--motion-standard) var(--ease-enter);
+}
+@keyframes backdropFade { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-backdrop:not(.hidden) .edit-modal,
+.modal-backdrop:not(.hidden) .delete-confirm-dialog {
+  animation: modalRise var(--motion-enter) var(--ease-enter);
+}
+@keyframes modalRise {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
