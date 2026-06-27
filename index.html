@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=39">
+  <link rel="stylesheet" href="style.css?v=40">
 </head>
 <body>
 
@@ -363,11 +363,7 @@
     <!-- ─── INCOME ─── -->
     <section id="page-income" class="page">
       <div class="page-header">
-        <h1>Actives</h1>
-        <div class="income-subtab-bar">
-          <button class="income-subtab-btn is-active" data-subtab="income" type="button" onclick="setIncomeSubTab('income')">Income</button>
-          <button class="income-subtab-btn" data-subtab="cash" type="button" onclick="setIncomeSubTab('cash')">Cash</button>
-        </div>
+        <h1>Income &amp; Cash</h1>
         <div class="month-nav">
           <button class="btn-nav btn-prev">‹</button>
           <span class="month-label"></span>
@@ -376,39 +372,40 @@
         </div>
       </div>
       <div class="page-body">
+        <div class="income-command-bar">
+          <div class="income-subtab-bar">
+            <button class="income-subtab-btn is-active" data-subtab="income" type="button" onclick="setIncomeSubTab('income')">Income</button>
+            <button class="income-subtab-btn" data-subtab="cash" type="button" onclick="setIncomeSubTab('cash')">Cash</button>
+          </div>
+          <button class="button button-primary" id="btn-open-income" type="button" onclick="openIncomeModal()">+ Add income</button>
+        </div>
         <div id="cash-content" class="hidden"></div>
         <div id="income-content" class="income-layout">
-
-          <div class="income-form">
-            <h3>Log Income</h3>
-            <div class="form-group">
-              <label class="form-label">Date</label>
-              <input type="date" class="form-input" id="f-date">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Amount (֏)</label>
-              <input type="number" class="form-input" id="f-amount" placeholder="0" min="0">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Source</label>
-              <select class="form-select" id="f-stream">
-                <option value="car_rental">Car Rental</option>
-                <option value="legal">Legal</option>
-                <option value="real_estate">Real Estate</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Note (optional)</label>
-              <input type="text" class="form-input" id="f-note" placeholder="e.g. BMW, June rent">
-            </div>
-            <button class="btn-add" id="btn-add-income">Add Income</button>
+          <div class="income-kpis">
+            <article><span>This month</span><strong id="income-month-total">—</strong></article>
+            <article><span>All-time income</span><strong id="income-all-total">—</strong></article>
+            <article><span>Entries this month</span><strong id="income-entry-count">—</strong></article>
+            <article><span>Average entry</span><strong id="income-average">—</strong><small>Largest: <span id="income-largest">—</span></small></article>
           </div>
+          <div class="income-source-summary" id="income-source-summary"></div>
 
           <div class="income-list">
             <div class="income-list-header">
-              <h3>Income Log</h3>
+              <div>
+                <h3>Income history</h3>
+                <span class="muted" id="income-results-count"></span>
+              </div>
               <div class="list-header-actions">
+                <input class="search-input" id="income-search" type="search" placeholder="Search source, note, amount...">
+                <select class="sort-select" id="income-source-filter">
+                  <option value="all">All sources</option>
+                  <option value="car_rental">Car Rental</option>
+                  <option value="legal">Legal</option>
+                  <option value="real_estate">Real Estate</option>
+                  <option value="other">Other</option>
+                </select>
+                <input class="form-input income-date-filter" id="income-date-from" type="date" aria-label="Income from date">
+                <input class="form-input income-date-filter" id="income-date-to" type="date" aria-label="Income to date">
                 <select class="sort-select" id="income-sort" aria-label="Sort income">
                   <option value="date-desc">Newest first</option>
                   <option value="date-asc">Oldest first</option>
@@ -416,7 +413,7 @@
                   <option value="amount-asc">Amount: low to high</option>
                   <option value="source-asc">Source</option>
                 </select>
-                <span class="muted">This month: <strong id="income-month-total">—</strong></span>
+                <button class="button button-ghost btn-sm" id="income-clear-filters" type="button">Clear</button>
               </div>
             </div>
             <table style="width:100%">
@@ -436,6 +433,40 @@
         </div>
       </div>
     </section>
+
+    <div class="modal-backdrop hidden" id="income-add-modal">
+      <div class="edit-modal income-add-dialog" role="dialog" aria-modal="true" aria-labelledby="income-add-title">
+        <div class="modal-header">
+          <h2 id="income-add-title">Add income</h2>
+          <button class="modal-close" type="button" onclick="closeIncomeModal()" aria-label="Close">×</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f-date">Date</label>
+          <input type="date" class="form-input" id="f-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f-amount">Amount (֏)</label>
+          <input type="number" class="form-input" id="f-amount" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f-stream">Source</label>
+          <select class="form-select" id="f-stream">
+            <option value="car_rental">Car Rental</option>
+            <option value="legal">Legal</option>
+            <option value="real_estate">Real Estate</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f-note">Note (optional)</label>
+          <input type="text" class="form-input" id="f-note" placeholder="e.g. BMW, June rent">
+        </div>
+        <div class="modal-actions">
+          <button class="button button-ghost" type="button" onclick="closeIncomeModal()">Cancel</button>
+          <button class="button button-primary" id="btn-add-income" type="button">Add income</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ─── UTILITIES ─── -->
     <section id="page-utilities" class="page">
@@ -656,6 +687,6 @@
 </div>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=58"></script>
+<script src="app.js?v=59"></script>
 </body>
 </html>

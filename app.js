@@ -46,6 +46,10 @@ const state = {
   obligationSortField: 'currentBalance',
   obligationSortDirection: 'desc',
   incomeSort: 'date-desc',
+  incomeSearch: '',
+  incomeSourceFilter: 'all',
+  incomeDateFrom: '',
+  incomeDateTo: '',
   cashEntries: [],
   cashFilter: 'all',
   cashPayerFilter: 'all',
@@ -1797,6 +1801,16 @@ function setIncomeSubTab(tab) {
   renderIncome();
 }
 
+function openIncomeModal() {
+  q('income-add-modal').classList.remove('hidden');
+  q('f-date').value = q('f-date').value || new Date().toISOString().slice(0, 10);
+  q('f-amount').focus();
+}
+
+function closeIncomeModal() {
+  q('income-add-modal').classList.add('hidden');
+}
+
 function renderIncome() {
   const subtab = state.incomeSubTab || 'income';
   document.querySelectorAll('.income-subtab-btn').forEach(b => {
@@ -1805,8 +1819,10 @@ function renderIncome() {
   const incomeContent = document.getElementById('income-content');
   const cashContent = document.getElementById('cash-content');
   const monthNav = document.querySelector('#page-income .month-nav');
+  const addIncomeButton = q('btn-open-income');
   if (incomeContent) incomeContent.classList.toggle('hidden', subtab !== 'income');
   if (monthNav) monthNav.style.visibility = subtab === 'income' ? '' : 'hidden';
+  if (addIncomeButton) addIncomeButton.classList.toggle('hidden', subtab !== 'income');
   if (cashContent) {
     cashContent.classList.toggle('hidden', subtab !== 'cash');
     if (subtab === 'cash') cashContent.innerHTML = renderCashTab();
@@ -2187,8 +2203,15 @@ async function confirmDeleteCash(id) {
 function renderIncomeTab() {
   const monthRows = state.income.filter(i => String(i.date).startsWith(state.month));
   const tot       = monthRows.reduce((s, i) => s + Number(i.amount), 0);
+  const allTimeTotal = state.income.reduce((sum, i) => sum + Number(i.amount), 0);
+  const average = monthRows.length ? Math.round(tot / monthRows.length) : 0;
+  const largest = monthRows.reduce((max, i) => Math.max(max, Number(i.amount) || 0), 0);
 
   q('income-month-total').textContent = amd(tot);
+  q('income-all-total').textContent = amd(allTimeTotal);
+  q('income-entry-count').textContent = String(monthRows.length);
+  q('income-average').textContent = amd(average);
+  q('income-largest').textContent = amd(largest);
 
   const streamLabel = { car_rental: 'Car Rental', legal: 'Legal', real_estate: 'Real Estate', other: 'Other' };
 
@@ -2199,7 +2222,29 @@ function renderIncomeTab() {
     'amount-asc': (a, b) => Number(a.amount) - Number(b.amount),
     'source-asc': (a, b) => String(a.stream || '').localeCompare(String(b.stream || ''))
   };
-  const sorted = [...state.income].sort(incomeSorters[state.incomeSort] || incomeSorters['date-desc']);
+  const search = state.incomeSearch.toLocaleLowerCase();
+  const filtered = state.income.filter(i => {
+    if (state.incomeSourceFilter !== 'all' && i.stream !== state.incomeSourceFilter) return false;
+    const date = String(i.date || '').slice(0, 10);
+    if (state.incomeDateFrom && date < state.incomeDateFrom) return false;
+    if (state.incomeDateTo && date > state.incomeDateTo) return false;
+    if (search && ![streamLabel[i.stream] || i.stream, i.note, i.amount, date]
+      .some(value => String(value || '').toLocaleLowerCase().includes(search))) return false;
+    return true;
+  });
+  const sorted = [...filtered].sort(incomeSorters[state.incomeSort] || incomeSorters['date-desc']);
+  q('income-results-count').textContent = `Showing ${sorted.length} of ${state.income.length} entries`;
+
+  const sourceTotals = Object.entries(streamLabel).map(([value, label]) => {
+    const amount = monthRows
+      .filter(i => i.stream === value)
+      .reduce((sum, i) => sum + Number(i.amount), 0);
+    return amount ? `<button class="income-source-chip ${state.incomeSourceFilter === value ? 'is-active' : ''}"
+      type="button" onclick="setIncomeSourceFilter('${value}')">
+      <span>${label}</span><strong>${amd(amount)}</strong>
+    </button>` : '';
+  }).join('');
+  q('income-source-summary').innerHTML = sourceTotals || '<span class="muted">No income sources recorded this month.</span>';
   const streamOpts = Object.entries(streamLabel)
     .map(([v, l]) => `<option value="${v}">{L}</option>`.replace('{L}', l))
     .join('');
@@ -2209,12 +2254,17 @@ function renderIncomeTab() {
       .map(([v, l]) => `<option value="${v}"${i.stream === v ? ' selected' : ''}>${l}</option>`).join('');
     return `<tr id="income-row-${escapeHtml(i.id)}">
       <td>${escapeHtml(String(i.date).slice(0, 10))}</td>
-      <td>${escapeHtml(streamLabel[i.stream] || i.stream)}</td>
+      <td><span class="income-source-badge source-${escapeHtml(i.stream)}">${escapeHtml(streamLabel[i.stream] || i.stream)}</span></td>
       <td class="tr fw7">${amd(i.amount)}</td>
       <td class="muted">${escapeHtml(i.note || '')}</td>
       <td class="income-row-actions">
-        <button class="button button-ghost btn-sm" type="button" onclick="openIncomeEdit('${escapeHtml(i.id)}')">Edit</button>
-        <button class="button btn-delete-ghost btn-sm" type="button" onclick="confirmDeleteIncome('${escapeHtml(i.id)}')">Delete</button>
+        <details class="income-actions-menu">
+          <summary aria-label="Actions for income entry">•••</summary>
+          <div>
+            <button class="button button-ghost btn-sm" type="button" onclick="openIncomeEdit('${escapeHtml(i.id)}')">Edit</button>
+            <button class="button btn-delete-ghost btn-sm" type="button" onclick="confirmDeleteIncome('${escapeHtml(i.id)}')">Delete</button>
+          </div>
+        </details>
       </td>
     </tr>
     <tr id="income-edit-${escapeHtml(i.id)}" class="income-edit-tr hidden">
@@ -2232,6 +2282,24 @@ function renderIncomeTab() {
       </td>
     </tr>`;
   }).join('');
+}
+
+function setIncomeSourceFilter(source) {
+  state.incomeSourceFilter = state.incomeSourceFilter === source ? 'all' : source;
+  q('income-source-filter').value = state.incomeSourceFilter;
+  renderIncomeTab();
+}
+
+function clearIncomeFilters() {
+  state.incomeSearch = '';
+  state.incomeSourceFilter = 'all';
+  state.incomeDateFrom = '';
+  state.incomeDateTo = '';
+  q('income-search').value = '';
+  q('income-source-filter').value = 'all';
+  q('income-date-from').value = '';
+  q('income-date-to').value = '';
+  renderIncomeTab();
 }
 
 function openIncomeEdit(id) {
@@ -2290,6 +2358,7 @@ function submitIncome() {
   addIncome({ date, amount: Number(amount), stream, note });
   q('f-amount').value = '';
   q('f-note').value   = '';
+  closeIncomeModal();
 }
 
 // ================================================================
@@ -3340,6 +3409,26 @@ document.addEventListener('DOMContentLoaded', () => {
   q('income-sort').addEventListener('change', event => {
     state.incomeSort = event.target.value;
     renderIncome();
+  });
+  q('income-search').addEventListener('input', event => {
+    state.incomeSearch = event.target.value.trim();
+    renderIncomeTab();
+  });
+  q('income-source-filter').addEventListener('change', event => {
+    state.incomeSourceFilter = event.target.value;
+    renderIncomeTab();
+  });
+  q('income-date-from').addEventListener('change', event => {
+    state.incomeDateFrom = event.target.value;
+    renderIncomeTab();
+  });
+  q('income-date-to').addEventListener('change', event => {
+    state.incomeDateTo = event.target.value;
+    renderIncomeTab();
+  });
+  q('income-clear-filters').addEventListener('click', clearIncomeFilters);
+  q('income-add-modal').addEventListener('click', event => {
+    if (event.target === event.currentTarget) closeIncomeModal();
   });
 
   // Report period tabs

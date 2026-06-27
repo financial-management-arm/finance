@@ -1,10 +1,10 @@
-const CACHE = 'finances-arm-v53';
+const CACHE = 'finances-arm-v54';
 
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=39',
-  './app.js?v=58',
+  './style.css?v=40',
+  './app.js?v=59',
   './config.js?v=21',
   './manifest.json',
   './icon.svg'
