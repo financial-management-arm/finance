@@ -17,7 +17,7 @@ var SCHEMAS = {
     'completed', 'completedAt', 'snapshotAt', 'updatedAt'
   ],
   Utilities: ['id', 'name', 'payer', 'provider', 'abonentNumber', 'amount', 'type', 'dueDay', 'active', 'personalExpense'],
-  Cash: ['id', 'place', 'amount', 'type', 'updatedAt']
+  Cash: ['id', 'place', 'amount', 'type', 'category', 'updatedAt']
 };
 
 function doGet(e) {
@@ -116,9 +116,11 @@ function doGet(e) {
         var place = String(params.place || '').trim().slice(0, 100);
         var amount = Number(params.amount);
         var type = params.type === 'offer' ? 'offer' : 'cash';
+        var allowedCats = { cash: 1, aparik: 1, credit_line: 1 };
+        var category = (type === 'offer' && allowedCats[params.category]) ? params.category : '';
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
-        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, type: type, updatedAt: isoNow() };
+        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, type: type, category: category, updatedAt: isoNow() };
         appendObject(ss.getSheetByName('Cash'), entry);
         return { success: true, entry: entry };
       });
@@ -128,10 +130,12 @@ function doGet(e) {
         var place = String(params.place || '').trim().slice(0, 100);
         var amount = Number(params.amount);
         var type = params.type === 'offer' ? 'offer' : 'cash';
+        var allowedCatsU = { cash: 1, aparik: 1, credit_line: 1 };
+        var category = (type === 'offer' && allowedCatsU[params.category]) ? params.category : '';
         if (!id) throw new Error('Missing id');
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
-        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, type: type, updatedAt: isoNow() });
+        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, type: type, category: category, updatedAt: isoNow() });
         return { success: true };
       });
     } else if (action === 'deleteCashEntry') {
@@ -584,6 +588,32 @@ function ensureSchema(ss) {
 
   // Backfill month column for existing Payments rows that have a key but no month
   backfillPaymentMonths(ss);
+  // Migrate Cash sheet: insert type column before updatedAt if old 4-col data exists
+  migrateCashTypeColumn(ss);
+}
+
+function migrateCashTypeColumn(ss) {
+  var sheet = ss.getSheetByName('Cash');
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var headers = SCHEMAS.Cash; // ['id','place','amount','type','category','updatedAt']
+  var typeCol = headers.indexOf('type');       // 3
+  var categoryCol = headers.indexOf('category'); // 4
+  var updatedAtCol = headers.indexOf('updatedAt'); // 5
+  var numRows = sheet.getLastRow() - 1;
+  var range = sheet.getRange(2, 1, numRows, headers.length);
+  var data = range.getValues();
+  var changed = false;
+  data.forEach(function(row) {
+    var typeVal = String(row[typeCol] || '');
+    // Old 4-col rows: col3 was updatedAt (ISO date), now mapped to type
+    if (typeVal && /^\d{4}-\d{2}-\d{2}T/.test(typeVal)) {
+      row[updatedAtCol] = typeVal;
+      row[typeCol] = 'cash';
+      row[categoryCol] = '';
+      changed = true;
+    }
+  });
+  if (changed) range.setValues(data);
 }
 
 function backfillPaymentMonths(ss) {

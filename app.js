@@ -160,6 +160,8 @@ function balanceSourceMonth(loan, month = state.month) {
   return String((snapshot && snapshot.balanceSourceMonth) || loan.balanceUpdatedMonth || '');
 }
 
+const CASH_CATEGORIES = { cash: 'Cash', aparik: 'Ապառիկ', credit_line: 'Credit Line' };
+
 function isCreditLine(o) {
   return String(o.category || '').toLowerCase().includes('credit') &&
     (Number(o.currentBalance) || 0) === 0;
@@ -1433,10 +1435,20 @@ function renderIncome() {
   if (subtab === 'income') renderIncomeTab();
 }
 
+function cashEntryIsOffer(e) {
+  return e.type === 'offer';
+}
+
 function renderCashEntryCard(e) {
+  const isOffer = cashEntryIsOffer(e);
+  const catKey = e.category || 'cash';
+  const catLabel = CASH_CATEGORIES[catKey] || catKey;
   return `<div class="cash-entry" id="cash-entry-${escapeHtml(e.id)}">
     <div class="cash-entry-view">
-      <span class="cash-place">${escapeHtml(e.place)}</span>
+      <div class="cash-entry-info">
+        <span class="cash-place">${escapeHtml(e.place)}</span>
+        ${isOffer ? `<span class="cash-type-badge cash-type-${catKey}">${catLabel}</span>` : ''}
+      </div>
       <span class="cash-entry-amount">${amd(Number(e.amount))}</span>
       <div class="cash-entry-actions">
         <button class="button button-ghost btn-sm" type="button" onclick="openCashEdit('${escapeHtml(e.id)}')">Edit</button>
@@ -1444,9 +1456,17 @@ function renderCashEntryCard(e) {
       </div>
     </div>
     <form class="cash-entry-edit hidden" id="cash-edit-${escapeHtml(e.id)}" onsubmit="saveCashEdit(event,'${escapeHtml(e.id)}')">
-      <input class="form-input" name="place" value="${escapeHtml(e.place)}" placeholder="Place" required maxlength="100">
+      <select class="form-input" name="type" onchange="toggleCashEditCategory(this)">
+        <option value="cash" ${!isOffer ? 'selected' : ''}>Cash Holding</option>
+        <option value="offer" ${isOffer ? 'selected' : ''}>Loan Offer</option>
+      </select>
+      <select class="form-input cash-edit-category ${isOffer ? '' : 'hidden'}" name="category">
+        <option value="cash" ${catKey === 'cash' ? 'selected' : ''}>Cash</option>
+        <option value="aparik" ${catKey === 'aparik' ? 'selected' : ''}>Ապառիկ</option>
+        <option value="credit_line" ${catKey === 'credit_line' ? 'selected' : ''}>Credit Line</option>
+      </select>
+      <input class="form-input" name="place" value="${escapeHtml(e.place)}" placeholder="Place / Bank" required maxlength="100">
       <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
-      <input type="hidden" name="type" value="${escapeHtml(e.type || 'cash')}">
       <div class="cash-edit-btns">
         <button class="button button-ghost btn-sm" type="button" onclick="closeCashEdit('${escapeHtml(e.id)}')">Cancel</button>
         <button class="button button-primary btn-sm" type="submit">Save</button>
@@ -1455,10 +1475,20 @@ function renderCashEntryCard(e) {
   </div>`;
 }
 
+function toggleCashEditCategory(typeSelect) {
+  const catSelect = typeSelect.closest('form').querySelector('.cash-edit-category');
+  if (catSelect) catSelect.classList.toggle('hidden', typeSelect.value !== 'offer');
+}
+
+function toggleCashAddCategory(typeSelect) {
+  const grp = document.getElementById('cash-new-category-group');
+  if (grp) grp.classList.toggle('hidden', typeSelect.value !== 'offer');
+}
+
 function renderCashTab() {
   const sorted = [...state.cashEntries].sort((a, b) => String(a.place).localeCompare(String(b.place)));
-  const cashEntries = sorted.filter(e => (e.type || 'cash') !== 'offer');
-  const offerEntries = sorted.filter(e => e.type === 'offer');
+  const cashEntries = sorted.filter(e => !cashEntryIsOffer(e));
+  const offerEntries = sorted.filter(e => cashEntryIsOffer(e));
   const cashTotal = cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const offerTotal = offerEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
@@ -1467,10 +1497,18 @@ function renderCashTab() {
       <h3 class="cash-section-title">Add Entry</h3>
       <form class="cash-add-form" onsubmit="submitAddCash(event)">
         <div class="form-group">
-          <label class="form-label">Type</label>
-          <select class="form-input" id="cash-new-type">
+          <label class="form-label">Section</label>
+          <select class="form-input" id="cash-new-type" onchange="toggleCashAddCategory(this)">
             <option value="cash">Cash Holding</option>
             <option value="offer">Loan Offer</option>
+          </select>
+        </div>
+        <div class="form-group hidden" id="cash-new-category-group">
+          <label class="form-label">Category</label>
+          <select class="form-input" id="cash-new-category">
+            <option value="cash">Cash</option>
+            <option value="aparik">Ապառիկ</option>
+            <option value="credit_line">Credit Line</option>
           </select>
         </div>
         <div class="form-group">
@@ -1509,17 +1547,18 @@ function renderCashTab() {
 async function submitAddCash(event) {
   event.preventDefault();
   const type = document.getElementById('cash-new-type').value || 'cash';
+  const category = type === 'offer' ? (document.getElementById('cash-new-category').value || 'cash') : '';
   const place = document.getElementById('cash-new-place').value.trim();
   const amount = Number(document.getElementById('cash-new-amount').value) || 0;
   if (!place) return;
-  const entry = { id: 'cash-' + Date.now(), place, amount, type, updatedAt: new Date().toISOString() };
+  const entry = { id: 'cash-' + Date.now(), place, amount, type, category, updatedAt: new Date().toISOString() };
   state.cashEntries = [...state.cashEntries, entry];
   document.getElementById('cash-new-place').value = '';
   document.getElementById('cash-new-amount').value = '';
   document.getElementById('cash-new-type').value = 'cash';
   renderIncome();
   try {
-    await callApi({ action: 'addCashEntry', place, amount, type });
+    await callApi({ action: 'addCashEntry', place, amount, type, category });
   } catch (err) {
     state.cashEntries = state.cashEntries.filter(e => e.id !== entry.id);
     renderIncome();
@@ -1547,12 +1586,13 @@ async function saveCashEdit(event, id) {
   const place = form.elements.place.value.trim();
   const amount = Number(form.elements.amount.value) || 0;
   const type = form.elements.type ? form.elements.type.value : 'cash';
+  const category = (type === 'offer' && form.elements.category) ? form.elements.category.value : '';
   if (!place) return;
   const prev = state.cashEntries.find(e => e.id === id);
-  state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount, type } : e);
+  state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount, type, category } : e);
   renderIncome();
   try {
-    await callApi({ action: 'updateCashEntry', id, place, amount, type });
+    await callApi({ action: 'updateCashEntry', id, place, amount, type, category });
   } catch (err) {
     if (prev) state.cashEntries = state.cashEntries.map(e => e.id === id ? prev : e);
     renderIncome();
@@ -2415,8 +2455,8 @@ async function saveCash(amount) {
 function renderBalancePanel() {
   const loans = activeLoans();
   const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
-  const cashOnlyEntries = state.cashEntries.filter(e => (e.type || 'cash') !== 'offer');
-  const offerEntries = state.cashEntries.filter(e => e.type === 'offer');
+  const cashOnlyEntries = state.cashEntries.filter(e => !cashEntryIsOffer(e));
+  const offerEntries = state.cashEntries.filter(e => cashEntryIsOffer(e));
   const cash = cashOnlyEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const netPos = cash - totalDebt;
   const netIsPos = netPos >= 0;

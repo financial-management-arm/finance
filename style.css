@@ -2486,6 +2486,12 @@ button:active,
 .bs-offer { color: var(--color-primary); font-size: var(--text-16); font-weight: 700; }
 .cash-offer-divider { border-top: 1px solid var(--color-border); margin: var(--space-4) 0; }
 .cash-offer-note { font-size: var(--text-12); color: var(--color-muted); margin-bottom: var(--space-2); }
+.cash-entry-info { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.cash-type-badge { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+.cash-type-cash { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent); }
+.cash-type-aparik { background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent); color: var(--color-warning, #f59e0b); border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 25%, transparent); }
+.cash-type-credit_line { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent); }
+.cash-type-offer { background: color-mix(in srgb, var(--color-muted) 12%, transparent); color: var(--color-muted); border: 1px solid color-mix(in srgb, var(--color-muted) 25%, transparent); }
 
 /* Respect the OS accessibility preference. */
 @media (prefers-reduced-motion: reduce) {
