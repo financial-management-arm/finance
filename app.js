@@ -1545,8 +1545,6 @@ function renderCashHoldingsSection(allCash) {
     ].join('');
   }
 
-  const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all';
-
   return `
     <div class="filter-strip">
       <div class="filter-rows">
