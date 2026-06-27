@@ -123,25 +123,112 @@
           <button class="btn-today">Today</button>
         </div>
       </div>
-      <div class="schedule-tools">
-        <div class="filter-bar" id="payer-filters">
-          <button class="pill active" data-filter="all">All payers</button>
-        </div>
-        <div class="schedule-actions">
-          <select class="sort-select" id="schedule-sort" aria-label="Sort payments">
-            <option value="due-asc">Due date</option>
-            <option value="amount-desc">Amount: high to low</option>
-            <option value="amount-asc">Amount: low to high</option>
-            <option value="payer-asc">Payer name</option>
-            <option value="bank-asc">Bank name</option>
-          </select>
-          <label class="completed-toggle">
-            <input id="show-completed" type="checkbox">
-            <span>Show completed</span>
+      <div class="obligation-tools payment-filter-tools">
+        <div class="obligation-tools-primary">
+          <label class="obligation-search">
+            <span>Search</span>
+            <input id="schedule-search" type="search"
+                   placeholder="Bank, payer, contract, category..."
+                   aria-label="Search payments">
           </label>
-          <input class="search-input" id="schedule-search" type="search"
-                 placeholder="Search bank, payer, category..." aria-label="Search payments">
+          <label>
+            <span>Type</span>
+            <select id="payment-type">
+              <option value="all">All types</option>
+              <option value="loan">Loans</option>
+              <option value="other">Other payments</option>
+            </select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select id="payment-status">
+              <option value="unresolved">Unresolved</option>
+              <option value="all">Any status</option>
+              <option value="resolved">Resolved</option>
+              <option value="paid">Paid</option>
+              <option value="partial">Partial</option>
+              <option value="not_done">Did not pay</option>
+              <option value="no_need">No need</option>
+              <option value="unpaid">Unpaid</option>
+            </select>
+          </label>
+          <label>
+            <span>Sort by</span>
+            <select id="payment-sort-field">
+              <option value="dueDay">Due day</option>
+              <option value="amount">Payment amount</option>
+              <option value="currentBalance">Current debt</option>
+              <option value="loanTotal">Original total</option>
+              <option value="payer">Payer</option>
+              <option value="bank">Bank / payee</option>
+              <option value="category">Category</option>
+              <option value="frequency">Frequency</option>
+              <option value="paymentStatus">Payment status</option>
+              <option value="startDate">Start date</option>
+              <option value="contractNumber">Contract number</option>
+            </select>
+          </label>
+          <label>
+            <span>Direction</span>
+            <select id="payment-sort-direction">
+              <option value="asc">Low to high / A-Z</option>
+              <option value="desc">High to low / Z-A</option>
+            </select>
+          </label>
         </div>
+        <details class="obligation-advanced payment-advanced">
+          <summary>Advanced filters <span id="payment-filter-count"></span></summary>
+          <div class="filter-bar payment-payer-filters" id="payer-filters">
+            <button class="pill active" data-filter="all">All payers</button>
+          </div>
+          <div class="obligation-filter-grid">
+            <label><span>Category</span><select id="payment-category"><option value="all">All categories</option></select></label>
+            <label><span>Bank / payee</span><select id="payment-bank"><option value="all">All banks / payees</option></select></label>
+            <label>
+              <span>Frequency</span>
+              <select id="payment-frequency">
+                <option value="all">Any frequency</option>
+                <option value="monthly">Every month</option>
+                <option value="quarterly">Every 3 months</option>
+                <option value="one_time">One time</option>
+              </select>
+            </label>
+            <label>
+              <span>Balance state</span>
+              <select id="payment-balance-status">
+                <option value="all">Any balance state</option>
+                <option value="owed">Debt remaining</option>
+                <option value="paid_off">Paid off</option>
+                <option value="current">Updated this month</option>
+                <option value="stale">Needs update</option>
+                <option value="unverified">Unverified</option>
+                <option value="not_applicable">No balance field</option>
+              </select>
+            </label>
+            <fieldset class="obligation-range">
+              <legend>Due day</legend>
+              <input id="payment-due-min" type="number" min="0" max="31" placeholder="Min">
+              <span>to</span>
+              <input id="payment-due-max" type="number" min="0" max="31" placeholder="Max">
+            </fieldset>
+            <fieldset class="obligation-range">
+              <legend>Payment amount</legend>
+              <input id="payment-amount-min" type="number" min="0" placeholder="Min">
+              <span>to</span>
+              <input id="payment-amount-max" type="number" min="0" placeholder="Max">
+            </fieldset>
+            <fieldset class="obligation-range">
+              <legend>Current debt</legend>
+              <input id="payment-debt-min" type="number" min="0" placeholder="Min">
+              <span>to</span>
+              <input id="payment-debt-max" type="number" min="0" placeholder="Max">
+            </fieldset>
+          </div>
+          <div class="obligation-tools-footer">
+            <span id="payment-results-count" class="muted"></span>
+            <button class="button button-ghost" id="payment-clear-filters" type="button">Clear filters</button>
+          </div>
+        </details>
       </div>
       <div class="payments-summary">
         <span id="sched-grand" class="muted"></span>
@@ -565,6 +652,6 @@
 </div>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=56"></script>
+<script src="app.js?v=57"></script>
 </body>
 </html>

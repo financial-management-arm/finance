@@ -13,9 +13,21 @@ const state = {
   month: todayMonth(),
   tab: 'schedule',
   filter: 'all',
-  statusFilter: 'unpaid',
+  statusFilter: 'unresolved',
   search: '',
-  scheduleSort: 'due-asc',
+  paymentType: 'all',
+  paymentCategory: 'all',
+  paymentBank: 'all',
+  paymentFrequency: 'all',
+  paymentBalanceStatus: 'all',
+  paymentDueMin: '',
+  paymentDueMax: '',
+  paymentAmountMin: '',
+  paymentAmountMax: '',
+  paymentDebtMin: '',
+  paymentDebtMax: '',
+  paymentSortField: 'dueDay',
+  paymentSortDirection: 'asc',
   loanSort: 'debt-desc',
   obligationSearch: '',
   obligationType: 'all',
@@ -107,15 +119,47 @@ function activeObs() {
 function filteredObs() {
   let rows = dueThisMonth();
   if (state.filter !== 'all') rows = rows.filter(o => o.payer === state.filter);
-  if (state.statusFilter === 'paid') rows = rows.filter(o => isPaid(o.id));
-  if (state.statusFilter === 'unpaid') rows = rows.filter(o => !isPaymentResolved(o.id));
+  if (state.statusFilter === 'resolved') rows = rows.filter(o => isPaymentResolved(o.id));
+  if (state.statusFilter === 'unresolved') rows = rows.filter(o => !isPaymentResolved(o.id));
+  if (!['all', 'resolved', 'unresolved'].includes(state.statusFilter)) {
+    rows = rows.filter(o => paymentStatus(o.id) === state.statusFilter);
+  }
   if (state.search) {
     const needle = state.search.toLocaleLowerCase();
     rows = rows.filter(o =>
-      [o.payer, o.bank, o.category, o.contractNumber]
+      [o.id, o.payer, o.bank, o.category, o.contractNumber, o.frequency,
+       o.amount, o.dueDay, o.currentBalance, o.loanTotal, paymentStatus(o.id)]
         .some(value => String(value || '').toLocaleLowerCase().includes(needle))
     );
   }
+  rows = rows.filter(o => {
+    const loan = isLoanRecord(o);
+    const balance = loan ? loanBalance(o) : null;
+    const balanceKnown = balance !== '' && balance !== null && balance !== undefined && balance !== false;
+    if (state.paymentType === 'loan' && !loan) return false;
+    if (state.paymentType === 'other' && loan) return false;
+    if (state.paymentCategory !== 'all' && String(o.category || '') !== state.paymentCategory) return false;
+    if (state.paymentBank !== 'all' && String(o.bank || '') !== state.paymentBank) return false;
+    if (state.paymentFrequency !== 'all' &&
+        String(o.frequency || 'monthly') !== state.paymentFrequency) return false;
+    if (state.paymentBalanceStatus !== 'all') {
+      const matches = {
+        owed: loan && balanceKnown && Number(balance) > 0,
+        paid_off: loan && balanceKnown && Number(balance) === 0,
+        current: loan && balanceKnown && balanceSourceMonth(o) === state.month,
+        stale: loan && balanceKnown && balanceSourceMonth(o) !== state.month,
+        unverified: loan && !balanceKnown,
+        not_applicable: !loan
+      };
+      if (!matches[state.paymentBalanceStatus]) return false;
+    }
+    if (!numberInRange(o.dueDay, state.paymentDueMin, state.paymentDueMax)) return false;
+    if (!numberInRange(o.amount, state.paymentAmountMin, state.paymentAmountMax)) return false;
+    if ((state.paymentDebtMin !== '' || state.paymentDebtMax !== '') &&
+        (!loan || !balanceKnown ||
+         !numberInRange(balance, state.paymentDebtMin, state.paymentDebtMax))) return false;
+    return true;
+  });
   return rows;
 }
 
@@ -791,17 +835,25 @@ function renderPayerBars() {
 // Schedule
 // ================================================================
 function renderSchedule() {
+  const all = dueThisMonth();
+  syncPaymentFilterOptions(all);
   const obs = sortPayments(filteredObs());
+  const paymentResults = q('payment-results-count');
+  const paymentFilterCount = q('payment-filter-count');
+  if (paymentResults) paymentResults.textContent = `Showing ${obs.length} of ${all.length} payments`;
+  if (paymentFilterCount) {
+    const count = activePaymentFilterCount();
+    paymentFilterCount.textContent = count ? `(${count} active)` : '';
+  }
   const board = q('payments-board');
   if (board) {
     board.innerHTML = obs.length ? obs.map(paymentCard).join('') : `
       <div class="empty-state payment-empty">
-        ${state.statusFilter === 'unpaid' && !state.search
+        ${state.statusFilter === 'unresolved' && !state.search
           ? `All payments done for ${monthLabel(state.month)}`
           : 'No payments match these filters.'}
       </div>`;
 
-    const all = dueThisMonth();
     const allResolved = all.filter(o => isPaymentResolved(o.id));
     const visResolved = obs.filter(o => isPaymentResolved(o.id));
     q('sched-total').textContent = amd(totalAmt(obs));
@@ -839,12 +891,11 @@ function renderSchedule() {
       </td>
     </tr>`;
   }).join('') : `<tr><td colspan="6" class="empty-state">
-    ${state.statusFilter === 'unpaid' && !state.search
+    ${state.statusFilter === 'unresolved' && !state.search
       ? `All payments done for ${monthLabel(state.month)} ✓`
       : 'No payments match these filters.'}
   </td></tr>`;
 
-  const all        = dueThisMonth();
   const allResolved2 = all.filter(o => isPaymentResolved(o.id));
   const visResolved2 = obs.filter(o => isPaymentResolved(o.id));
 
@@ -1068,16 +1119,116 @@ function paymentStatusBadge(status) {
 }
 
 function sortPayments(rows) {
-  const sorted = [...rows];
-  const text = value => String(value || '').localeCompare;
-  const sorters = {
-    'due-asc': (a, b) => Number(a.dueDay || 99) - Number(b.dueDay || 99),
-    'amount-desc': (a, b) => Number(b.amount) - Number(a.amount),
-    'amount-asc': (a, b) => Number(a.amount) - Number(b.amount),
-    'payer-asc': (a, b) => String(a.payer || '').localeCompare(String(b.payer || '')),
-    'bank-asc': (a, b) => String(a.bank || '').localeCompare(String(b.bank || ''))
+  const field = state.paymentSortField;
+  const direction = state.paymentSortDirection === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const av = paymentSortValue(a, field);
+    const bv = paymentSortValue(b, field);
+    const aMissing = av === null || av === undefined || av === '';
+    const bMissing = bv === null || bv === undefined || bv === '';
+    if (aMissing !== bMissing) return aMissing ? 1 : -1;
+    if (typeof av === 'number' && typeof bv === 'number') {
+      const difference = (av - bv) * direction;
+      if (difference) return difference;
+    } else {
+      const difference = String(av).localeCompare(String(bv), undefined, {
+        numeric: true,
+        sensitivity: 'base'
+      }) * direction;
+      if (difference) return difference;
+    }
+    return String(a.bank || '').localeCompare(String(b.bank || ''), undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    });
+  });
+}
+
+function paymentSortValue(o, field) {
+  switch (field) {
+    case 'amount': return Number(o.amount) || 0;
+    case 'dueDay': return o.dueDay === '' || o.dueDay === null || o.dueDay === undefined
+      ? null : Number(o.dueDay);
+    case 'currentBalance': return isLoanRecord(o) ? loanBalance(o) : null;
+    case 'loanTotal': return isLoanRecord(o) ? Number(o.loanTotal) || 0 : null;
+    case 'paymentStatus': return paymentStatus(o.id);
+    case 'startDate': return o.startDate ? new Date(o.startDate).getTime() || null : null;
+    default: return String(o[field] || '');
+  }
+}
+
+function syncPaymentFilterOptions(rows) {
+  state.paymentCategory = setObligationSelectOptions(
+    'payment-category', rows.map(o => o.category), 'All categories', state.paymentCategory
+  );
+  state.paymentBank = setObligationSelectOptions(
+    'payment-bank', rows.map(o => o.bank), 'All banks / payees', state.paymentBank
+  );
+}
+
+function activePaymentFilterCount() {
+  return [
+    state.search,
+    state.filter !== 'all',
+    state.paymentType !== 'all',
+    state.statusFilter !== 'unresolved',
+    state.paymentCategory !== 'all',
+    state.paymentBank !== 'all',
+    state.paymentFrequency !== 'all',
+    state.paymentBalanceStatus !== 'all',
+    state.paymentDueMin,
+    state.paymentDueMax,
+    state.paymentAmountMin,
+    state.paymentAmountMax,
+    state.paymentDebtMin,
+    state.paymentDebtMax
+  ].filter(Boolean).length;
+}
+
+function clearPaymentFilters() {
+  state.search = '';
+  state.filter = 'all';
+  state.paymentType = 'all';
+  state.statusFilter = 'unresolved';
+  state.paymentCategory = 'all';
+  state.paymentBank = 'all';
+  state.paymentFrequency = 'all';
+  state.paymentBalanceStatus = 'all';
+  state.paymentDueMin = '';
+  state.paymentDueMax = '';
+  state.paymentAmountMin = '';
+  state.paymentAmountMax = '';
+  state.paymentDebtMin = '';
+  state.paymentDebtMax = '';
+  syncPaymentControls();
+  q('payer-filters').querySelectorAll('.pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.filter === 'all')
+  );
+  renderSchedule();
+}
+
+function syncPaymentControls() {
+  const values = {
+    'schedule-search': state.search,
+    'payment-type': state.paymentType,
+    'payment-status': state.statusFilter,
+    'payment-category': state.paymentCategory,
+    'payment-bank': state.paymentBank,
+    'payment-frequency': state.paymentFrequency,
+    'payment-balance-status': state.paymentBalanceStatus,
+    'payment-due-min': state.paymentDueMin,
+    'payment-due-max': state.paymentDueMax,
+    'payment-amount-min': state.paymentAmountMin,
+    'payment-amount-max': state.paymentAmountMax,
+    'payment-debt-min': state.paymentDebtMin,
+    'payment-debt-max': state.paymentDebtMax,
+    'payment-sort-field': state.paymentSortField,
+    'payment-sort-direction': state.paymentSortDirection
   };
-  return sorted.sort(sorters[state.scheduleSort] || sorters['due-asc']);
+  Object.entries(values).forEach(([id, value]) => {
+    const control = q(id);
+    if (control) control.value = value;
+  });
 }
 
 function formatTimestamp(value) {
@@ -1089,11 +1240,7 @@ function formatTimestamp(value) {
 }
 
 function jumpToPayment(id) {
-  state.filter = 'all';
-  state.search = '';
-  state.statusFilter = 'unpaid';
-  q('schedule-search').value = '';
-  q('show-completed').checked = false;
+  clearPaymentFilters();
   switchTab('schedule');
   requestAnimationFrame(() => {
     const row = document.querySelector(`[data-payment-id="${id}"]`);
@@ -3122,20 +3269,32 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSchedule();
   });
 
-  q('show-completed').addEventListener('change', event => {
-    state.statusFilter = event.target.checked ? 'all' : 'unpaid';
-    renderSchedule();
+  const paymentControls = {
+    'schedule-search': 'search',
+    'payment-type': 'paymentType',
+    'payment-status': 'statusFilter',
+    'payment-category': 'paymentCategory',
+    'payment-bank': 'paymentBank',
+    'payment-frequency': 'paymentFrequency',
+    'payment-balance-status': 'paymentBalanceStatus',
+    'payment-due-min': 'paymentDueMin',
+    'payment-due-max': 'paymentDueMax',
+    'payment-amount-min': 'paymentAmountMin',
+    'payment-amount-max': 'paymentAmountMax',
+    'payment-debt-min': 'paymentDebtMin',
+    'payment-debt-max': 'paymentDebtMax',
+    'payment-sort-field': 'paymentSortField',
+    'payment-sort-direction': 'paymentSortDirection'
+  };
+  Object.entries(paymentControls).forEach(([id, stateKey]) => {
+    const control = q(id);
+    const eventName = control.matches('input') ? 'input' : 'change';
+    control.addEventListener(eventName, event => {
+      state[stateKey] = event.target.value.trim();
+      renderSchedule();
+    });
   });
-
-  q('schedule-search').addEventListener('input', event => {
-    state.search = event.target.value.trim();
-    renderSchedule();
-  });
-
-  q('schedule-sort').addEventListener('change', event => {
-    state.scheduleSort = event.target.value;
-    renderSchedule();
-  });
+  q('payment-clear-filters').addEventListener('click', clearPaymentFilters);
 
   const obligationControls = {
     'obligation-search': 'obligationSearch',
