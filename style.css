@@ -2437,21 +2437,42 @@ button:active,
 }
 
 /* ── Cash tab layout ── */
-.cash-tab-layout { display: grid; grid-template-columns: 260px 1fr; gap: var(--space-5); align-items: start; }
-@media (max-width: 680px) { .cash-tab-layout { grid-template-columns: 1fr; } }
-.cash-section-title { font-size: var(--text-14); font-weight: 700; color: var(--color-text); margin: 0 0 var(--space-3); }
-.cash-add-panel { background: var(--color-surface-1); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-4); }
+.cash-tab-layout { display: grid; grid-template-columns: 268px 1fr; gap: var(--space-6); align-items: start; }
+@media (max-width: 720px) { .cash-tab-layout { grid-template-columns: 1fr; } }
+
+/* ── Actives summary bar ── */
+.actives-summary { display: grid; grid-template-columns: 1fr 1px 1fr 1px 1fr; background: var(--color-surface-1); border: 1px solid var(--color-border); border-radius: var(--radius-card); margin-bottom: var(--space-5); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.actives-stat { display: flex; flex-direction: column; gap: 3px; padding: var(--space-4) var(--space-5); }
+.actives-stat-sep { background: var(--color-border); }
+.actives-stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-subtle); }
+.actives-stat-value { font-size: var(--text-20); font-weight: 700; letter-spacing: -0.02em; color: var(--color-text); line-height: 1.15; }
+.actives-stat-value.is-warning { color: var(--color-warning); }
+.actives-stat-value.is-success { color: var(--color-success); }
+.actives-stat-sub { font-size: 11px; color: var(--color-text-subtle); }
+
+/* ── Add panel ── */
+.cash-add-panel { background: var(--color-surface-1); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-5); position: sticky; top: var(--space-4); }
+.cash-add-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-subtle); margin: 0 0 var(--space-4); display: block; }
 .cash-add-form { display: flex; flex-direction: column; gap: var(--space-3); }
-.cash-list-panel { display: flex; flex-direction: column; gap: var(--space-3); }
-.cash-empty { color: var(--color-muted); font-size: var(--text-13); padding: var(--space-4) 0; }
-.cash-entries-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.cash-list-panel { display: flex; flex-direction: column; }
+.cash-empty { color: var(--color-text-subtle); font-size: var(--text-13); padding: var(--space-6) 0; text-align: center; }
+.cash-entries-list { display: flex; flex-direction: column; gap: 5px; }
+
+/* ── Cash section heading ── */
+.cash-section-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.cash-section-title { font-size: var(--text-13); font-weight: 700; letter-spacing: 0.01em; color: var(--color-text); margin: 0; }
+.cash-section-badge { font-size: 10px; font-weight: 700; padding: 1px 7px; background: var(--color-neutral-100); color: var(--color-text-subtle); border-radius: var(--radius-pill); border: 1px solid var(--color-border); }
 
 /* ── Cash entry card ── */
-.cash-entry { background: var(--color-surface-1); border: 1px solid var(--color-border); border-radius: var(--radius-card); overflow: hidden; }
-.cash-entry-view { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
-.cash-place { flex: 1; font-size: var(--text-14); font-weight: 600; color: var(--color-text); }
-.cash-entry-amount { font-size: var(--text-14); font-weight: 700; color: var(--color-primary); white-space: nowrap; }
-.cash-entry-actions { display: flex; gap: var(--space-2); margin-left: var(--space-2); }
+.cash-entry { background: var(--color-surface-1); border: 1px solid var(--color-border); border-left-width: 3px; border-radius: var(--radius-card); overflow: hidden; transition: box-shadow var(--motion-snap), border-color var(--motion-snap); }
+.cash-entry:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); border-color: var(--color-border-strong); }
+.cash-entry-view { display: flex; align-items: center; gap: var(--space-3); padding: 10px var(--space-4); }
+.cash-entry-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.cash-place { font-size: var(--text-13); font-weight: 600; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cash-entry-amount { font-size: var(--text-15); font-weight: 700; color: var(--color-primary); white-space: nowrap; min-width: 100px; text-align: right; }
+.cash-entry-actions { display: flex; gap: 4px; margin-left: var(--space-1); flex-shrink: 0; }
+.cash-entry-actions .btn-delete-ghost { opacity: 0; transition: opacity var(--motion-snap); }
+.cash-entry:hover .btn-delete-ghost { opacity: 1; }
 .cash-entry-edit { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-border); background: var(--color-surface-2); }
 .cash-edit-btns { display: flex; gap: var(--space-2); justify-content: flex-end; }
 .btn-sm { font-size: 12px; padding: 4px 12px; min-height: 28px; }
@@ -2484,30 +2505,41 @@ button:active,
 .bs-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); padding: var(--space-3) 0 var(--space-1); }
 .bs-section-divider { border-top: 1px solid var(--color-border); margin: var(--space-3) 0 0; }
 .bs-offer { color: var(--color-primary); font-size: var(--text-16); font-weight: 700; }
-.cash-offer-divider { border-top: 1px solid var(--color-border); margin: var(--space-4) 0; }
-.cash-offer-note { font-size: var(--text-12); color: var(--color-muted); margin-bottom: var(--space-2); }
-.cash-entry-info { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-/* Offer tags */
+/* ── Offer tags ── */
 .offer-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.offer-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+.offer-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap; }
 .offer-tag-cat { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent); }
 .offer-tag-payer { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent); }
-.offer-tag-date { background: var(--color-surface-2); color: var(--color-muted); border: 1px solid var(--color-border); }
-.offer-chip-place.is-active { background: var(--color-warning, #c97b1a); border-color: var(--color-warning, #c97b1a); color: #fff; }
-.offer-chip-place:hover:not(.is-active) { border-color: var(--color-warning, #c97b1a); color: var(--color-warning, #c97b1a); }
-/* Offer filter & sort */
-.offer-controls { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: var(--space-3); flex-wrap: wrap; }
-.offer-filter-rows { display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.offer-filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.offer-filter-label { font-size: 11px; font-weight: 600; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; min-width: 42px; }
-.offer-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.offer-chip { font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--color-border); background: none; color: var(--color-muted); cursor: pointer; transition: all var(--motion-fast); }
-.offer-chip.is-active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
-.offer-chip:hover:not(.is-active) { border-color: var(--color-primary); color: var(--color-primary); }
-.offer-sort-select { font-size: 12px; padding: 4px 8px; height: 30px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-2); color: var(--color-text); cursor: pointer; }
-.offer-total { font-size: var(--text-13); color: var(--color-muted); text-align: right; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
-/* Offer edit fields */
-.cash-edit-offer-fields { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+.offer-tag-date { background: var(--color-surface-2); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+
+/* ── Filter strip ── */
+.filter-strip { background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.filter-rows { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.filter-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.filter-row-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-subtle); white-space: nowrap; min-width: 44px; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.f-chip { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: var(--radius-pill); border: 1px solid var(--color-border); background: var(--color-surface-1); color: var(--color-text-muted); cursor: pointer; transition: all var(--motion-snap); line-height: 1.5; }
+.f-chip.is-active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.f-chip:hover:not(.is-active) { border-color: var(--color-primary); color: var(--color-primary); }
+.f-chip-payer.is-active { background: var(--color-success); border-color: var(--color-success); color: #fff; }
+.f-chip-payer:hover:not(.is-active) { border-color: var(--color-success); color: var(--color-success); }
+.f-chip-place.is-active { background: var(--color-warning); border-color: var(--color-warning); color: #fff; }
+.f-chip-place:hover:not(.is-active) { border-color: var(--color-warning); color: var(--color-warning); }
+.filter-sort-select { font-size: 11px; padding: 3px 8px; height: 28px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-1); color: var(--color-text); cursor: pointer; flex-shrink: 0; align-self: flex-start; }
+.section-total { font-size: var(--text-12); color: var(--color-text-subtle); text-align: right; padding-top: var(--space-2); }
+.section-total strong { color: var(--color-text); font-size: var(--text-13); font-weight: 700; }
+
+/* ── Offers block ── */
+.offers-block { background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-4); margin-top: var(--space-5); }
+.offers-block .cash-entry { background: var(--color-surface-1); }
+.offers-block-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: 2px; }
+.offers-block-note { font-size: 11px; color: var(--color-text-subtle); margin-bottom: var(--space-3); letter-spacing: 0.01em; }
+
+/* ── Offer edit fields ── */
+.cash-edit-offer-fields { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+/* Legacy ── hidden now, structure replaced by offers-block */
+.cash-offer-divider { display: none; }
+.cash-offer-note { display: none; }
 
 /* Respect the OS accessibility preference. */
 @media (prefers-reduced-motion: reduce) {

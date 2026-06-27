@@ -1447,21 +1447,30 @@ function cashEntryIsOffer(e) {
   return e.type === 'offer';
 }
 
+function categoryAccent(cat) {
+  if (!cat) return 'var(--color-border)';
+  const palette = ['var(--color-primary)', 'var(--color-warning)', 'var(--color-success)', '#8b5cf6'];
+  let h = 0;
+  for (let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) & 0xffff;
+  return palette[h % palette.length];
+}
+
 function renderCashEntryCard(e) {
   const isOffer = cashEntryIsOffer(e);
   const sid = escapeHtml(e.id);
+  const accent = categoryAccent(e.category);
   const validDate = e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate);
   const hasTags = e.category || e.payer || validDate;
-  const offerTags = hasTags ? `<div class="offer-tags">
+  const tags = hasTags ? `<div class="offer-tags">
     ${e.category ? `<span class="offer-tag offer-tag-cat">${escapeHtml(e.category)}</span>` : ''}
     ${e.payer ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>` : ''}
     ${validDate ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
   </div>` : '';
-  return `<div class="cash-entry" id="cash-entry-${sid}">
+  return `<div class="cash-entry" id="cash-entry-${sid}" style="border-left-color:${accent}">
     <div class="cash-entry-view">
       <div class="cash-entry-info">
-        <span class="cash-place">${escapeHtml(e.place)}</span>
-        ${offerTags}
+        <span class="cash-place" title="${escapeHtml(e.place)}">${escapeHtml(e.place)}</span>
+        ${tags}
       </div>
       <span class="cash-entry-amount">${amd(Number(e.amount))}</span>
       <div class="cash-entry-actions">
@@ -1529,40 +1538,32 @@ function renderCashHoldingsSection(allCash) {
   const total = sorted.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all';
 
-  const catChips = [
-    `<button class="offer-chip${catFilter === 'all' ? ' is-active' : ''}" onclick="setCashFilter('all')">All</button>`,
-    ...categories.map(c => `<button class="offer-chip${catFilter === c ? ' is-active' : ''}" onclick="setCashFilter('${escapeHtml(c)}')">${escapeHtml(c)}</button>`)
-  ].join('');
+  function filterChips(items, active, onClickFn, extraClass) {
+    return [
+      `<button class="f-chip ${extraClass||''} ${active==='all'?'is-active':''}" onclick="${onClickFn}('all')">All</button>`,
+      ...items.map(v => `<button class="f-chip ${extraClass||''} ${active===v?'is-active':''}" onclick="${onClickFn}('${escapeHtml(v)}')">${escapeHtml(v)}</button>`)
+    ].join('');
+  }
 
-  const payerChips = payers.length ? `
-    <div class="offer-filter-row">
-      <span class="offer-filter-label">Person:</span>
-      <div class="offer-filter-chips">
-        <button class="offer-chip offer-chip-payer${payerFilter === 'all' ? ' is-active' : ''}" onclick="setCashPayerFilter('all')">All</button>
-        ${payers.map(p => `<button class="offer-chip offer-chip-payer${payerFilter === p ? ' is-active' : ''}" onclick="setCashPayerFilter('${escapeHtml(p)}')">${escapeHtml(p)}</button>`).join('')}
-      </div>
-    </div>` : '';
-
-  const placeChips = places.length > 1 ? `
-    <div class="offer-filter-row">
-      <span class="offer-filter-label">Place:</span>
-      <div class="offer-filter-chips">
-        <button class="offer-chip offer-chip-place${placeFilter === 'all' ? ' is-active' : ''}" onclick="setCashPlaceFilter('all')">All</button>
-        ${places.map(pl => `<button class="offer-chip offer-chip-place${placeFilter === pl ? ' is-active' : ''}" onclick="setCashPlaceFilter('${escapeHtml(pl)}')">${escapeHtml(pl)}</button>`).join('')}
-      </div>
-    </div>` : '';
+  const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all';
 
   return `
-    <div class="offer-controls">
-      <div class="offer-filter-rows">
-        <div class="offer-filter-row">
-          <span class="offer-filter-label">Type:</span>
-          <div class="offer-filter-chips">${catChips}</div>
+    <div class="filter-strip">
+      <div class="filter-rows">
+        <div class="filter-row">
+          <span class="filter-row-label">Type</span>
+          <div class="filter-chips">${filterChips(categories, catFilter, 'setCashFilter', '')}</div>
         </div>
-        ${payerChips}
-        ${placeChips}
+        ${payers.length ? `<div class="filter-row">
+          <span class="filter-row-label">Person</span>
+          <div class="filter-chips">${filterChips(payers, payerFilter, 'setCashPayerFilter', 'f-chip-payer')}</div>
+        </div>` : ''}
+        ${places.length > 1 ? `<div class="filter-row">
+          <span class="filter-row-label">Place</span>
+          <div class="filter-chips">${filterChips(places, placeFilter, 'setCashPlaceFilter', 'f-chip-place')}</div>
+        </div>` : ''}
       </div>
-      <select class="offer-sort-select" onchange="setCashSort(this.value)">
+      <select class="filter-sort-select" onchange="setCashSort(this.value)">
         <option value="amount-desc" ${sort==='amount-desc'?'selected':''}>Amount ↓</option>
         <option value="amount-asc"  ${sort==='amount-asc' ?'selected':''}>Amount ↑</option>
         <option value="date-desc"   ${sort==='date-desc'  ?'selected':''}>Date ↓</option>
@@ -1574,8 +1575,8 @@ function renderCashHoldingsSection(allCash) {
     </div>
     ${sorted.length
       ? `<div class="cash-entries-list">${sorted.map(renderCashEntryCard).join('')}</div>
-         <div class="offer-total">Total: <strong>${amd(total)}</strong>${isFiltered ? ' (filtered)' : ''}</div>`
-      : `<div class="cash-empty">No cash entries${isFiltered ? ' matching this filter' : ''}.</div>`}`;
+         <div class="section-total">${isFiltered ? 'Filtered: ' : 'Total: '}<strong>${amd(total)}</strong></div>`
+      : `<div class="cash-empty">No cash entries${isFiltered ? ' matching filter' : ''}.</div>`}`;
 }
 
 function renderOfferSection(allOffers) {
@@ -1605,43 +1606,37 @@ function renderOfferSection(allOffers) {
   });
 
   const total = sorted.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-
-  const catChips = [
-    `<button class="offer-chip${catFilter === 'all' ? ' is-active' : ''}" onclick="setOfferFilter('all')">All</button>`,
-    ...categories.map(c => `<button class="offer-chip${catFilter === c ? ' is-active' : ''}" onclick="setOfferFilter('${escapeHtml(c)}')">${escapeHtml(c)}</button>`)
-  ].join('');
-
-  const payerChips = payers.length ? `
-    <div class="offer-filter-row">
-      <span class="offer-filter-label">Person:</span>
-      <div class="offer-filter-chips">
-        <button class="offer-chip offer-chip-payer${payerFilter === 'all' ? ' is-active' : ''}" onclick="setOfferPayerFilter('all')">All</button>
-        ${payers.map(p => `<button class="offer-chip offer-chip-payer${payerFilter === p ? ' is-active' : ''}" onclick="setOfferPayerFilter('${escapeHtml(p)}')">${escapeHtml(p)}</button>`).join('')}
-      </div>
-    </div>` : '';
-
   const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all';
 
-  const placeChips = places.length > 1 ? `
-    <div class="offer-filter-row">
-      <span class="offer-filter-label">Place:</span>
-      <div class="offer-filter-chips">
-        <button class="offer-chip offer-chip-place${placeFilter === 'all' ? ' is-active' : ''}" onclick="setOfferPlaceFilter('all')">All</button>
-        ${places.map(pl => `<button class="offer-chip offer-chip-place${placeFilter === pl ? ' is-active' : ''}" onclick="setOfferPlaceFilter('${escapeHtml(pl)}')">${escapeHtml(pl)}</button>`).join('')}
-      </div>
-    </div>` : '';
+  function filterChips(items, active, onClickFn, extraClass) {
+    return [
+      `<button class="f-chip ${extraClass||''} ${active==='all'?'is-active':''}" onclick="${onClickFn}('all')">All</button>`,
+      ...items.map(v => `<button class="f-chip ${extraClass||''} ${active===v?'is-active':''}" onclick="${onClickFn}('${escapeHtml(v)}')">${escapeHtml(v)}</button>`)
+    ].join('');
+  }
 
-  return `
-    <div class="offer-controls">
-      <div class="offer-filter-rows">
-        <div class="offer-filter-row">
-          <span class="offer-filter-label">Type:</span>
-          <div class="offer-filter-chips">${catChips}</div>
+  return `<div class="offers-block">
+    <div class="offers-block-head">
+      <span class="cash-section-title">Loan Offers</span>
+      <span class="cash-section-badge">${allOffers.length}</span>
+    </div>
+    <p class="offers-block-note">Pre-approved credit — not yet drawn</p>
+    <div class="filter-strip">
+      <div class="filter-rows">
+        <div class="filter-row">
+          <span class="filter-row-label">Type</span>
+          <div class="filter-chips">${filterChips(categories, catFilter, 'setOfferFilter', '')}</div>
         </div>
-        ${payerChips}
-        ${placeChips}
+        ${payers.length ? `<div class="filter-row">
+          <span class="filter-row-label">Person</span>
+          <div class="filter-chips">${filterChips(payers, payerFilter, 'setOfferPayerFilter', 'f-chip-payer')}</div>
+        </div>` : ''}
+        ${places.length > 1 ? `<div class="filter-row">
+          <span class="filter-row-label">Place</span>
+          <div class="filter-chips">${filterChips(places, placeFilter, 'setOfferPlaceFilter', 'f-chip-place')}</div>
+        </div>` : ''}
       </div>
-      <select class="offer-sort-select" onchange="setOfferSort(this.value)">
+      <select class="filter-sort-select" onchange="setOfferSort(this.value)">
         <option value="amount-desc" ${sort==='amount-desc'?'selected':''}>Amount ↓</option>
         <option value="amount-asc"  ${sort==='amount-asc' ?'selected':''}>Amount ↑</option>
         <option value="date-desc"   ${sort==='date-desc'  ?'selected':''}>Date ↓</option>
@@ -1653,13 +1648,16 @@ function renderOfferSection(allOffers) {
     </div>
     ${sorted.length
       ? `<div class="cash-entries-list">${sorted.map(renderCashEntryCard).join('')}</div>
-         <div class="offer-total">Showing: <strong>${amd(total)}</strong>${isFiltered ? ' (filtered)' : ''}</div>`
-      : `<div class="cash-empty">No loan offers${isFiltered ? ' matching this filter' : ''}.</div>`}`;
+         <div class="section-total">${isFiltered ? 'Filtered: ' : 'Total: '}<strong>${amd(total)}</strong></div>`
+      : `<div class="cash-empty">No loan offers${isFiltered ? ' matching filter' : ''}.</div>`}
+  </div>`;
 }
 
 function renderCashTab() {
   const offerEntries = state.cashEntries.filter(cashEntryIsOffer);
   const cashEntries  = state.cashEntries.filter(e => !cashEntryIsOffer(e));
+  const cashTotal    = cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const offerTotal   = offerEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
   const allCategories = [...new Set(state.cashEntries.map(e => e.category).filter(Boolean))].sort();
   const payerSuggestions = [...new Set([
@@ -1671,9 +1669,30 @@ function renderCashTab() {
     <datalist id="all-categories-list">${allCategories.map(c => `<option value="${escapeHtml(c)}">`).join('')}</datalist>
     <datalist id="offer-payers-list">${payerSuggestions.map(p => `<option value="${escapeHtml(p)}">`).join('')}</datalist>`;
 
+  const summary = `
+    <div class="actives-summary">
+      <div class="actives-stat">
+        <span class="actives-stat-label">Cash Holdings</span>
+        <span class="actives-stat-value">${amd(cashTotal)}</span>
+        <span class="actives-stat-sub">${cashEntries.length} entr${cashEntries.length === 1 ? 'y' : 'ies'}</span>
+      </div>
+      <div class="actives-stat-sep"></div>
+      <div class="actives-stat">
+        <span class="actives-stat-label">Loan Offers</span>
+        <span class="actives-stat-value is-warning">${amd(offerTotal)}</span>
+        <span class="actives-stat-sub">${offerEntries.length} entr${offerEntries.length === 1 ? 'y' : 'ies'}</span>
+      </div>
+      <div class="actives-stat-sep"></div>
+      <div class="actives-stat">
+        <span class="actives-stat-label">Total Liquid</span>
+        <span class="actives-stat-value is-success">${amd(cashTotal + offerTotal)}</span>
+        <span class="actives-stat-sub">cash + offers</span>
+      </div>
+    </div>`;
+
   return `${datalists}<div class="cash-tab-layout">
     <div class="cash-add-panel">
-      <h3 class="cash-section-title">Add Entry</h3>
+      <span class="cash-add-eyebrow">New Entry</span>
       <form class="cash-add-form" onsubmit="submitAddCash(event)">
         <div class="form-group">
           <label class="form-label">Section</label>
@@ -1704,19 +1723,16 @@ function renderCashTab() {
           <label class="form-label">Amount (֏)</label>
           <input class="form-input" id="cash-new-amount" type="number" placeholder="0" min="0" step="1000" required>
         </div>
-        <button class="btn-add" type="submit">Add</button>
+        <button class="btn-add" type="submit">Add Entry</button>
       </form>
     </div>
     <div class="cash-list-panel">
-      <div class="income-list-header">
-        <h3 class="cash-section-title">Cash Holdings</h3>
+      ${summary}
+      <div class="cash-section-head">
+        <span class="cash-section-title">Cash Holdings</span>
+        <span class="cash-section-badge">${cashEntries.length}</span>
       </div>
       ${renderCashHoldingsSection(cashEntries)}
-      <div class="cash-offer-divider"></div>
-      <div class="income-list-header">
-        <h3 class="cash-section-title">Loan Offers</h3>
-      </div>
-      <div class="cash-offer-note">Pre-approved offers — not yet drawn.</div>
       ${renderOfferSection(offerEntries)}
     </div>
   </div>`;
