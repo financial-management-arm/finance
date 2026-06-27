@@ -17,7 +17,7 @@ var SCHEMAS = {
     'completed', 'completedAt', 'snapshotAt', 'updatedAt'
   ],
   Utilities: ['id', 'name', 'payer', 'provider', 'abonentNumber', 'amount', 'type', 'dueDay', 'active', 'personalExpense'],
-  Cash: ['id', 'place', 'amount', 'type', 'category', 'updatedAt']
+  Cash: ['id', 'place', 'amount', 'type', 'category', 'payer', 'lastAvailableDate', 'updatedAt']
 };
 
 function doGet(e) {
@@ -116,11 +116,12 @@ function doGet(e) {
         var place = String(params.place || '').trim().slice(0, 100);
         var amount = Number(params.amount);
         var type = params.type === 'offer' ? 'offer' : 'cash';
-        var allowedCats = { cash: 1, aparik: 1, credit_line: 1 };
-        var category = (type === 'offer' && allowedCats[params.category]) ? params.category : '';
+        var category = type === 'offer' ? String(params.category || '').trim().slice(0, 80) : '';
+        var payer = type === 'offer' ? String(params.payer || '').trim().slice(0, 80) : '';
+        var lastAvailableDate = (type === 'offer' && /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '')) ? params.lastAvailableDate : '';
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
-        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, type: type, category: category, updatedAt: isoNow() };
+        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, type: type, category: category, payer: payer, lastAvailableDate: lastAvailableDate, updatedAt: isoNow() };
         appendObject(ss.getSheetByName('Cash'), entry);
         return { success: true, entry: entry };
       });
@@ -130,12 +131,13 @@ function doGet(e) {
         var place = String(params.place || '').trim().slice(0, 100);
         var amount = Number(params.amount);
         var type = params.type === 'offer' ? 'offer' : 'cash';
-        var allowedCatsU = { cash: 1, aparik: 1, credit_line: 1 };
-        var category = (type === 'offer' && allowedCatsU[params.category]) ? params.category : '';
+        var category = type === 'offer' ? String(params.category || '').trim().slice(0, 80) : '';
+        var payer = type === 'offer' ? String(params.payer || '').trim().slice(0, 80) : '';
+        var lastAvailableDate = (type === 'offer' && /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '')) ? params.lastAvailableDate : '';
         if (!id) throw new Error('Missing id');
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
-        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, type: type, category: category, updatedAt: isoNow() });
+        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, type: type, category: category, payer: payer, lastAvailableDate: lastAvailableDate, updatedAt: isoNow() });
         return { success: true };
       });
     } else if (action === 'deleteCashEntry') {
@@ -595,17 +597,18 @@ function ensureSchema(ss) {
 function migrateCashTypeColumn(ss) {
   var sheet = ss.getSheetByName('Cash');
   if (!sheet || sheet.getLastRow() < 2) return;
-  var headers = SCHEMAS.Cash; // ['id','place','amount','type','category','updatedAt']
-  var typeCol = headers.indexOf('type');       // 3
-  var categoryCol = headers.indexOf('category'); // 4
-  var updatedAtCol = headers.indexOf('updatedAt'); // 5
+  // Schema: ['id','place','amount','type','category','payer','lastAvailableDate','updatedAt']
+  var headers = SCHEMAS.Cash;
+  var typeCol = headers.indexOf('type');
+  var categoryCol = headers.indexOf('category');
+  var updatedAtCol = headers.indexOf('updatedAt');
   var numRows = sheet.getLastRow() - 1;
   var range = sheet.getRange(2, 1, numRows, headers.length);
   var data = range.getValues();
   var changed = false;
   data.forEach(function(row) {
     var typeVal = String(row[typeCol] || '');
-    // Old 4-col rows: col3 was updatedAt (ISO date), now mapped to type
+    // Old rows where col3 (type) contains an ISO date — was old updatedAt
     if (typeVal && /^\d{4}-\d{2}-\d{2}T/.test(typeVal)) {
       row[updatedAtCol] = typeVal;
       row[typeCol] = 'cash';
