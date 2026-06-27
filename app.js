@@ -1153,49 +1153,48 @@ function loanCard(o) {
 
   return `<article class="loan-card ${!balKnown ? 'is-unverified' : ''} ${paidOff ? 'is-paid-off' : ''}"
                    style="--bank-color:${bankColor}">
-    <div class="loan-card-top">
+    <div class="lc-header">
       <div class="loan-identity">
         <div class="bank-avatar">${escapeHtml(String(o.bank || '?').trim().charAt(0).toUpperCase())}</div>
-        <div>
-          <div class="loan-bank">${escapeHtml(o.bank)}</div>
-          <div class="loan-meta">${escapeHtml(o.payer)}${o.startDate ? ` · Started ${fmtStartDate(o.startDate)}` : ''}</div>
+        <div class="lc-identity-text">
+          <span class="loan-bank">${escapeHtml(o.bank)}</span>
+          <span class="loan-meta">${escapeHtml(o.payer)}${o.startDate ? ` · ${fmtStartDate(o.startDate)}` : ''}</span>
         </div>
       </div>
-      <div class="loan-card-actions">
-        ${paidOff ? '<span class="paid-off-badge">Paid off</span>' : ''}
-        <button class="button button-secondary loan-complete" type="button"
-                onclick="completeLoan('${escapeHtml(o.id)}', this)">Complete</button>
-        <button class="button button-ghost loan-edit-toggle" type="button"
-                onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
-        <button class="button btn-delete-ghost" type="button"
-                onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
+      <div class="lc-right">
+        ${hasPayment ? `<div class="lc-due">
+          <strong class="lc-due-amount">${amd(o.amount)}</strong>
+          <span class="lc-due-label">/ month · day ${Number(o.dueDay) || '—'}</span>
+        </div>` : ''}
+        <div class="loan-card-actions">
+          ${paidOff ? '<span class="paid-off-badge">Paid off</span>' : ''}
+          <button class="button button-secondary loan-complete" type="button"
+                  onclick="completeLoan('${escapeHtml(o.id)}', this)">Complete</button>
+          <button class="button button-ghost loan-edit-toggle" type="button"
+                  onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
+          <button class="button btn-delete-ghost" type="button"
+                  onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
+        </div>
       </div>
     </div>
-    <div class="loan-financials">
-      <div class="loan-arc-wrap">
-        <svg class="loan-arc" viewBox="0 0 120 68" aria-hidden="true">
-          <path class="loan-arc-track" d="M10 60 A50 50 0 0 1 110 60"></path>
-          <path class="loan-arc-value" d="M10 60 A50 50 0 0 1 110 60"
-                style="stroke-dashoffset:${arcOffset}"></path>
-        </svg>
-        <div class="loan-arc-copy"><strong>${balKnown && tot ? pctOff + '%' : '—'}</strong><span>paid</span></div>
+    <div class="lc-progress-section">
+      <div class="lc-bar-row">
+        <div class="lc-progress-bar">
+          <div class="lc-progress-fill" style="width:${Math.max(0,Math.min(100,pctOff))}%"></div>
+        </div>
+        <span class="lc-pct">${balKnown && tot ? pctOff + '%' : '—'}</span>
       </div>
-      <div class="loan-balance-copy">
-        <div class="loan-balance-line">
-          ${balKnown
-            ? `<strong>${amd(bal)}</strong>${tot ? ` of ${amd(tot)} remaining` : ' owed'}`
-            : '<strong>Balance unverified</strong>'}
-        </div>
-        <div class="loan-monthly-line">
-          ${hasPayment ? `${amd(o.amount)} monthly · due day ${Number(o.dueDay) || '—'}` : 'No monthly payment recorded'}
-        </div>
+      <div class="lc-stats-row">
+        ${balKnown
+          ? `<span>${amd(bal)} remaining${tot ? ` of ${amd(tot)}` : ''}</span>`
+          : '<span class="lc-unverified">Balance unverified</span>'}
         ${staleBalance
-          ? `<div class="balance-stale">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>`
-          : '<div class="balance-current">Balance updated for this month</div>'}
+          ? `<span class="lc-stale-pill">⚠ Approx · ${sourceMonth ? monthLabel(sourceMonth) : 'outdated'}</span>`
+          : balKnown ? '<span class="lc-fresh-pill">✓ Current</span>' : ''}
       </div>
     </div>
     ${contracts.length ? `
-      <div class="contract-row">
+      <div class="lc-footer">
         <span class="contract-label">Contract</span>
         ${contracts.map(part => `
           <button class="copy-chip" type="button" onclick="copyContract('${escapeHtml(part)}', this)"
