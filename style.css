@@ -269,7 +269,7 @@ tfoot td {
   font-size: 14px; font-weight: 700; margin-bottom: 12px;
   padding-bottom: 6px; border-bottom: 2px solid var(--border);
 }
-.loans-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.loans-grid { display: flex; flex-direction: column; gap: 10px; }
 
 .loan-card {
   background: var(--surface); border: 1px solid var(--border);
