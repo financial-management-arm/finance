@@ -1714,6 +1714,7 @@ tbody tr:hover td { background: transparent; }
   font-size: var(--text-15);
 }
 .loans-grid { gap: var(--space-3); max-width: 820px; }
+.obligations-section-header { max-width: 820px; }
 .loan-card {
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--color-border);
