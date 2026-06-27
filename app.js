@@ -1445,11 +1445,12 @@ function cashEntryIsOffer(e) {
 function renderCashEntryCard(e) {
   const isOffer = cashEntryIsOffer(e);
   const sid = escapeHtml(e.id);
-  const hasTags = e.category || (isOffer && (e.payer || (e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate))));
+  const validDate = e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate);
+  const hasTags = e.category || e.payer || validDate;
   const offerTags = hasTags ? `<div class="offer-tags">
     ${e.category ? `<span class="offer-tag offer-tag-cat">${escapeHtml(e.category)}</span>` : ''}
-    ${isOffer && e.payer ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>` : ''}
-    ${isOffer && e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate) ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
+    ${e.payer ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>` : ''}
+    ${validDate ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
   </div>` : '';
   return `<div class="cash-entry" id="cash-entry-${sid}">
     <div class="cash-entry-view">
@@ -1464,14 +1465,14 @@ function renderCashEntryCard(e) {
       </div>
     </div>
     <form class="cash-entry-edit hidden" id="cash-edit-${sid}" onsubmit="saveCashEdit(event,'${sid}')">
-      <select class="form-input" name="type" onchange="toggleCashEditOfferFields(this)">
+      <select class="form-input" name="type">
         <option value="cash"  ${!isOffer ? 'selected' : ''}>Cash Holding</option>
         <option value="offer" ${isOffer  ? 'selected' : ''}>Loan Offer</option>
       </select>
       <input class="form-input" name="category" type="text" list="all-categories-list" value="${escapeHtml(e.category || '')}" placeholder="Category (optional)" maxlength="80">
-      <div class="cash-edit-offer-fields ${isOffer ? '' : 'hidden'}">
+      <div class="cash-edit-offer-fields">
         <input class="form-input" name="payer" type="text" list="offer-payers-list" value="${escapeHtml(e.payer || '')}" placeholder="For whom" maxlength="80">
-        <input class="form-input" name="lastAvailableDate" type="date" value="${escapeHtml(e.lastAvailableDate || '')}">
+        <input class="form-input" name="lastAvailableDate" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate || '') ? e.lastAvailableDate : ''}">
       </div>
       <input class="form-input" name="place"  value="${escapeHtml(e.place)}" placeholder="Bank / Place" required maxlength="100">
       <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
@@ -1483,15 +1484,6 @@ function renderCashEntryCard(e) {
   </div>`;
 }
 
-function toggleCashEditOfferFields(typeSelect) {
-  const fields = typeSelect.closest('form').querySelector('.cash-edit-offer-fields');
-  if (fields) fields.classList.toggle('hidden', typeSelect.value !== 'offer');
-}
-
-function toggleCashAddOfferFields(typeSelect) {
-  const grp = document.getElementById('cash-new-offer-fields');
-  if (grp) grp.classList.toggle('hidden', typeSelect.value !== 'offer');
-}
 
 function setOfferFilter(cat) {
   state.offerFilter = cat;
@@ -1581,7 +1573,7 @@ function renderCashTab() {
   const allCategories = [...new Set(state.cashEntries.map(e => e.category).filter(Boolean))].sort();
   const payerSuggestions = [...new Set([
     ...state.obligations.map(o => o.payer).filter(Boolean),
-    ...offerEntries.map(e => e.payer).filter(Boolean)
+    ...state.cashEntries.map(e => e.payer).filter(Boolean)
   ])].sort();
 
   const datalists = `
@@ -1594,7 +1586,7 @@ function renderCashTab() {
       <form class="cash-add-form" onsubmit="submitAddCash(event)">
         <div class="form-group">
           <label class="form-label">Section</label>
-          <select class="form-input" id="cash-new-type" onchange="toggleCashAddOfferFields(this)">
+          <select class="form-input" id="cash-new-type">
             <option value="cash">Cash Holding</option>
             <option value="offer">Loan Offer</option>
           </select>
@@ -1603,7 +1595,7 @@ function renderCashTab() {
           <label class="form-label">Category</label>
           <input class="form-input" id="cash-new-category" type="text" list="all-categories-list" placeholder="e.g. Ապառիկ, Cash, Credit Line" maxlength="80">
         </div>
-        <div id="cash-new-offer-fields" class="hidden">
+        <div id="cash-new-offer-fields">
           <div class="form-group">
             <label class="form-label">For whom</label>
             <input class="form-input" id="cash-new-payer" type="text" list="offer-payers-list" placeholder="e.g. Hovhannes" maxlength="80">
@@ -1646,8 +1638,8 @@ async function submitAddCash(event) {
   event.preventDefault();
   const type     = document.getElementById('cash-new-type').value || 'cash';
   const category = document.getElementById('cash-new-category').value.trim();
-  const payer    = type === 'offer' ? (document.getElementById('cash-new-payer').value.trim()) : '';
-  const lastAvailableDate = type === 'offer' ? (document.getElementById('cash-new-date').value) : '';
+  const payer    = document.getElementById('cash-new-payer').value.trim();
+  const lastAvailableDate = document.getElementById('cash-new-date').value;
   const place    = document.getElementById('cash-new-place').value.trim();
   const amount   = Number(document.getElementById('cash-new-amount').value) || 0;
   if (!place) return;
@@ -1656,10 +1648,8 @@ async function submitAddCash(event) {
   document.getElementById('cash-new-place').value = '';
   document.getElementById('cash-new-amount').value = '';
   document.getElementById('cash-new-category').value = '';
-  if (type === 'offer') {
-    document.getElementById('cash-new-payer').value = '';
-    document.getElementById('cash-new-date').value = '';
-  }
+  document.getElementById('cash-new-payer').value = '';
+  document.getElementById('cash-new-date').value = '';
   renderIncome();
   try {
     await callApi({ action: 'addCashEntry', place, amount, type, category, payer, lastAvailableDate });
@@ -1689,8 +1679,8 @@ async function saveCashEdit(event, id) {
   const form = document.getElementById('cash-edit-' + id);
   const type     = form.elements.type ? form.elements.type.value : 'cash';
   const category = form.elements.category ? form.elements.category.value.trim() : '';
-  const payer    = type === 'offer' && form.elements.payer    ? form.elements.payer.value.trim()    : '';
-  const lastAvailableDate = type === 'offer' && form.elements.lastAvailableDate ? form.elements.lastAvailableDate.value : '';
+  const payer    = form.elements.payer             ? form.elements.payer.value.trim()             : '';
+  const lastAvailableDate = form.elements.lastAvailableDate ? form.elements.lastAvailableDate.value : '';
   const place  = form.elements.place.value.trim();
   const amount = Number(form.elements.amount.value) || 0;
   if (!place) return;
