@@ -1447,7 +1447,7 @@ function renderCashEntryCard(e) {
   const offerTags = isOffer ? `<div class="offer-tags">
     ${e.category ? `<span class="offer-tag offer-tag-cat">${escapeHtml(e.category)}</span>` : ''}
     ${e.payer    ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>`    : ''}
-    ${e.lastAvailableDate ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
+    ${e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate) ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
   </div>` : '';
   return `<div class="cash-entry" id="cash-entry-${sid}">
     <div class="cash-entry-view">

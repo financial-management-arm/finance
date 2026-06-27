@@ -599,20 +599,36 @@ function migrateCashTypeColumn(ss) {
   if (!sheet || sheet.getLastRow() < 2) return;
   // Schema: ['id','place','amount','type','category','payer','lastAvailableDate','updatedAt']
   var headers = SCHEMAS.Cash;
-  var typeCol = headers.indexOf('type');
-  var categoryCol = headers.indexOf('category');
-  var updatedAtCol = headers.indexOf('updatedAt');
+  var typeCol            = headers.indexOf('type');
+  var categoryCol        = headers.indexOf('category');
+  var payerCol           = headers.indexOf('payer');
+  var lastDateCol        = headers.indexOf('lastAvailableDate');
+  var updatedAtCol       = headers.indexOf('updatedAt');
   var numRows = sheet.getLastRow() - 1;
   var range = sheet.getRange(2, 1, numRows, headers.length);
   var data = range.getValues();
   var changed = false;
   data.forEach(function(row) {
-    var typeVal = String(row[typeCol] || '');
-    // Old rows where col3 (type) contains an ISO date — was old updatedAt
-    if (typeVal && /^\d{4}-\d{2}-\d{2}T/.test(typeVal)) {
+    var typeVal        = String(row[typeCol]     || '');
+    var payerVal       = String(row[payerCol]    || '');
+    var lastDateVal    = String(row[lastDateCol] || '');
+    // Old 5-col rows: type col held the old updatedAt ISO string
+    if (/^\d{4}-\d{2}-\d{2}T/.test(typeVal)) {
       row[updatedAtCol] = typeVal;
-      row[typeCol] = 'cash';
-      row[categoryCol] = '';
+      row[typeCol]      = 'cash';
+      row[categoryCol]  = '';
+      changed = true;
+    }
+    // Old 6-col rows migrated to 8-col: the old updatedAt ended up in payer col
+    if (!row[typeVal] && /^\d{4}-\d{2}-\d{2}T/.test(payerVal)) {
+      row[updatedAtCol] = payerVal;
+      row[payerCol]     = '';
+      changed = true;
+    }
+    // lastAvailableDate holding an ISO datetime instead of a plain date → clear it
+    if (/^\d{4}-\d{2}-\d{2}T/.test(lastDateVal)) {
+      if (!row[updatedAtCol]) row[updatedAtCol] = lastDateVal;
+      row[lastDateCol] = '';
       changed = true;
     }
   });
