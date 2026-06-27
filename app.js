@@ -18,7 +18,8 @@ const state = {
   scheduleSort: 'due-asc',
   loanSort: 'debt-desc',
   incomeSort: 'date-desc',
-  cash: 0,
+  cashEntries: [],
+  incomeSubTab: 'income',
   reportData: null,
   reportWindow: 6,
   reportLoading: false,
@@ -235,7 +236,7 @@ async function fetchAll() {
     state.income = data.income || [];
     state.loanHistory = data.loanHistory || [];
     state.utilities = data.utilities || [];
-    state.cash = Number(data.cash) || 0;
+    state.cashEntries = data.cashEntries || [];
     renderPayerFilters();
     render();
   } catch (err) {
@@ -1403,7 +1404,145 @@ function savePaymentBalanceFromInput(id) {
 // ================================================================
 // Income
 // ================================================================
+function setIncomeSubTab(tab) {
+  state.incomeSubTab = tab;
+  renderIncome();
+}
+
 function renderIncome() {
+  const subtab = state.incomeSubTab || 'income';
+  document.querySelectorAll('.income-subtab-btn').forEach(b => {
+    b.classList.toggle('is-active', b.dataset.subtab === subtab);
+  });
+  const incomeContent = document.getElementById('income-content');
+  const cashContent = document.getElementById('cash-content');
+  const monthNav = document.querySelector('#page-income .month-nav');
+  if (incomeContent) incomeContent.classList.toggle('hidden', subtab !== 'income');
+  if (monthNav) monthNav.style.visibility = subtab === 'income' ? '' : 'hidden';
+  if (cashContent) {
+    cashContent.classList.toggle('hidden', subtab !== 'cash');
+    if (subtab === 'cash') cashContent.innerHTML = renderCashTab();
+  }
+  if (subtab === 'income') renderIncomeTab();
+}
+
+function renderCashTab() {
+  const entries = [...state.cashEntries].sort((a, b) => String(a.place).localeCompare(String(b.place)));
+  const total = entries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const rows = entries.map(e => `
+    <div class="cash-entry" id="cash-entry-${escapeHtml(e.id)}">
+      <div class="cash-entry-view">
+        <span class="cash-place">${escapeHtml(e.place)}</span>
+        <span class="cash-entry-amount">${amd(Number(e.amount))}</span>
+        <div class="cash-entry-actions">
+          <button class="button button-ghost btn-sm" type="button" onclick="openCashEdit('${escapeHtml(e.id)}')">Edit</button>
+          <button class="button btn-delete-ghost btn-sm" type="button" onclick="confirmDeleteCash('${escapeHtml(e.id)}')">Delete</button>
+        </div>
+      </div>
+      <form class="cash-entry-edit hidden" id="cash-edit-${escapeHtml(e.id)}" onsubmit="saveCashEdit(event,'${escapeHtml(e.id)}')">
+        <input class="form-input" name="place" value="${escapeHtml(e.place)}" placeholder="Place" required maxlength="100">
+        <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
+        <div class="cash-edit-btns">
+          <button class="button button-ghost btn-sm" type="button" onclick="closeCashEdit('${escapeHtml(e.id)}')">Cancel</button>
+          <button class="button button-primary btn-sm" type="submit">Save</button>
+        </div>
+      </form>
+    </div>`).join('');
+
+  return `<div class="cash-tab-layout">
+    <div class="cash-add-panel">
+      <h3 class="cash-section-title">Add Cash</h3>
+      <form class="cash-add-form" onsubmit="submitAddCash(event)">
+        <div class="form-group">
+          <label class="form-label">Place</label>
+          <input class="form-input" id="cash-new-place" placeholder="e.g. Wallet, Safe, Ameria" required maxlength="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount (֏)</label>
+          <input class="form-input" id="cash-new-amount" type="number" placeholder="0" min="0" step="1000" required>
+        </div>
+        <button class="btn-add" type="submit">Add Cash</button>
+      </form>
+    </div>
+    <div class="cash-list-panel">
+      <div class="income-list-header">
+        <h3 class="cash-section-title">Cash Holdings</h3>
+        <span class="muted">Total: <strong>${amd(total)}</strong></span>
+      </div>
+      ${entries.length
+        ? `<div class="cash-entries-list">${rows}</div>`
+        : '<div class="cash-empty">No cash entries yet. Add one to track your holdings.</div>'}
+    </div>
+  </div>`;
+}
+
+async function submitAddCash(event) {
+  event.preventDefault();
+  const place = document.getElementById('cash-new-place').value.trim();
+  const amount = Number(document.getElementById('cash-new-amount').value) || 0;
+  if (!place) return;
+  const entry = { id: 'cash-' + Date.now(), place, amount, updatedAt: new Date().toISOString() };
+  state.cashEntries = [...state.cashEntries, entry];
+  document.getElementById('cash-new-place').value = '';
+  document.getElementById('cash-new-amount').value = '';
+  renderIncome();
+  try {
+    await callApi({ action: 'addCashEntry', place, amount });
+  } catch (err) {
+    state.cashEntries = state.cashEntries.filter(e => e.id !== entry.id);
+    renderIncome();
+    showError('Could not save — please try again.');
+  }
+}
+
+function openCashEdit(id) {
+  const view = document.querySelector(`#cash-entry-${id} .cash-entry-view`);
+  const form = document.getElementById('cash-edit-' + id);
+  if (view) view.classList.add('hidden');
+  if (form) form.classList.remove('hidden');
+}
+
+function closeCashEdit(id) {
+  const view = document.querySelector(`#cash-entry-${id} .cash-entry-view`);
+  const form = document.getElementById('cash-edit-' + id);
+  if (view) view.classList.remove('hidden');
+  if (form) form.classList.add('hidden');
+}
+
+async function saveCashEdit(event, id) {
+  event.preventDefault();
+  const form = document.getElementById('cash-edit-' + id);
+  const place = form.elements.place.value.trim();
+  const amount = Number(form.elements.amount.value) || 0;
+  if (!place) return;
+  const prev = state.cashEntries.find(e => e.id === id);
+  state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount } : e);
+  renderIncome();
+  try {
+    await callApi({ action: 'updateCashEntry', id, place, amount });
+  } catch (err) {
+    if (prev) state.cashEntries = state.cashEntries.map(e => e.id === id ? prev : e);
+    renderIncome();
+    showError('Could not save — please try again.');
+  }
+}
+
+async function confirmDeleteCash(id) {
+  const entry = state.cashEntries.find(e => e.id === id);
+  if (!entry) return;
+  if (!confirm(`Delete "${entry.place}" (${amd(Number(entry.amount))})?`)) return;
+  state.cashEntries = state.cashEntries.filter(e => e.id !== id);
+  renderIncome();
+  try {
+    await callApi({ action: 'deleteCashEntry', id });
+  } catch (err) {
+    state.cashEntries = [...state.cashEntries, entry];
+    renderIncome();
+    showError('Could not delete — please try again.');
+  }
+}
+
+function renderIncomeTab() {
   const monthRows = state.income.filter(i => String(i.date).startsWith(state.month));
   const tot       = monthRows.reduce((s, i) => s + Number(i.amount), 0);
 
@@ -2169,26 +2308,26 @@ async function saveCash(amount) {
 function renderBalancePanel() {
   const loans = activeLoans();
   const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
-  const cash = Number(state.cash) || 0;
+  const cash = state.cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const net = cash - totalDebt;
   const netPos = net >= 0;
+  const cashDetail = state.cashEntries.length
+    ? state.cashEntries.map(e => `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`).join('')
+    : '<span class="bs-no-cash">No cash entries — <button class="bs-link-btn" onclick="setIncomeSubTab(\'cash\');switchTab(\'income\')">add in Income → Cash</button></span>';
   return `<div class="report-panel bs-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16M6 13h2"/></svg>
         Balance Sheet
       </div>
+      <button class="rp-badge bs-manage-btn" onclick="setIncomeSubTab('cash');switchTab('income')">Manage cash →</button>
     </div>
     <div class="report-panel-body rp-pad">
       <div class="bs-row">
         <span class="bs-label">Cash on hand</span>
-        <span class="bs-value">
-          <input class="bs-cash-input" type="number" min="0" step="1000"
-            value="${cash}"
-            onchange="saveCash(this.value)"
-            onblur="saveCash(this.value)"> ֏
-        </span>
+        <span class="bs-value">${amdCompact(cash)}</span>
       </div>
+      <div class="bs-cash-breakdown">${cashDetail}</div>
       <div class="bs-row bs-divider">
         <span class="bs-label">Total debt</span>
         <span class="bs-value bs-debt">${amdCompact(totalDebt)}</span>

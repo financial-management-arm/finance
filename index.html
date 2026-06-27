@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=28">
+  <link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 
@@ -174,6 +174,10 @@
     <section id="page-income" class="page">
       <div class="page-header">
         <h1>Income</h1>
+        <div class="income-subtab-bar">
+          <button class="income-subtab-btn is-active" data-subtab="income" type="button" onclick="setIncomeSubTab('income')">Income</button>
+          <button class="income-subtab-btn" data-subtab="cash" type="button" onclick="setIncomeSubTab('cash')">Cash</button>
+        </div>
         <div class="month-nav">
           <button class="btn-nav btn-prev">‹</button>
           <span class="month-label"></span>
@@ -182,7 +186,8 @@
         </div>
       </div>
       <div class="page-body">
-        <div class="income-layout">
+        <div id="cash-content" class="hidden"></div>
+        <div id="income-content" class="income-layout">
 
           <div class="income-form">
             <h3>Log Income</h3>
@@ -460,6 +465,6 @@
 </div>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=40"></script>
+<script src="app.js?v=41"></script>
 </body>
 </html>

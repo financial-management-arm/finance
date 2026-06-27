@@ -2421,6 +2421,42 @@ button:active,
   to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
+/* ── Income sub-tab bar ── */
+.income-subtab-bar { display: flex; gap: 4px; padding: 3px; background: var(--color-surface-2); border-radius: 10px; border: 1px solid var(--color-border); }
+.income-subtab-btn { padding: 5px 16px; border: none; border-radius: 7px; background: transparent; color: var(--color-muted); font: 600 13px Inter, sans-serif; cursor: pointer; transition: background var(--motion-fast), color var(--motion-fast); }
+.income-subtab-btn.is-active { background: var(--color-surface-0,#fff); color: var(--color-text); box-shadow: 0 1px 3px color-mix(in srgb, var(--color-text) 10%, transparent); }
+@media (prefers-color-scheme: dark) {
+  .income-subtab-btn.is-active { background: var(--color-surface-1); }
+}
+
+/* ── Cash tab layout ── */
+.cash-tab-layout { display: grid; grid-template-columns: 260px 1fr; gap: var(--space-5); align-items: start; }
+@media (max-width: 680px) { .cash-tab-layout { grid-template-columns: 1fr; } }
+.cash-section-title { font-size: var(--text-14); font-weight: 700; color: var(--color-text); margin: 0 0 var(--space-3); }
+.cash-add-panel { background: var(--color-surface-1); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-4); }
+.cash-add-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.cash-list-panel { display: flex; flex-direction: column; gap: var(--space-3); }
+.cash-empty { color: var(--color-muted); font-size: var(--text-13); padding: var(--space-4) 0; }
+.cash-entries-list { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* ── Cash entry card ── */
+.cash-entry { background: var(--color-surface-1); border: 1px solid var(--color-border); border-radius: var(--radius-card); overflow: hidden; }
+.cash-entry-view { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+.cash-place { flex: 1; font-size: var(--text-14); font-weight: 600; color: var(--color-text); }
+.cash-entry-amount { font-size: var(--text-14); font-weight: 700; color: var(--color-primary); white-space: nowrap; }
+.cash-entry-actions { display: flex; gap: var(--space-2); margin-left: var(--space-2); }
+.cash-entry-edit { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-border); background: var(--color-surface-2); }
+.cash-edit-btns { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.btn-sm { font-size: 12px; padding: 4px 12px; min-height: 28px; }
+
+/* ── Balance Sheet breakdown ── */
+.bs-cash-breakdown { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }
+.bs-cash-item { font-size: 11px; color: var(--color-muted); background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 20px; padding: 2px 10px; }
+.bs-no-cash { font-size: var(--text-13); color: var(--color-muted); }
+.bs-link-btn { background: none; border: none; color: var(--color-primary); font-size: var(--text-13); cursor: pointer; padding: 0; text-decoration: underline; }
+.bs-manage-btn { cursor: pointer; background: none; border: 1px solid var(--color-border); color: var(--color-muted); font-size: 12px; padding: 3px 10px; border-radius: 20px; transition: color var(--motion-fast), border-color var(--motion-fast); }
+.bs-manage-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
 /* ── Balance Sheet panel ── */
 .bs-panel { max-width: 440px; }
 .bs-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) 0; }

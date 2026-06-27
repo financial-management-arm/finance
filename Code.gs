@@ -16,7 +16,8 @@ var SCHEMAS = {
     'currentBalance', 'loanTotal', 'contractNumber', 'balanceSourceMonth',
     'completed', 'completedAt', 'snapshotAt', 'updatedAt'
   ],
-  Utilities: ['id', 'name', 'payer', 'provider', 'abonentNumber', 'amount', 'type', 'dueDay', 'active', 'personalExpense']
+  Utilities: ['id', 'name', 'payer', 'provider', 'abonentNumber', 'amount', 'type', 'dueDay', 'active', 'personalExpense'],
+  Cash: ['id', 'place', 'amount', 'updatedAt']
 };
 
 function doGet(e) {
@@ -39,7 +40,7 @@ function doGet(e) {
         income: sheetToJson(ss, 'Income'),
         loanHistory: sheetToJson(ss, 'Loans'),
         utilities: sheetToJson(ss, 'Utilities'),
-        cash: Number(PropertiesService.getScriptProperties().getProperty('availableCash')) || 0,
+        cashEntries: sheetToJson(ss, 'Cash'),
         serverMonth: month,
         syncedAt: isoNow()
       };
@@ -83,11 +84,40 @@ function doGet(e) {
       result = withLock(function() {
         return deleteUtility(ss, params);
       });
-    } else if (action === 'setCash') {
-      var cashAmt = Number(params.amount);
-      if (!isFinite(cashAmt) || cashAmt < 0) throw new Error('Invalid cash amount');
-      PropertiesService.getScriptProperties().setProperty('availableCash', String(cashAmt));
-      result = { success: true, cash: cashAmt };
+    } else if (action === 'addCashEntry') {
+      result = withLock(function() {
+        var place = String(params.place || '').trim().slice(0, 100);
+        var amount = Number(params.amount);
+        if (!place) throw new Error('Place is required');
+        if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
+        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, updatedAt: isoNow() };
+        appendObject(ss.getSheetByName('Cash'), entry);
+        return { success: true, entry: entry };
+      });
+    } else if (action === 'updateCashEntry') {
+      result = withLock(function() {
+        var id = String(params.id || '');
+        var place = String(params.place || '').trim().slice(0, 100);
+        var amount = Number(params.amount);
+        if (!id) throw new Error('Missing id');
+        if (!place) throw new Error('Place is required');
+        if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
+        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, updatedAt: isoNow() });
+        return { success: true };
+      });
+    } else if (action === 'deleteCashEntry') {
+      result = withLock(function() {
+        var id = String(params.id || '');
+        if (!id) throw new Error('Missing id');
+        var sheet = ss.getSheetByName('Cash');
+        var headers = SCHEMAS.Cash;
+        var data = sheet.getDataRange().getValues();
+        var idCol = headers.indexOf('id');
+        for (var row = data.length - 1; row >= 1; row--) {
+          if (String(data[row][idCol]) === id) { sheet.deleteRow(row + 1); break; }
+        }
+        return { success: true };
+      });
     } else if (action === 'getReportData') {
       result = getReportData(ss, params);
     } else if (action === 'repairSchema') {
