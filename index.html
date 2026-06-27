@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=29">
+  <link rel="stylesheet" href="style.css?v=30">
 </head>
 <body>
 
@@ -34,7 +34,7 @@
       <li><a href="#" data-tab="schedule" class="active" aria-label="Payments"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 4h10M7 12h6M7 16h4"/></svg><span class="nav-label">Payments</span></a></li>
       <li><a href="#" data-tab="dashboard" aria-label="Today"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg><span class="nav-label">Today</span></a></li>
       <li><a href="#" data-tab="loans" aria-label="Obligations"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4V7Zm3-3h10v3H7V4Zm1 8h8M8 16h5"/></svg><span class="nav-label">Obligations</span></a></li>
-      <li><a href="#" data-tab="income" aria-label="Income"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income</span></a></li>
+      <li><a href="#" data-tab="income" aria-label="Income"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Actives</span></a></li>
       <li><a href="#" data-tab="utilities" aria-label="Utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Utilities</span></a></li>
       <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V10h4v8H4Zm6 0V4h4v14h-4Zm6 0v-6h4v6h-4Z"/></svg><span class="nav-label">Reports</span></a></li>
     </ul>
@@ -173,7 +173,7 @@
     <!-- ─── INCOME ─── -->
     <section id="page-income" class="page">
       <div class="page-header">
-        <h1>Income</h1>
+        <h1>Actives</h1>
         <div class="income-subtab-bar">
           <button class="income-subtab-btn is-active" data-subtab="income" type="button" onclick="setIncomeSubTab('income')">Income</button>
           <button class="income-subtab-btn" data-subtab="cash" type="button" onclick="setIncomeSubTab('cash')">Cash</button>
@@ -236,6 +236,7 @@
                   <th>Source</th>
                   <th class="tr">Amount</th>
                   <th>Note</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody id="income-tbody"></tbody>
@@ -465,6 +466,6 @@
 </div>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=41"></script>
+<script src="app.js?v=42"></script>
 </body>
 </html>

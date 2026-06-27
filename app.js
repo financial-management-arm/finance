@@ -577,6 +577,7 @@ async function refreshData(showSkeleton = true) {
     state.income = data.income || [];
     state.loanHistory = data.loanHistory || [];
     state.utilities = data.utilities || [];
+    state.cashEntries = data.cashEntries || [];
     renderPayerFilters();
     render();
   } finally {
@@ -1558,12 +1559,85 @@ function renderIncomeTab() {
     'source-asc': (a, b) => String(a.stream || '').localeCompare(String(b.stream || ''))
   };
   const sorted = [...state.income].sort(incomeSorters[state.incomeSort] || incomeSorters['date-desc']);
-  q('income-tbody').innerHTML = sorted.map(i => `<tr>
-    <td>${escapeHtml(String(i.date).slice(0, 10))}</td>
-    <td>${escapeHtml(streamLabel[i.stream] || i.stream)}</td>
-    <td class="tr fw7">${amd(i.amount)}</td>
-    <td class="muted">${escapeHtml(i.note || '')}</td>
-  </tr>`).join('');
+  const streamOpts = Object.entries(streamLabel)
+    .map(([v, l]) => `<option value="${v}">{L}</option>`.replace('{L}', l))
+    .join('');
+
+  q('income-tbody').innerHTML = sorted.map(i => {
+    const opts = Object.entries(streamLabel)
+      .map(([v, l]) => `<option value="${v}"${i.stream === v ? ' selected' : ''}>${l}</option>`).join('');
+    return `<tr id="income-row-${escapeHtml(i.id)}">
+      <td>${escapeHtml(String(i.date).slice(0, 10))}</td>
+      <td>${escapeHtml(streamLabel[i.stream] || i.stream)}</td>
+      <td class="tr fw7">${amd(i.amount)}</td>
+      <td class="muted">${escapeHtml(i.note || '')}</td>
+      <td class="income-row-actions">
+        <button class="button button-ghost btn-sm" type="button" onclick="openIncomeEdit('${escapeHtml(i.id)}')">Edit</button>
+        <button class="button btn-delete-ghost btn-sm" type="button" onclick="confirmDeleteIncome('${escapeHtml(i.id)}')">Delete</button>
+      </td>
+    </tr>
+    <tr id="income-edit-${escapeHtml(i.id)}" class="income-edit-tr hidden">
+      <td colspan="5">
+        <form class="income-inline-edit" onsubmit="saveIncomeEdit(event,'${escapeHtml(i.id)}')">
+          <input class="form-input income-edit-field" name="date" type="date" value="${escapeHtml(String(i.date).slice(0, 10))}" required>
+          <select class="form-select income-edit-field" name="stream">${opts}</select>
+          <input class="form-input income-edit-field" name="amount" type="number" value="${Number(i.amount)}" min="1" required>
+          <input class="form-input income-edit-field" name="note" type="text" value="${escapeHtml(i.note || '')}" placeholder="Note">
+          <div class="income-edit-btns">
+            <button class="button button-ghost btn-sm" type="button" onclick="closeIncomeEdit('${escapeHtml(i.id)}')">Cancel</button>
+            <button class="button button-primary btn-sm" type="submit">Save</button>
+          </div>
+        </form>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openIncomeEdit(id) {
+  document.querySelectorAll('.income-edit-tr:not(.hidden)').forEach(r => r.classList.add('hidden'));
+  const row = document.getElementById('income-edit-' + id);
+  if (row) row.classList.remove('hidden');
+}
+
+function closeIncomeEdit(id) {
+  const row = document.getElementById('income-edit-' + id);
+  if (row) row.classList.add('hidden');
+}
+
+async function saveIncomeEdit(event, id) {
+  event.preventDefault();
+  const form = event.target;
+  const date = form.elements.date.value;
+  const amount = Number(form.elements.amount.value);
+  const stream = form.elements.stream.value;
+  const note = form.elements.note.value.trim();
+  if (!date || !amount) return;
+  const prev = state.income.find(i => i.id === id);
+  state.income = state.income.map(i => i.id === id ? { ...i, date, amount, stream, note } : i);
+  closeIncomeEdit(id);
+  renderIncomeTab();
+  try {
+    await callApi({ action: 'updateIncome', id, date, amount, stream, note });
+  } catch (err) {
+    if (prev) state.income = state.income.map(i => i.id === id ? prev : i);
+    renderIncomeTab();
+    showError('Could not save — please try again.');
+  }
+}
+
+async function confirmDeleteIncome(id) {
+  const entry = state.income.find(i => i.id === id);
+  if (!entry) return;
+  if (!confirm(`Delete income of ${amd(Number(entry.amount))} on ${entry.date}?`)) return;
+  state.income = state.income.filter(i => i.id !== id);
+  renderIncomeTab();
+  try {
+    await callApi({ action: 'deleteIncome', id });
+  } catch (err) {
+    state.income = [...state.income, entry];
+    renderIncomeTab();
+    showError('Could not delete — please try again.');
+  }
 }
 
 function submitIncome() {
@@ -1991,15 +2065,17 @@ async function syncReports() {
 function renderReports() {
   const body = document.getElementById('report-body');
   if (!body) return;
+  const balanceHtml = renderBalancePanel();
   if (!state.reportData && !state.reportLoading) {
     if (state.reportError) {
-      body.innerHTML = `<div class="report-panel"><div class="report-empty">Could not load report data.<br>Tap <strong>↻ Sync</strong> to retry.</div></div>`;
+      body.innerHTML = balanceHtml + `<div class="report-panel"><div class="report-empty">Could not load report data.<br>Tap <strong>↻ Sync</strong> to retry.</div></div>`;
       return;
     }
     syncReports();
+    body.innerHTML = balanceHtml + reportsSkeleton();
     return;
   }
-  if (state.reportLoading || !state.reportData) { body.innerHTML = reportsSkeleton(); return; }
+  if (state.reportLoading || !state.reportData) { body.innerHTML = balanceHtml + reportsSkeleton(); return; }
   const d = state.reportData;
 
   // Build payer list from loaded obligations+utilities (no extra API call needed)
@@ -2019,9 +2095,8 @@ function renderReports() {
       ${state.reportPayer !== 'all' ? `<span class="rfl-active-pill">${escapeHtml(state.reportPayer)}</span>` : ''}
     </div>` : '';
 
-  body.innerHTML = `
+  body.innerHTML = balanceHtml + `
     ${payerBar}
-    ${renderBalancePanel()}
     ${renderReportSummary(d)}
     ${renderCashFlowPanel(d)}
     <div class="report-2col">

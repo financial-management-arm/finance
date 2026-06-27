@@ -84,6 +84,33 @@ function doGet(e) {
       result = withLock(function() {
         return deleteUtility(ss, params);
       });
+    } else if (action === 'updateIncome') {
+      result = withLock(function() {
+        var id = String(params.id || '');
+        if (!id) throw new Error('Missing id');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date || '')) throw new Error('Invalid date');
+        var amount = Number(params.amount);
+        if (!isFinite(amount) || amount <= 0) throw new Error('Invalid amount');
+        var stream = String(params.stream || 'other').trim();
+        var note = String(params.note || '').trim().slice(0, 200);
+        upsertObject(ss.getSheetByName('Income'), 'id', id, {
+          id: id, date: params.date, amount: amount, stream: stream, note: note, updatedAt: isoNow()
+        });
+        return { success: true };
+      });
+    } else if (action === 'deleteIncome') {
+      result = withLock(function() {
+        var id = String(params.id || '');
+        if (!id) throw new Error('Missing id');
+        var sheet = ss.getSheetByName('Income');
+        var headers = SCHEMAS.Income;
+        var data = sheet.getDataRange().getValues();
+        var idCol = headers.indexOf('id');
+        for (var row = data.length - 1; row >= 1; row--) {
+          if (String(data[row][idCol]) === id) { sheet.deleteRow(row + 1); break; }
+        }
+        return { success: true };
+      });
     } else if (action === 'addCashEntry') {
       result = withLock(function() {
         var place = String(params.place || '').trim().slice(0, 100);
