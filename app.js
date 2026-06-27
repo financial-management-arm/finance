@@ -1229,6 +1229,13 @@ function syncPaymentControls() {
     const control = q(id);
     if (control) control.value = value;
   });
+  syncShowCompletedToggle();
+}
+
+function syncShowCompletedToggle() {
+  const toggle = q('show-completed');
+  if (!toggle) return;
+  toggle.checked = !['unresolved', 'unpaid'].includes(state.statusFilter);
 }
 
 function formatTimestamp(value) {
@@ -3291,8 +3298,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const eventName = control.matches('input') ? 'input' : 'change';
     control.addEventListener(eventName, event => {
       state[stateKey] = event.target.value.trim();
+      if (id === 'payment-status') syncShowCompletedToggle();
       renderSchedule();
     });
+  });
+  q('show-completed').addEventListener('change', event => {
+    state.statusFilter = event.target.checked ? 'all' : 'unresolved';
+    q('payment-status').value = state.statusFilter;
+    renderSchedule();
   });
   q('payment-clear-filters').addEventListener('click', clearPaymentFilters);
 

@@ -281,7 +281,7 @@ tfoot td {
 }
 .obligation-tools-primary {
   display: grid;
-  grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(140px, 1fr));
+  grid-template-columns: minmax(220px, 1.6fr) repeat(5, minmax(130px, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -310,6 +310,22 @@ tfoot td {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-bg);
+}
+.payment-completed-toggle {
+  display: flex !important;
+  min-height: 40px;
+  align-self: end;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.obligation-tools .payment-completed-toggle input {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  flex: 0 0 16px;
 }
 .obligation-advanced {
   margin-top: 14px;
