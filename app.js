@@ -17,6 +17,22 @@ const state = {
   search: '',
   scheduleSort: 'due-asc',
   loanSort: 'debt-desc',
+  obligationSearch: '',
+  obligationType: 'all',
+  obligationPayer: 'all',
+  obligationCategory: 'all',
+  obligationBank: 'all',
+  obligationFrequency: 'all',
+  obligationPaymentStatus: 'all',
+  obligationBalanceStatus: 'all',
+  obligationDueMin: '',
+  obligationDueMax: '',
+  obligationAmountMin: '',
+  obligationAmountMax: '',
+  obligationDebtMin: '',
+  obligationDebtMax: '',
+  obligationSortField: 'currentBalance',
+  obligationSortDirection: 'desc',
   incomeSort: 'date-desc',
   cashEntries: [],
   cashFilter: 'all',
@@ -1093,9 +1109,21 @@ function jumpToPayment(id) {
 // Loans
 // ================================================================
 function renderLoans() {
-  const loans = sortLoans(activeLoans());
-  const nonLoans = activeObs().filter(o => !isLoanRecord(o));
+  const allRows = activeObs();
+  syncObligationFilterOptions(allRows);
+  const filteredRows = sortObligations(filterObligations(allRows));
+  const loans = filteredRows.filter(isLoanRecord);
+  const nonLoans = filteredRows.filter(o => !isLoanRecord(o));
   const totalDebt = loans.reduce((sum, loan) => sum + Number(loanBalance(loan) || 0), 0);
+  const resultsCount = q('obligation-results-count');
+  const filterCount = q('obligation-filter-count');
+  if (resultsCount) {
+    resultsCount.textContent = `Showing ${filteredRows.length} of ${allRows.length} active obligations`;
+  }
+  if (filterCount) {
+    const count = activeObligationFilterCount();
+    filterCount.textContent = count ? `(${count} active)` : '';
+  }
 
   const loansSection = loans.length ? `
     <div class="obligations-section-header">
@@ -1115,25 +1143,214 @@ function renderLoans() {
 
   q('loans-container').innerHTML = `
     <div class="loan-list-summary">
-      <span>${loans.length} loan${loans.length !== 1 ? 's' : ''} · ${nonLoans.length} other obligation${nonLoans.length !== 1 ? 's' : ''}</span>
+      <span>${filteredRows.length} result${filteredRows.length !== 1 ? 's' : ''} · ${loans.length} loan${loans.length !== 1 ? 's' : ''} · ${nonLoans.length} other</span>
       <strong>${amd(totalDebt)} total debt</strong>
     </div>
-    ${loansSection}
-    ${nonLoansSection}
+    ${filteredRows.length
+      ? loansSection + nonLoansSection
+      : '<div class="obligation-empty"><strong>No obligations match these filters.</strong><span>Adjust or clear the filters to see more results.</span></div>'}
   `;
 }
 
-function sortLoans(rows) {
-  const freshness = loan => balanceSourceMonth(loan) === state.month ? 1 : 0;
-  const sorters = {
-    'debt-desc': (a, b) => Number(loanBalance(b) || 0) - Number(loanBalance(a) || 0),
-    'debt-asc': (a, b) => Number(loanBalance(a) || 0) - Number(loanBalance(b) || 0),
-    'payer-asc': (a, b) => String(a.payer || '').localeCompare(String(b.payer || '')),
-    'bank-asc': (a, b) => String(a.bank || '').localeCompare(String(b.bank || '')),
-    'due-asc': (a, b) => Number(a.dueDay || 99) - Number(b.dueDay || 99),
-    'freshness': (a, b) => freshness(a) - freshness(b)
+function filterObligations(rows) {
+  const search = state.obligationSearch.toLocaleLowerCase();
+  return rows.filter(o => {
+    const isLoan = isLoanRecord(o);
+    const status = paymentStatus(o.id);
+    const balance = isLoan ? loanBalance(o) : null;
+    const balanceKnown = balance !== '' && balance !== null && balance !== undefined && balance !== false;
+    const sourceMonth = isLoan ? balanceSourceMonth(o) : '';
+
+    if (search) {
+      const searchable = [
+        o.id, o.payer, o.bank, o.category, o.amount, o.dueDay,
+        o.currentBalance, o.loanTotal, o.contractNumber, o.startDate,
+        o.balanceUpdatedMonth, o.completedAt, o.updatedAt, o.frequency,
+        status, isLoan ? 'loan' : 'other'
+      ];
+      if (!searchable.some(value => String(value ?? '').toLocaleLowerCase().includes(search))) {
+        return false;
+      }
+    }
+
+    if (state.obligationType === 'loan' && !isLoan) return false;
+    if (state.obligationType === 'other' && isLoan) return false;
+    if (state.obligationPayer !== 'all' && String(o.payer || '') !== state.obligationPayer) return false;
+    if (state.obligationCategory !== 'all' && String(o.category || '') !== state.obligationCategory) return false;
+    if (state.obligationBank !== 'all' && String(o.bank || '') !== state.obligationBank) return false;
+    if (state.obligationFrequency !== 'all' &&
+        String(o.frequency || 'monthly') !== state.obligationFrequency) return false;
+
+    if (state.obligationPaymentStatus === 'resolved' && !isPaymentResolved(o.id)) return false;
+    if (state.obligationPaymentStatus === 'unresolved' && isPaymentResolved(o.id)) return false;
+    if (!['all', 'resolved', 'unresolved'].includes(state.obligationPaymentStatus) &&
+        status !== state.obligationPaymentStatus) return false;
+
+    if (state.obligationBalanceStatus !== 'all') {
+      const balanceStateMatches = {
+        owed: isLoan && balanceKnown && Number(balance) > 0,
+        paid_off: isLoan && balanceKnown && Number(balance) === 0,
+        current: isLoan && balanceKnown && sourceMonth === state.month,
+        stale: isLoan && balanceKnown && sourceMonth !== state.month,
+        unverified: isLoan && !balanceKnown,
+        not_applicable: !isLoan
+      };
+      if (!balanceStateMatches[state.obligationBalanceStatus]) return false;
+    }
+
+    if (!numberInRange(o.dueDay, state.obligationDueMin, state.obligationDueMax)) return false;
+    if (!numberInRange(o.amount, state.obligationAmountMin, state.obligationAmountMax)) return false;
+    if ((state.obligationDebtMin !== '' || state.obligationDebtMax !== '') &&
+        (!isLoan || !balanceKnown ||
+         !numberInRange(balance, state.obligationDebtMin, state.obligationDebtMax))) return false;
+
+    return true;
+  });
+}
+
+function numberInRange(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min === '' && max === '';
+  if (min !== '' && number < Number(min)) return false;
+  if (max !== '' && number > Number(max)) return false;
+  return true;
+}
+
+function obligationSortValue(o, field) {
+  switch (field) {
+    case 'currentBalance': return isLoanRecord(o) ? loanBalance(o) : null;
+    case 'amount': return Number(o.amount) || 0;
+    case 'loanTotal': return isLoanRecord(o) ? Number(o.loanTotal) || 0 : null;
+    case 'dueDay': return o.dueDay === '' || o.dueDay === null || o.dueDay === undefined
+      ? null : Number(o.dueDay);
+    case 'startDate': return o.startDate ? new Date(o.startDate).getTime() || null : null;
+    case 'balanceUpdatedMonth': return isLoanRecord(o) ? balanceSourceMonth(o) : '';
+    case 'paymentStatus': return paymentStatus(o.id);
+    default: return String(o[field] || '');
+  }
+}
+
+function sortObligations(rows) {
+  const field = state.obligationSortField;
+  const direction = state.obligationSortDirection === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const av = obligationSortValue(a, field);
+    const bv = obligationSortValue(b, field);
+    const aMissing = av === null || av === undefined || av === '';
+    const bMissing = bv === null || bv === undefined || bv === '';
+    if (aMissing !== bMissing) return aMissing ? 1 : -1;
+
+    if (typeof av === 'number' && typeof bv === 'number') {
+      const difference = (av - bv) * direction;
+      if (difference) return difference;
+    } else {
+      const difference = String(av).localeCompare(String(bv), undefined, {
+        numeric: true,
+        sensitivity: 'base'
+      }) * direction;
+      if (difference) return difference;
+    }
+    return String(a.bank || '').localeCompare(String(b.bank || ''), undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    });
+  });
+}
+
+function syncObligationFilterOptions(rows) {
+  state.obligationPayer = setObligationSelectOptions(
+    'obligation-payer',
+    rows.map(o => o.payer),
+    'All payers',
+    state.obligationPayer
+  );
+  state.obligationCategory = setObligationSelectOptions(
+    'obligation-category',
+    rows.map(o => o.category),
+    'All categories',
+    state.obligationCategory
+  );
+  state.obligationBank = setObligationSelectOptions(
+    'obligation-bank',
+    rows.map(o => o.bank),
+    'All banks / payees',
+    state.obligationBank
+  );
+}
+
+function setObligationSelectOptions(id, values, allLabel, selectedValue) {
+  const select = q(id);
+  if (!select) return selectedValue;
+  const options = [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  const validValue = selectedValue === 'all' || options.includes(selectedValue) ? selectedValue : 'all';
+  select.innerHTML = `<option value="all">${allLabel}</option>` +
+    options.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+  select.value = validValue;
+  return validValue;
+}
+
+function activeObligationFilterCount() {
+  return [
+    state.obligationSearch,
+    state.obligationType !== 'all',
+    state.obligationPayer !== 'all',
+    state.obligationCategory !== 'all',
+    state.obligationBank !== 'all',
+    state.obligationFrequency !== 'all',
+    state.obligationPaymentStatus !== 'all',
+    state.obligationBalanceStatus !== 'all',
+    state.obligationDueMin,
+    state.obligationDueMax,
+    state.obligationAmountMin,
+    state.obligationAmountMax,
+    state.obligationDebtMin,
+    state.obligationDebtMax
+  ].filter(Boolean).length;
+}
+
+function clearObligationFilters() {
+  state.obligationSearch = '';
+  state.obligationType = 'all';
+  state.obligationPayer = 'all';
+  state.obligationCategory = 'all';
+  state.obligationBank = 'all';
+  state.obligationFrequency = 'all';
+  state.obligationPaymentStatus = 'all';
+  state.obligationBalanceStatus = 'all';
+  state.obligationDueMin = '';
+  state.obligationDueMax = '';
+  state.obligationAmountMin = '';
+  state.obligationAmountMax = '';
+  state.obligationDebtMin = '';
+  state.obligationDebtMax = '';
+  syncObligationControls();
+  renderLoans();
+}
+
+function syncObligationControls() {
+  const values = {
+    'obligation-search': state.obligationSearch,
+    'obligation-type': state.obligationType,
+    'obligation-payer': state.obligationPayer,
+    'obligation-category': state.obligationCategory,
+    'obligation-bank': state.obligationBank,
+    'obligation-frequency': state.obligationFrequency,
+    'obligation-payment-status': state.obligationPaymentStatus,
+    'obligation-balance-status': state.obligationBalanceStatus,
+    'obligation-due-min': state.obligationDueMin,
+    'obligation-due-max': state.obligationDueMax,
+    'obligation-amount-min': state.obligationAmountMin,
+    'obligation-amount-max': state.obligationAmountMax,
+    'obligation-debt-min': state.obligationDebtMin,
+    'obligation-debt-max': state.obligationDebtMax,
+    'obligation-sort-field': state.obligationSortField,
+    'obligation-sort-direction': state.obligationSortDirection
   };
-  return [...rows].sort(sorters[state.loanSort] || sorters['debt-desc']);
+  Object.entries(values).forEach(([id, value]) => {
+    const control = q(id);
+    if (control) control.value = value;
+  });
 }
 
 function loanCard(o) {
@@ -2920,10 +3137,33 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSchedule();
   });
 
-  q('loan-sort').addEventListener('change', event => {
-    state.loanSort = event.target.value;
-    renderLoans();
+  const obligationControls = {
+    'obligation-search': 'obligationSearch',
+    'obligation-type': 'obligationType',
+    'obligation-payer': 'obligationPayer',
+    'obligation-category': 'obligationCategory',
+    'obligation-bank': 'obligationBank',
+    'obligation-frequency': 'obligationFrequency',
+    'obligation-payment-status': 'obligationPaymentStatus',
+    'obligation-balance-status': 'obligationBalanceStatus',
+    'obligation-due-min': 'obligationDueMin',
+    'obligation-due-max': 'obligationDueMax',
+    'obligation-amount-min': 'obligationAmountMin',
+    'obligation-amount-max': 'obligationAmountMax',
+    'obligation-debt-min': 'obligationDebtMin',
+    'obligation-debt-max': 'obligationDebtMax',
+    'obligation-sort-field': 'obligationSortField',
+    'obligation-sort-direction': 'obligationSortDirection'
+  };
+  Object.entries(obligationControls).forEach(([id, stateKey]) => {
+    const control = q(id);
+    const eventName = control.matches('input') ? 'input' : 'change';
+    control.addEventListener(eventName, event => {
+      state[stateKey] = event.target.value.trim();
+      renderLoans();
+    });
   });
+  q('obligation-clear-filters').addEventListener('click', clearObligationFilters);
 
   q('income-sort').addEventListener('change', event => {
     state.incomeSort = event.target.value;
