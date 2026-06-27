@@ -2493,6 +2493,8 @@ button:active,
 .offer-tag-cat { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent); }
 .offer-tag-payer { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent); }
 .offer-tag-date { background: var(--color-surface-2); color: var(--color-muted); border: 1px solid var(--color-border); }
+.offer-chip-place.is-active { background: var(--color-warning, #c97b1a); border-color: var(--color-warning, #c97b1a); color: #fff; }
+.offer-chip-place:hover:not(.is-active) { border-color: var(--color-warning, #c97b1a); color: var(--color-warning, #c97b1a); }
 /* Offer filter & sort */
 .offer-controls { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: var(--space-3); flex-wrap: wrap; }
 .offer-filter-rows { display: flex; flex-direction: column; gap: 6px; flex: 1; }

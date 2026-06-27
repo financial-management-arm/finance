@@ -19,8 +19,13 @@ const state = {
   loanSort: 'debt-desc',
   incomeSort: 'date-desc',
   cashEntries: [],
+  cashFilter: 'all',
+  cashPayerFilter: 'all',
+  cashPlaceFilter: 'all',
+  cashSort: 'amount-desc',
   offerFilter: 'all',
   offerPayerFilter: 'all',
+  offerPlaceFilter: 'all',
   offerSort: 'amount-desc',
   incomeSubTab: 'income',
   reportData: null,
@@ -1485,31 +1490,29 @@ function renderCashEntryCard(e) {
 }
 
 
-function setOfferFilter(cat) {
-  state.offerFilter = cat;
-  renderIncome();
-}
+function setCashFilter(cat) { state.cashFilter = cat; renderIncome(); }
+function setCashPayerFilter(payer) { state.cashPayerFilter = payer; renderIncome(); }
+function setCashPlaceFilter(place) { state.cashPlaceFilter = place; renderIncome(); }
+function setCashSort(sort) { state.cashSort = sort; renderIncome(); }
 
-function setOfferPayerFilter(payer) {
-  state.offerPayerFilter = payer;
-  renderIncome();
-}
+function setOfferFilter(cat) { state.offerFilter = cat; renderIncome(); }
+function setOfferPayerFilter(payer) { state.offerPayerFilter = payer; renderIncome(); }
+function setOfferPlaceFilter(place) { state.offerPlaceFilter = place; renderIncome(); }
+function setOfferSort(sort) { state.offerSort = sort; renderIncome(); }
 
-function setOfferSort(sort) {
-  state.offerSort = sort;
-  renderIncome();
-}
+function renderCashHoldingsSection(allCash) {
+  const categories   = [...new Set(allCash.map(e => e.category).filter(Boolean))].sort();
+  const payers       = [...new Set(allCash.map(e => e.payer).filter(Boolean))].sort();
+  const places       = [...new Set(allCash.map(e => e.place).filter(Boolean))].sort();
+  const catFilter    = state.cashFilter      || 'all';
+  const payerFilter  = state.cashPayerFilter || 'all';
+  const placeFilter  = state.cashPlaceFilter || 'all';
+  const sort         = state.cashSort        || 'amount-desc';
 
-function renderOfferSection(allOffers) {
-  const categories   = [...new Set(allOffers.map(e => e.category).filter(Boolean))].sort();
-  const payers       = [...new Set(allOffers.map(e => e.payer).filter(Boolean))].sort();
-  const catFilter    = state.offerFilter      || 'all';
-  const payerFilter  = state.offerPayerFilter || 'all';
-  const sort         = state.offerSort        || 'amount-desc';
-
-  const filtered = allOffers.filter(e => {
+  const filtered = allCash.filter(e => {
     if (catFilter   !== 'all' && (e.category || '') !== catFilter)   return false;
     if (payerFilter !== 'all' && (e.payer    || '') !== payerFilter) return false;
+    if (placeFilter !== 'all' && (e.place    || '') !== placeFilter) return false;
     return true;
   });
 
@@ -1519,6 +1522,85 @@ function renderOfferSection(allOffers) {
     if (sort === 'date-asc')    return String(a.lastAvailableDate || '').localeCompare(String(b.lastAvailableDate || ''));
     if (sort === 'category')    return String(a.category || '').localeCompare(String(b.category || ''));
     if (sort === 'payer')       return String(a.payer    || '').localeCompare(String(b.payer    || ''));
+    if (sort === 'place')       return String(a.place    || '').localeCompare(String(b.place    || ''));
+    return (Number(b.amount) || 0) - (Number(a.amount) || 0);
+  });
+
+  const total = sorted.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all';
+
+  const catChips = [
+    `<button class="offer-chip${catFilter === 'all' ? ' is-active' : ''}" onclick="setCashFilter('all')">All</button>`,
+    ...categories.map(c => `<button class="offer-chip${catFilter === c ? ' is-active' : ''}" onclick="setCashFilter('${escapeHtml(c)}')">${escapeHtml(c)}</button>`)
+  ].join('');
+
+  const payerChips = payers.length ? `
+    <div class="offer-filter-row">
+      <span class="offer-filter-label">Person:</span>
+      <div class="offer-filter-chips">
+        <button class="offer-chip offer-chip-payer${payerFilter === 'all' ? ' is-active' : ''}" onclick="setCashPayerFilter('all')">All</button>
+        ${payers.map(p => `<button class="offer-chip offer-chip-payer${payerFilter === p ? ' is-active' : ''}" onclick="setCashPayerFilter('${escapeHtml(p)}')">${escapeHtml(p)}</button>`).join('')}
+      </div>
+    </div>` : '';
+
+  const placeChips = places.length > 1 ? `
+    <div class="offer-filter-row">
+      <span class="offer-filter-label">Place:</span>
+      <div class="offer-filter-chips">
+        <button class="offer-chip offer-chip-place${placeFilter === 'all' ? ' is-active' : ''}" onclick="setCashPlaceFilter('all')">All</button>
+        ${places.map(pl => `<button class="offer-chip offer-chip-place${placeFilter === pl ? ' is-active' : ''}" onclick="setCashPlaceFilter('${escapeHtml(pl)}')">${escapeHtml(pl)}</button>`).join('')}
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="offer-controls">
+      <div class="offer-filter-rows">
+        <div class="offer-filter-row">
+          <span class="offer-filter-label">Type:</span>
+          <div class="offer-filter-chips">${catChips}</div>
+        </div>
+        ${payerChips}
+        ${placeChips}
+      </div>
+      <select class="offer-sort-select" onchange="setCashSort(this.value)">
+        <option value="amount-desc" ${sort==='amount-desc'?'selected':''}>Amount ↓</option>
+        <option value="amount-asc"  ${sort==='amount-asc' ?'selected':''}>Amount ↑</option>
+        <option value="date-desc"   ${sort==='date-desc'  ?'selected':''}>Date ↓</option>
+        <option value="date-asc"    ${sort==='date-asc'   ?'selected':''}>Date ↑</option>
+        <option value="category"    ${sort==='category'   ?'selected':''}>Category A→Z</option>
+        <option value="payer"       ${sort==='payer'      ?'selected':''}>Person A→Z</option>
+        <option value="place"       ${sort==='place'      ?'selected':''}>Place A→Z</option>
+      </select>
+    </div>
+    ${sorted.length
+      ? `<div class="cash-entries-list">${sorted.map(renderCashEntryCard).join('')}</div>
+         <div class="offer-total">Total: <strong>${amd(total)}</strong>${isFiltered ? ' (filtered)' : ''}</div>`
+      : `<div class="cash-empty">No cash entries${isFiltered ? ' matching this filter' : ''}.</div>`}`;
+}
+
+function renderOfferSection(allOffers) {
+  const categories   = [...new Set(allOffers.map(e => e.category).filter(Boolean))].sort();
+  const payers       = [...new Set(allOffers.map(e => e.payer).filter(Boolean))].sort();
+  const places       = [...new Set(allOffers.map(e => e.place).filter(Boolean))].sort();
+  const catFilter    = state.offerFilter      || 'all';
+  const payerFilter  = state.offerPayerFilter || 'all';
+  const placeFilter  = state.offerPlaceFilter || 'all';
+  const sort         = state.offerSort        || 'amount-desc';
+
+  const filtered = allOffers.filter(e => {
+    if (catFilter   !== 'all' && (e.category || '') !== catFilter)   return false;
+    if (payerFilter !== 'all' && (e.payer    || '') !== payerFilter) return false;
+    if (placeFilter !== 'all' && (e.place    || '') !== placeFilter) return false;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sort === 'amount-asc')  return (Number(a.amount) || 0) - (Number(b.amount) || 0);
+    if (sort === 'date-desc')   return String(b.lastAvailableDate || '').localeCompare(String(a.lastAvailableDate || ''));
+    if (sort === 'date-asc')    return String(a.lastAvailableDate || '').localeCompare(String(b.lastAvailableDate || ''));
+    if (sort === 'category')    return String(a.category || '').localeCompare(String(b.category || ''));
+    if (sort === 'payer')       return String(a.payer    || '').localeCompare(String(b.payer    || ''));
+    if (sort === 'place')       return String(a.place    || '').localeCompare(String(b.place    || ''));
     return (Number(b.amount) || 0) - (Number(a.amount) || 0);
   });
 
@@ -1538,7 +1620,16 @@ function renderOfferSection(allOffers) {
       </div>
     </div>` : '';
 
-  const isFiltered = catFilter !== 'all' || payerFilter !== 'all';
+  const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all';
+
+  const placeChips = places.length > 1 ? `
+    <div class="offer-filter-row">
+      <span class="offer-filter-label">Place:</span>
+      <div class="offer-filter-chips">
+        <button class="offer-chip offer-chip-place${placeFilter === 'all' ? ' is-active' : ''}" onclick="setOfferPlaceFilter('all')">All</button>
+        ${places.map(pl => `<button class="offer-chip offer-chip-place${placeFilter === pl ? ' is-active' : ''}" onclick="setOfferPlaceFilter('${escapeHtml(pl)}')">${escapeHtml(pl)}</button>`).join('')}
+      </div>
+    </div>` : '';
 
   return `
     <div class="offer-controls">
@@ -1548,6 +1639,7 @@ function renderOfferSection(allOffers) {
           <div class="offer-filter-chips">${catChips}</div>
         </div>
         ${payerChips}
+        ${placeChips}
       </div>
       <select class="offer-sort-select" onchange="setOfferSort(this.value)">
         <option value="amount-desc" ${sort==='amount-desc'?'selected':''}>Amount ↓</option>
@@ -1556,6 +1648,7 @@ function renderOfferSection(allOffers) {
         <option value="date-asc"    ${sort==='date-asc'   ?'selected':''}>Date ↑</option>
         <option value="category"    ${sort==='category'   ?'selected':''}>Category A→Z</option>
         <option value="payer"       ${sort==='payer'      ?'selected':''}>Person A→Z</option>
+        <option value="place"       ${sort==='place'      ?'selected':''}>Place A→Z</option>
       </select>
     </div>
     ${sorted.length
@@ -1566,9 +1659,7 @@ function renderOfferSection(allOffers) {
 
 function renderCashTab() {
   const offerEntries = state.cashEntries.filter(cashEntryIsOffer);
-  const cashEntries  = [...state.cashEntries].filter(e => !cashEntryIsOffer(e))
-    .sort((a, b) => String(a.place).localeCompare(String(b.place)));
-  const cashTotal = cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const cashEntries  = state.cashEntries.filter(e => !cashEntryIsOffer(e));
 
   const allCategories = [...new Set(state.cashEntries.map(e => e.category).filter(Boolean))].sort();
   const payerSuggestions = [...new Set([
@@ -1619,11 +1710,8 @@ function renderCashTab() {
     <div class="cash-list-panel">
       <div class="income-list-header">
         <h3 class="cash-section-title">Cash Holdings</h3>
-        <span class="muted">Total: <strong>${amd(cashTotal)}</strong></span>
       </div>
-      ${cashEntries.length
-        ? `<div class="cash-entries-list">${cashEntries.map(renderCashEntryCard).join('')}</div>`
-        : '<div class="cash-empty">No cash entries yet.</div>'}
+      ${renderCashHoldingsSection(cashEntries)}
       <div class="cash-offer-divider"></div>
       <div class="income-list-header">
         <h3 class="cash-section-title">Loan Offers</h3>

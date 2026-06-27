@@ -117,8 +117,8 @@ function doGet(e) {
         var amount = Number(params.amount);
         var type = params.type === 'offer' ? 'offer' : 'cash';
         var category = String(params.category || '').trim().slice(0, 80);
-        var payer = type === 'offer' ? String(params.payer || '').trim().slice(0, 80) : '';
-        var lastAvailableDate = (type === 'offer' && /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '')) ? params.lastAvailableDate : '';
+        var payer = String(params.payer || '').trim().slice(0, 80);
+        var lastAvailableDate = /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '') ? params.lastAvailableDate : '';
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
         var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, type: type, category: category, payer: payer, lastAvailableDate: lastAvailableDate, updatedAt: isoNow() };
@@ -132,8 +132,8 @@ function doGet(e) {
         var amount = Number(params.amount);
         var type = params.type === 'offer' ? 'offer' : 'cash';
         var category = String(params.category || '').trim().slice(0, 80);
-        var payer = type === 'offer' ? String(params.payer || '').trim().slice(0, 80) : '';
-        var lastAvailableDate = (type === 'offer' && /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '')) ? params.lastAvailableDate : '';
+        var payer = String(params.payer || '').trim().slice(0, 80);
+        var lastAvailableDate = /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '') ? params.lastAvailableDate : '';
         if (!id) throw new Error('Missing id');
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
