@@ -2476,6 +2476,9 @@ button:active,
 .bs-net { font-size: var(--text-16); font-weight: 700; }
 .bs-net-pos { color: var(--color-success); }
 .bs-net-neg { color: var(--color-danger); }
+.bs-credit { color: var(--color-primary); }
+.bs-liquidity { color: var(--color-text); font-size: var(--text-16); }
+.bs-liquidity-label { font-weight: 700; color: var(--color-text); font-size: var(--text-14); }
 .bs-cash-input { width: 148px; height: 34px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-2); color: var(--color-text); font: 600 var(--text-14) Inter, sans-serif; text-align: right; transition: border-color var(--motion-fast), box-shadow var(--motion-fast); }
 .bs-cash-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent); }
 

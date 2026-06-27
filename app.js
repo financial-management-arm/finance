@@ -160,7 +160,13 @@ function balanceSourceMonth(loan, month = state.month) {
   return String((snapshot && snapshot.balanceSourceMonth) || loan.balanceUpdatedMonth || '');
 }
 
+function isCreditLine(o) {
+  return String(o.category || '').toLowerCase().includes('credit') &&
+    (Number(o.currentBalance) || 0) === 0;
+}
+
 function isLoanRecord(obligation) {
+  if (isCreditLine(obligation)) return false;
   return String(obligation.category).toLowerCase() === 'loan' ||
     Number(obligation.loanTotal) > 0 || Number(obligation.currentBalance) > 0;
 }
@@ -2384,11 +2390,20 @@ function renderBalancePanel() {
   const loans = activeLoans();
   const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
   const cash = state.cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const net = cash - totalDebt;
+
+  const creditLineObs = activeObs().filter(isCreditLine);
+  const availableCredit = creditLineObs.reduce((s, o) => s + (Number(o.loanTotal) || 0), 0);
+  const liquidity = cash + availableCredit;
+  const net = liquidity - totalDebt;
   const netPos = net >= 0;
+
   const cashDetail = state.cashEntries.length
     ? state.cashEntries.map(e => `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`).join('')
-    : '<span class="bs-no-cash">No cash entries — <button class="bs-link-btn" onclick="setIncomeSubTab(\'cash\');switchTab(\'income\')">add in Income → Cash</button></span>';
+    : '<span class="bs-no-cash"><button class="bs-link-btn" onclick="setIncomeSubTab(\'cash\');switchTab(\'income\')">Add cash →</button></span>';
+  const creditDetail = creditLineObs.map(o =>
+    `<span class="bs-cash-item">${escapeHtml(o.bank)}: ${amdCompact(Number(o.loanTotal))}</span>`
+  ).join('');
+
   return `<div class="report-panel bs-panel">
     <div class="report-panel-header">
       <div class="rp-title">
@@ -2403,7 +2418,17 @@ function renderBalancePanel() {
         <span class="bs-value">${amdCompact(cash)}</span>
       </div>
       <div class="bs-cash-breakdown">${cashDetail}</div>
+      ${availableCredit > 0 ? `
+      <div class="bs-row">
+        <span class="bs-label">Available credit</span>
+        <span class="bs-value bs-credit">${amdCompact(availableCredit)}</span>
+      </div>
+      <div class="bs-cash-breakdown">${creditDetail}</div>
       <div class="bs-row bs-divider">
+        <span class="bs-label bs-liquidity-label">Total liquidity</span>
+        <span class="bs-value bs-liquidity">${amdCompact(liquidity)}</span>
+      </div>` : `<div class="bs-divider" style="margin:var(--space-2) 0"></div>`}
+      <div class="bs-row${availableCredit > 0 ? '' : ' bs-divider'}">
         <span class="bs-label">Total debt</span>
         <span class="bs-value bs-debt">${amdCompact(totalDebt)}</span>
       </div>
