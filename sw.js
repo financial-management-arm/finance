@@ -1,4 +1,4 @@
-const CACHE = 'finances-arm-v54';
+const CACHE = 'finances-arm-v55';
 
 const ASSETS = [
   './',
