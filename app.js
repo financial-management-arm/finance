@@ -1433,68 +1433,93 @@ function renderIncome() {
   if (subtab === 'income') renderIncomeTab();
 }
 
-function renderCashTab() {
-  const entries = [...state.cashEntries].sort((a, b) => String(a.place).localeCompare(String(b.place)));
-  const total = entries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const rows = entries.map(e => `
-    <div class="cash-entry" id="cash-entry-${escapeHtml(e.id)}">
-      <div class="cash-entry-view">
-        <span class="cash-place">${escapeHtml(e.place)}</span>
-        <span class="cash-entry-amount">${amd(Number(e.amount))}</span>
-        <div class="cash-entry-actions">
-          <button class="button button-ghost btn-sm" type="button" onclick="openCashEdit('${escapeHtml(e.id)}')">Edit</button>
-          <button class="button btn-delete-ghost btn-sm" type="button" onclick="confirmDeleteCash('${escapeHtml(e.id)}')">Delete</button>
-        </div>
+function renderCashEntryCard(e) {
+  return `<div class="cash-entry" id="cash-entry-${escapeHtml(e.id)}">
+    <div class="cash-entry-view">
+      <span class="cash-place">${escapeHtml(e.place)}</span>
+      <span class="cash-entry-amount">${amd(Number(e.amount))}</span>
+      <div class="cash-entry-actions">
+        <button class="button button-ghost btn-sm" type="button" onclick="openCashEdit('${escapeHtml(e.id)}')">Edit</button>
+        <button class="button btn-delete-ghost btn-sm" type="button" onclick="confirmDeleteCash('${escapeHtml(e.id)}')">Delete</button>
       </div>
-      <form class="cash-entry-edit hidden" id="cash-edit-${escapeHtml(e.id)}" onsubmit="saveCashEdit(event,'${escapeHtml(e.id)}')">
-        <input class="form-input" name="place" value="${escapeHtml(e.place)}" placeholder="Place" required maxlength="100">
-        <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
-        <div class="cash-edit-btns">
-          <button class="button button-ghost btn-sm" type="button" onclick="closeCashEdit('${escapeHtml(e.id)}')">Cancel</button>
-          <button class="button button-primary btn-sm" type="submit">Save</button>
-        </div>
-      </form>
-    </div>`).join('');
+    </div>
+    <form class="cash-entry-edit hidden" id="cash-edit-${escapeHtml(e.id)}" onsubmit="saveCashEdit(event,'${escapeHtml(e.id)}')">
+      <input class="form-input" name="place" value="${escapeHtml(e.place)}" placeholder="Place" required maxlength="100">
+      <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
+      <input type="hidden" name="type" value="${escapeHtml(e.type || 'cash')}">
+      <div class="cash-edit-btns">
+        <button class="button button-ghost btn-sm" type="button" onclick="closeCashEdit('${escapeHtml(e.id)}')">Cancel</button>
+        <button class="button button-primary btn-sm" type="submit">Save</button>
+      </div>
+    </form>
+  </div>`;
+}
+
+function renderCashTab() {
+  const sorted = [...state.cashEntries].sort((a, b) => String(a.place).localeCompare(String(b.place)));
+  const cashEntries = sorted.filter(e => (e.type || 'cash') !== 'offer');
+  const offerEntries = sorted.filter(e => e.type === 'offer');
+  const cashTotal = cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const offerTotal = offerEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
   return `<div class="cash-tab-layout">
     <div class="cash-add-panel">
-      <h3 class="cash-section-title">Add Cash</h3>
+      <h3 class="cash-section-title">Add Entry</h3>
       <form class="cash-add-form" onsubmit="submitAddCash(event)">
         <div class="form-group">
-          <label class="form-label">Place</label>
-          <input class="form-input" id="cash-new-place" placeholder="e.g. Wallet, Safe, Ameria" required maxlength="100">
+          <label class="form-label">Type</label>
+          <select class="form-input" id="cash-new-type">
+            <option value="cash">Cash Holding</option>
+            <option value="offer">Loan Offer</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Place / Bank</label>
+          <input class="form-input" id="cash-new-place" placeholder="e.g. Wallet, ACBA offer" required maxlength="100">
         </div>
         <div class="form-group">
           <label class="form-label">Amount (֏)</label>
           <input class="form-input" id="cash-new-amount" type="number" placeholder="0" min="0" step="1000" required>
         </div>
-        <button class="btn-add" type="submit">Add Cash</button>
+        <button class="btn-add" type="submit">Add</button>
       </form>
     </div>
     <div class="cash-list-panel">
       <div class="income-list-header">
         <h3 class="cash-section-title">Cash Holdings</h3>
-        <span class="muted">Total: <strong>${amd(total)}</strong></span>
+        <span class="muted">Total: <strong>${amd(cashTotal)}</strong></span>
       </div>
-      ${entries.length
-        ? `<div class="cash-entries-list">${rows}</div>`
-        : '<div class="cash-empty">No cash entries yet. Add one to track your holdings.</div>'}
+      ${cashEntries.length
+        ? `<div class="cash-entries-list">${cashEntries.map(renderCashEntryCard).join('')}</div>`
+        : '<div class="cash-empty">No cash entries yet.</div>'}
+
+      <div class="cash-offer-divider"></div>
+      <div class="income-list-header">
+        <h3 class="cash-section-title">Loan Offers</h3>
+        <span class="muted">Total: <strong>${amd(offerTotal)}</strong></span>
+      </div>
+      <div class="cash-offer-note">Pre-approved offers from banks — not yet drawn.</div>
+      ${offerEntries.length
+        ? `<div class="cash-entries-list">${offerEntries.map(renderCashEntryCard).join('')}</div>`
+        : '<div class="cash-empty">No loan offers entered yet.</div>'}
     </div>
   </div>`;
 }
 
 async function submitAddCash(event) {
   event.preventDefault();
+  const type = document.getElementById('cash-new-type').value || 'cash';
   const place = document.getElementById('cash-new-place').value.trim();
   const amount = Number(document.getElementById('cash-new-amount').value) || 0;
   if (!place) return;
-  const entry = { id: 'cash-' + Date.now(), place, amount, updatedAt: new Date().toISOString() };
+  const entry = { id: 'cash-' + Date.now(), place, amount, type, updatedAt: new Date().toISOString() };
   state.cashEntries = [...state.cashEntries, entry];
   document.getElementById('cash-new-place').value = '';
   document.getElementById('cash-new-amount').value = '';
+  document.getElementById('cash-new-type').value = 'cash';
   renderIncome();
   try {
-    await callApi({ action: 'addCashEntry', place, amount });
+    await callApi({ action: 'addCashEntry', place, amount, type });
   } catch (err) {
     state.cashEntries = state.cashEntries.filter(e => e.id !== entry.id);
     renderIncome();
@@ -1521,12 +1546,13 @@ async function saveCashEdit(event, id) {
   const form = document.getElementById('cash-edit-' + id);
   const place = form.elements.place.value.trim();
   const amount = Number(form.elements.amount.value) || 0;
+  const type = form.elements.type ? form.elements.type.value : 'cash';
   if (!place) return;
   const prev = state.cashEntries.find(e => e.id === id);
-  state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount } : e);
+  state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount, type } : e);
   renderIncome();
   try {
-    await callApi({ action: 'updateCashEntry', id, place, amount });
+    await callApi({ action: 'updateCashEntry', id, place, amount, type });
   } catch (err) {
     if (prev) state.cashEntries = state.cashEntries.map(e => e.id === id ? prev : e);
     renderIncome();
@@ -2389,19 +2415,25 @@ async function saveCash(amount) {
 function renderBalancePanel() {
   const loans = activeLoans();
   const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
-  const cash = state.cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const cashOnlyEntries = state.cashEntries.filter(e => (e.type || 'cash') !== 'offer');
+  const offerEntries = state.cashEntries.filter(e => e.type === 'offer');
+  const cash = cashOnlyEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const netPos = cash - totalDebt;
+  const netIsPos = netPos >= 0;
 
   const creditLineObs = activeObs().filter(isCreditLine);
   const availableCredit = creditLineObs.reduce((s, o) => s + (Number(o.loanTotal) || 0), 0);
-  const liquidity = cash + availableCredit;
-  const net = liquidity - totalDebt;
-  const netPos = net >= 0;
+  const liquidFunds = cash + availableCredit;
+  const totalOffers = offerEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
-  const cashDetail = state.cashEntries.length
-    ? state.cashEntries.map(e => `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`).join('')
-    : '<span class="bs-no-cash"><button class="bs-link-btn" onclick="setIncomeSubTab(\'cash\');switchTab(\'income\')">Add cash →</button></span>';
+  const cashDetail = cashOnlyEntries.length
+    ? cashOnlyEntries.map(e => `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`).join('')
+    : `<span class="bs-no-cash"><button class="bs-link-btn" onclick="setIncomeSubTab('cash');switchTab('income')">Add cash →</button></span>`;
   const creditDetail = creditLineObs.map(o =>
     `<span class="bs-cash-item">${escapeHtml(o.bank)}: ${amdCompact(Number(o.loanTotal))}</span>`
+  ).join('');
+  const offerDetail = offerEntries.map(e =>
+    `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`
   ).join('');
 
   return `<div class="report-panel bs-panel">
@@ -2410,32 +2442,51 @@ function renderBalancePanel() {
         <svg class="rp-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16M6 13h2"/></svg>
         Balance Sheet
       </div>
-      <button class="rp-badge bs-manage-btn" onclick="setIncomeSubTab('cash');switchTab('income')">Manage cash →</button>
+      <button class="rp-badge bs-manage-btn" onclick="setIncomeSubTab('cash');switchTab('income')">Manage →</button>
     </div>
     <div class="report-panel-body rp-pad">
+
+      <div class="bs-section-label">Net Position</div>
       <div class="bs-row">
         <span class="bs-label">Cash on hand</span>
         <span class="bs-value">${amdCompact(cash)}</span>
       </div>
       <div class="bs-cash-breakdown">${cashDetail}</div>
-      ${availableCredit > 0 ? `
       <div class="bs-row">
-        <span class="bs-label">Available credit</span>
-        <span class="bs-value bs-credit">${amdCompact(availableCredit)}</span>
-      </div>
-      <div class="bs-cash-breakdown">${creditDetail}</div>
-      <div class="bs-row bs-divider">
-        <span class="bs-label bs-liquidity-label">Total liquidity</span>
-        <span class="bs-value bs-liquidity">${amdCompact(liquidity)}</span>
-      </div>` : `<div class="bs-divider" style="margin:var(--space-2) 0"></div>`}
-      <div class="bs-row${availableCredit > 0 ? '' : ' bs-divider'}">
         <span class="bs-label">Total debt</span>
         <span class="bs-value bs-debt">${amdCompact(totalDebt)}</span>
       </div>
       <div class="bs-row bs-net-row">
         <span class="bs-label bs-net-label">Net position</span>
-        <span class="bs-value bs-net ${netPos ? 'bs-net-pos' : 'bs-net-neg'}">${netPos ? '+' : '−'}${amdCompact(Math.abs(net))}</span>
+        <span class="bs-value bs-net ${netIsPos ? 'bs-net-pos' : 'bs-net-neg'}">${netIsPos ? '+' : '−'}${amdCompact(Math.abs(netPos))}</span>
       </div>
+
+      <div class="bs-section-divider"></div>
+      <div class="bs-section-label">Liquid Funds</div>
+      <div class="bs-row">
+        <span class="bs-label">Cash on hand</span>
+        <span class="bs-value">${amdCompact(cash)}</span>
+      </div>
+      ${availableCredit > 0 ? `
+      <div class="bs-row">
+        <span class="bs-label">Credit lines</span>
+        <span class="bs-value bs-credit">${amdCompact(availableCredit)}</span>
+      </div>
+      <div class="bs-cash-breakdown">${creditDetail}</div>` : ''}
+      <div class="bs-row bs-net-row">
+        <span class="bs-label bs-liquidity-label">Liquid funds</span>
+        <span class="bs-value bs-liquidity">${amdCompact(liquidFunds)}</span>
+      </div>
+
+      <div class="bs-section-divider"></div>
+      <div class="bs-section-label">Loan Offers</div>
+      ${offerEntries.length ? `
+      <div class="bs-cash-breakdown">${offerDetail}</div>
+      <div class="bs-row bs-net-row">
+        <span class="bs-label bs-liquidity-label">Total offers</span>
+        <span class="bs-value bs-offer">${amdCompact(totalOffers)}</span>
+      </div>` : `<div class="bs-row"><span class="bs-no-cash"><button class="bs-link-btn" onclick="setIncomeSubTab('cash');switchTab('income')">Add loan offer →</button></span></div>`}
+
     </div>
   </div>`;
 }

@@ -17,7 +17,7 @@ var SCHEMAS = {
     'completed', 'completedAt', 'snapshotAt', 'updatedAt'
   ],
   Utilities: ['id', 'name', 'payer', 'provider', 'abonentNumber', 'amount', 'type', 'dueDay', 'active', 'personalExpense'],
-  Cash: ['id', 'place', 'amount', 'updatedAt']
+  Cash: ['id', 'place', 'amount', 'type', 'updatedAt']
 };
 
 function doGet(e) {
@@ -115,9 +115,10 @@ function doGet(e) {
       result = withLock(function() {
         var place = String(params.place || '').trim().slice(0, 100);
         var amount = Number(params.amount);
+        var type = params.type === 'offer' ? 'offer' : 'cash';
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
-        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, updatedAt: isoNow() };
+        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, type: type, updatedAt: isoNow() };
         appendObject(ss.getSheetByName('Cash'), entry);
         return { success: true, entry: entry };
       });
@@ -126,10 +127,11 @@ function doGet(e) {
         var id = String(params.id || '');
         var place = String(params.place || '').trim().slice(0, 100);
         var amount = Number(params.amount);
+        var type = params.type === 'offer' ? 'offer' : 'cash';
         if (!id) throw new Error('Missing id');
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
-        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, updatedAt: isoNow() });
+        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, type: type, updatedAt: isoNow() });
         return { success: true };
       });
     } else if (action === 'deleteCashEntry') {
