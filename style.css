@@ -394,6 +394,12 @@ tfoot td {
   padding: 0 10px; color: var(--text); font: 500 13px Inter, sans-serif;
 }
 .edit-grid input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.edit-grid select {
+  width: 100%; height: 38px; border: 1px solid var(--color-border);
+  border-radius: 8px; padding: 0 10px; color: var(--color-text);
+  background: var(--color-surface-1); font: 500 13px Inter, sans-serif;
+}
+.edit-grid select:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent); }
 .edit-wide { grid-column: 1 / -1; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .btn-primary, .btn-secondary {
@@ -749,6 +755,10 @@ tfoot td {
   --text-13: 13px;
   --text-15: 15px;
   --text-18: 18px;
+  --text-11: 11px;
+  --text-14: 14px;
+  --text-16: 16px;
+  --text-20: 20px;
   --text-24: 24px;
   --leading-tight: 1.2;
   --leading-normal: 1.5;
@@ -766,6 +776,7 @@ tfoot td {
   --radius-card: 10px;
   --radius-modal: 16px;
   --radius-pill: 999px;
+  --radius-md: 6px;
 
   --shadow-inset: inset 0 1px 2px rgba(8, 13, 24, .08);
   --shadow-flat: 0 1px 2px rgba(8, 13, 24, .06), 0 8px 24px rgba(8, 13, 24, .04);
@@ -1309,7 +1320,17 @@ tbody tr:hover td { background: transparent; }
 .payment-basic-actions {
   justify-content: flex-end;
 }
+.payment-basic-card .partial-info,
+.payment-basic-card .payment-basic-actions,
+.payment-basic-card .pay-panel {
+  grid-column: 1 / -1;
+}
 .payment-not-done {
+  color: var(--color-danger);
+}
+.payment-not-done:hover {
+  background: var(--color-danger-soft);
+  border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-border));
   color: var(--color-danger);
 }
 .payment-no-need {
@@ -1588,17 +1609,8 @@ tbody tr:hover td { background: transparent; }
 }
 
 @media (max-width: 768px) {
-  .app {
-    height: auto;
-    min-height: 100dvh;
-    padding-bottom: calc(96px + env(safe-area-inset-bottom));
-  }
-  .sidebar {
-    height: calc(72px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    background: color-mix(in srgb, var(--color-sidebar) 94%, transparent);
-    backdrop-filter: blur(20px);
-  }
+  .app { padding-bottom: 72px; }
+  .sidebar { height: 72px; background: color-mix(in srgb, var(--color-sidebar) 94%, transparent); backdrop-filter: blur(20px); }
   .sidebar-nav { padding: var(--space-2); gap: var(--space-1); }
   .sidebar-nav a {
     height: 56px;
@@ -1619,15 +1631,11 @@ tbody tr:hover td { background: transparent; }
     animation: dotIn 120ms var(--ease-enter);
   }
   @keyframes dotIn { from { transform: scale(0); } to { transform: scale(1); } }
-  .main,
-  .page {
-    min-height: auto;
-  }
   .page-header { min-height: 68px; padding: var(--space-3) var(--space-4); align-items: center; }
   .page-header > div:first-child { min-width: 88px; }
   .month-nav { flex-wrap: nowrap; justify-content: flex-end; }
   .month-label { min-width: 96px; }
-  .page-body { padding: var(--space-4) var(--space-4) calc(var(--space-4) + 24px); }
+  .page-body { padding: var(--space-4); }
   .today-body { gap: var(--space-5); }
   .today-hero { min-height: 184px; padding: var(--space-5); }
   .progress-ring-wrap { width: 112px; height: 112px; flex-basis: 112px; }
@@ -1846,7 +1854,8 @@ tbody tr:hover td { background: transparent; }
   letter-spacing: .04em;
   text-transform: uppercase;
 }
-.inline-loan-edit input {
+.inline-loan-edit input,
+.inline-loan-edit select {
   min-height: 44px;
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
@@ -1854,9 +1863,11 @@ tbody tr:hover td { background: transparent; }
   background: var(--color-surface-2);
   color: var(--color-text);
   box-shadow: var(--shadow-inset);
+  font: inherit;
   font-size: var(--text-13);
 }
-.inline-edit-wide { grid-column: 1 / -1; }
+.inline-edit-wide,
+.start-month-field { grid-column: 1 / -1; }
 .inline-edit-actions {
   grid-column: 1 / -1;
   display: flex;
@@ -2410,6 +2421,21 @@ button:active,
   to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
+/* ── Balance Sheet panel ── */
+.bs-panel { max-width: 440px; }
+.bs-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) 0; }
+.bs-divider { border-top: 1px solid var(--color-border); margin-top: var(--space-2); padding-top: var(--space-3); }
+.bs-label { font-size: var(--text-13); color: var(--color-muted); font-weight: 500; }
+.bs-value { font-size: var(--text-14); font-weight: 600; color: var(--color-text); text-align: right; display: flex; align-items: center; gap: 6px; }
+.bs-debt { color: var(--color-danger); }
+.bs-net-row { border-top: 2px solid var(--color-border); margin-top: var(--space-2); padding-top: var(--space-3); }
+.bs-net-label { font-size: var(--text-14); font-weight: 700; color: var(--color-text); }
+.bs-net { font-size: var(--text-16); font-weight: 700; }
+.bs-net-pos { color: var(--color-success); }
+.bs-net-neg { color: var(--color-danger); }
+.bs-cash-input { width: 148px; height: 34px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-2); color: var(--color-text); font: 600 var(--text-14) Inter, sans-serif; text-align: right; transition: border-color var(--motion-fast), box-shadow var(--motion-fast); }
+.bs-cash-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent); }
+
 /* Respect the OS accessibility preference. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -2417,39 +2443,5 @@ button:active,
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
-  }
-}
-
-/* Mobile browsers with bottom toolbars need the document itself to own
-   the scroll height; otherwise the fixed tab bar can cover the last rows. */
-@media (max-width: 768px) {
-  html,
-  body {
-    height: auto;
-    min-height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  body {
-    min-height: 100dvh;
-  }
-
-  .app {
-    height: auto;
-    min-height: 100dvh;
-    overflow: visible;
-    padding-bottom: calc(96px + env(safe-area-inset-bottom));
-  }
-
-  .main,
-  .page {
-    min-height: auto;
-    overflow: visible;
-  }
-
-  .sidebar {
-    height: calc(72px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
   }
 }

@@ -18,6 +18,7 @@ const state = {
   scheduleSort: 'due-asc',
   loanSort: 'debt-desc',
   incomeSort: 'date-desc',
+  cash: 0,
   reportData: null,
   reportWindow: 6,
   reportLoading: false,
@@ -234,6 +235,7 @@ async function fetchAll() {
     state.income = data.income || [];
     state.loanHistory = data.loanHistory || [];
     state.utilities = data.utilities || [];
+    state.cash = Number(data.cash) || 0;
     renderPayerFilters();
     render();
   } catch (err) {
@@ -1880,6 +1882,7 @@ function renderReports() {
 
   body.innerHTML = `
     ${payerBar}
+    ${renderBalancePanel()}
     ${renderReportSummary(d)}
     ${renderCashFlowPanel(d)}
     <div class="report-2col">
@@ -2140,6 +2143,59 @@ function renderHealthPanel(d) {
       <div class="health-missed">
         <div class="health-missed-title">Missed payments</div>
         ${missedHtml}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function saveCash(amount) {
+  const amt = Math.max(0, Math.round(Number(String(amount).replace(/[^\d.]/g, '')) || 0));
+  state.cash = amt;
+  const loans = activeLoans();
+  const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
+  const net = amt - totalDebt;
+  const netEl = document.querySelector('.bs-net');
+  if (netEl) {
+    netEl.textContent = (net >= 0 ? '+' : '−') + amdCompact(Math.abs(net));
+    netEl.className = 'bs-value bs-net ' + (net >= 0 ? 'bs-net-pos' : 'bs-net-neg');
+  }
+  try {
+    await callApi({ action: 'setCash', amount: amt });
+  } catch (err) {
+    showError('Could not save cash: ' + err.message);
+  }
+}
+
+function renderBalancePanel() {
+  const loans = activeLoans();
+  const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
+  const cash = Number(state.cash) || 0;
+  const net = cash - totalDebt;
+  const netPos = net >= 0;
+  return `<div class="report-panel bs-panel">
+    <div class="report-panel-header">
+      <div class="rp-title">
+        <svg class="rp-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16M6 13h2"/></svg>
+        Balance Sheet
+      </div>
+    </div>
+    <div class="report-panel-body rp-pad">
+      <div class="bs-row">
+        <span class="bs-label">Cash on hand</span>
+        <span class="bs-value">
+          <input class="bs-cash-input" type="number" min="0" step="1000"
+            value="${cash}"
+            onchange="saveCash(this.value)"
+            onblur="saveCash(this.value)"> ֏
+        </span>
+      </div>
+      <div class="bs-row bs-divider">
+        <span class="bs-label">Total debt</span>
+        <span class="bs-value bs-debt">${amdCompact(totalDebt)}</span>
+      </div>
+      <div class="bs-row bs-net-row">
+        <span class="bs-label bs-net-label">Net position</span>
+        <span class="bs-value bs-net ${netPos ? 'bs-net-pos' : 'bs-net-neg'}">${netPos ? '+' : '−'}${amdCompact(Math.abs(net))}</span>
       </div>
     </div>
   </div>`;

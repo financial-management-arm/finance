@@ -39,6 +39,7 @@ function doGet(e) {
         income: sheetToJson(ss, 'Income'),
         loanHistory: sheetToJson(ss, 'Loans'),
         utilities: sheetToJson(ss, 'Utilities'),
+        cash: Number(PropertiesService.getScriptProperties().getProperty('availableCash')) || 0,
         serverMonth: month,
         syncedAt: isoNow()
       };
@@ -82,6 +83,11 @@ function doGet(e) {
       result = withLock(function() {
         return deleteUtility(ss, params);
       });
+    } else if (action === 'setCash') {
+      var cashAmt = Number(params.amount);
+      if (!isFinite(cashAmt) || cashAmt < 0) throw new Error('Invalid cash amount');
+      PropertiesService.getScriptProperties().setProperty('availableCash', String(cashAmt));
+      result = { success: true, cash: cashAmt };
     } else if (action === 'getReportData') {
       result = getReportData(ss, params);
     } else if (action === 'repairSchema') {
