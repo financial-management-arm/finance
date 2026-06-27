@@ -20,6 +20,7 @@ const state = {
   incomeSort: 'date-desc',
   cashEntries: [],
   offerFilter: 'all',
+  offerPayerFilter: 'all',
   offerSort: 'amount-desc',
   incomeSubTab: 'income',
   reportData: null,
@@ -1444,10 +1445,11 @@ function cashEntryIsOffer(e) {
 function renderCashEntryCard(e) {
   const isOffer = cashEntryIsOffer(e);
   const sid = escapeHtml(e.id);
-  const offerTags = isOffer ? `<div class="offer-tags">
+  const hasTags = e.category || (isOffer && (e.payer || (e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate))));
+  const offerTags = hasTags ? `<div class="offer-tags">
     ${e.category ? `<span class="offer-tag offer-tag-cat">${escapeHtml(e.category)}</span>` : ''}
-    ${e.payer    ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>`    : ''}
-    ${e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate) ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
+    ${isOffer && e.payer ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>` : ''}
+    ${isOffer && e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate) ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
   </div>` : '';
   return `<div class="cash-entry" id="cash-entry-${sid}">
     <div class="cash-entry-view">
@@ -1466,9 +1468,9 @@ function renderCashEntryCard(e) {
         <option value="cash"  ${!isOffer ? 'selected' : ''}>Cash Holding</option>
         <option value="offer" ${isOffer  ? 'selected' : ''}>Loan Offer</option>
       </select>
+      <input class="form-input" name="category" type="text" list="all-categories-list" value="${escapeHtml(e.category || '')}" placeholder="Category (optional)" maxlength="80">
       <div class="cash-edit-offer-fields ${isOffer ? '' : 'hidden'}">
-        <input class="form-input" name="category" type="text" list="offer-categories-list" value="${escapeHtml(e.category || '')}" placeholder="Category" maxlength="80">
-        <input class="form-input" name="payer"    type="text" list="offer-payers-list"     value="${escapeHtml(e.payer    || '')}" placeholder="For whom"  maxlength="80">
+        <input class="form-input" name="payer" type="text" list="offer-payers-list" value="${escapeHtml(e.payer || '')}" placeholder="For whom" maxlength="80">
         <input class="form-input" name="lastAvailableDate" type="date" value="${escapeHtml(e.lastAvailableDate || '')}">
       </div>
       <input class="form-input" name="place"  value="${escapeHtml(e.place)}" placeholder="Bank / Place" required maxlength="100">
@@ -1496,43 +1498,78 @@ function setOfferFilter(cat) {
   renderIncome();
 }
 
+function setOfferPayerFilter(payer) {
+  state.offerPayerFilter = payer;
+  renderIncome();
+}
+
 function setOfferSort(sort) {
   state.offerSort = sort;
   renderIncome();
 }
 
 function renderOfferSection(allOffers) {
-  const categories = [...new Set(allOffers.map(e => e.category).filter(Boolean))].sort();
-  const filter = state.offerFilter || 'all';
-  const sort = state.offerSort || 'amount-desc';
-  const filtered = filter === 'all' ? allOffers : allOffers.filter(e => (e.category || '') === filter);
+  const categories   = [...new Set(allOffers.map(e => e.category).filter(Boolean))].sort();
+  const payers       = [...new Set(allOffers.map(e => e.payer).filter(Boolean))].sort();
+  const catFilter    = state.offerFilter      || 'all';
+  const payerFilter  = state.offerPayerFilter || 'all';
+  const sort         = state.offerSort        || 'amount-desc';
+
+  const filtered = allOffers.filter(e => {
+    if (catFilter   !== 'all' && (e.category || '') !== catFilter)   return false;
+    if (payerFilter !== 'all' && (e.payer    || '') !== payerFilter) return false;
+    return true;
+  });
+
   const sorted = [...filtered].sort((a, b) => {
     if (sort === 'amount-asc')  return (Number(a.amount) || 0) - (Number(b.amount) || 0);
     if (sort === 'date-desc')   return String(b.lastAvailableDate || '').localeCompare(String(a.lastAvailableDate || ''));
     if (sort === 'date-asc')    return String(a.lastAvailableDate || '').localeCompare(String(b.lastAvailableDate || ''));
     if (sort === 'category')    return String(a.category || '').localeCompare(String(b.category || ''));
+    if (sort === 'payer')       return String(a.payer    || '').localeCompare(String(b.payer    || ''));
     return (Number(b.amount) || 0) - (Number(a.amount) || 0);
   });
+
   const total = sorted.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const chips = [
-    `<button class="offer-chip${filter === 'all' ? ' is-active' : ''}" onclick="setOfferFilter('all')">All</button>`,
-    ...categories.map(c => `<button class="offer-chip${filter === c ? ' is-active' : ''}" onclick="setOfferFilter('${escapeHtml(c)}')">${escapeHtml(c)}</button>`)
+
+  const catChips = [
+    `<button class="offer-chip${catFilter === 'all' ? ' is-active' : ''}" onclick="setOfferFilter('all')">All</button>`,
+    ...categories.map(c => `<button class="offer-chip${catFilter === c ? ' is-active' : ''}" onclick="setOfferFilter('${escapeHtml(c)}')">${escapeHtml(c)}</button>`)
   ].join('');
+
+  const payerChips = payers.length ? `
+    <div class="offer-filter-row">
+      <span class="offer-filter-label">Person:</span>
+      <div class="offer-filter-chips">
+        <button class="offer-chip offer-chip-payer${payerFilter === 'all' ? ' is-active' : ''}" onclick="setOfferPayerFilter('all')">All</button>
+        ${payers.map(p => `<button class="offer-chip offer-chip-payer${payerFilter === p ? ' is-active' : ''}" onclick="setOfferPayerFilter('${escapeHtml(p)}')">${escapeHtml(p)}</button>`).join('')}
+      </div>
+    </div>` : '';
+
+  const isFiltered = catFilter !== 'all' || payerFilter !== 'all';
+
   return `
     <div class="offer-controls">
-      <div class="offer-filter-chips">${chips}</div>
+      <div class="offer-filter-rows">
+        <div class="offer-filter-row">
+          <span class="offer-filter-label">Type:</span>
+          <div class="offer-filter-chips">${catChips}</div>
+        </div>
+        ${payerChips}
+      </div>
       <select class="offer-sort-select" onchange="setOfferSort(this.value)">
         <option value="amount-desc" ${sort==='amount-desc'?'selected':''}>Amount ↓</option>
         <option value="amount-asc"  ${sort==='amount-asc' ?'selected':''}>Amount ↑</option>
         <option value="date-desc"   ${sort==='date-desc'  ?'selected':''}>Date ↓</option>
         <option value="date-asc"    ${sort==='date-asc'   ?'selected':''}>Date ↑</option>
         <option value="category"    ${sort==='category'   ?'selected':''}>Category A→Z</option>
+        <option value="payer"       ${sort==='payer'      ?'selected':''}>Person A→Z</option>
       </select>
     </div>
     ${sorted.length
       ? `<div class="cash-entries-list">${sorted.map(renderCashEntryCard).join('')}</div>
-         <div class="offer-total">Showing: <strong>${amd(total)}</strong></div>`
-      : `<div class="cash-empty">No loan offers${filter !== 'all' ? ' in this category' : ''}.</div>`}`;
+         <div class="offer-total">Showing: <strong>${amd(total)}</strong>${isFiltered ? ' (filtered)' : ''}</div>`
+      : `<div class="cash-empty">No loan offers${isFiltered ? ' matching this filter' : ''}.</div>`}`;
 }
 
 function renderCashTab() {
@@ -1541,14 +1578,14 @@ function renderCashTab() {
     .sort((a, b) => String(a.place).localeCompare(String(b.place)));
   const cashTotal = cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
-  const offerCategories = [...new Set(offerEntries.map(e => e.category).filter(Boolean))].sort();
+  const allCategories = [...new Set(state.cashEntries.map(e => e.category).filter(Boolean))].sort();
   const payerSuggestions = [...new Set([
     ...state.obligations.map(o => o.payer).filter(Boolean),
     ...offerEntries.map(e => e.payer).filter(Boolean)
   ])].sort();
 
   const datalists = `
-    <datalist id="offer-categories-list">${offerCategories.map(c => `<option value="${escapeHtml(c)}">`).join('')}</datalist>
+    <datalist id="all-categories-list">${allCategories.map(c => `<option value="${escapeHtml(c)}">`).join('')}</datalist>
     <datalist id="offer-payers-list">${payerSuggestions.map(p => `<option value="${escapeHtml(p)}">`).join('')}</datalist>`;
 
   return `${datalists}<div class="cash-tab-layout">
@@ -1562,11 +1599,11 @@ function renderCashTab() {
             <option value="offer">Loan Offer</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <input class="form-input" id="cash-new-category" type="text" list="all-categories-list" placeholder="e.g. Ապառիկ, Cash, Credit Line" maxlength="80">
+        </div>
         <div id="cash-new-offer-fields" class="hidden">
-          <div class="form-group">
-            <label class="form-label">Category</label>
-            <input class="form-input" id="cash-new-category" type="text" list="offer-categories-list" placeholder="e.g. Ապառիկ, Cash, Credit Line" maxlength="80">
-          </div>
           <div class="form-group">
             <label class="form-label">For whom</label>
             <input class="form-input" id="cash-new-payer" type="text" list="offer-payers-list" placeholder="e.g. Hovhannes" maxlength="80">
@@ -1608,7 +1645,7 @@ function renderCashTab() {
 async function submitAddCash(event) {
   event.preventDefault();
   const type     = document.getElementById('cash-new-type').value || 'cash';
-  const category = type === 'offer' ? (document.getElementById('cash-new-category').value.trim()) : '';
+  const category = document.getElementById('cash-new-category').value.trim();
   const payer    = type === 'offer' ? (document.getElementById('cash-new-payer').value.trim()) : '';
   const lastAvailableDate = type === 'offer' ? (document.getElementById('cash-new-date').value) : '';
   const place    = document.getElementById('cash-new-place').value.trim();
@@ -1618,8 +1655,8 @@ async function submitAddCash(event) {
   state.cashEntries = [...state.cashEntries, entry];
   document.getElementById('cash-new-place').value = '';
   document.getElementById('cash-new-amount').value = '';
+  document.getElementById('cash-new-category').value = '';
   if (type === 'offer') {
-    document.getElementById('cash-new-category').value = '';
     document.getElementById('cash-new-payer').value = '';
     document.getElementById('cash-new-date').value = '';
   }
@@ -1651,7 +1688,7 @@ async function saveCashEdit(event, id) {
   event.preventDefault();
   const form = document.getElementById('cash-edit-' + id);
   const type     = form.elements.type ? form.elements.type.value : 'cash';
-  const category = type === 'offer' && form.elements.category ? form.elements.category.value.trim() : '';
+  const category = form.elements.category ? form.elements.category.value.trim() : '';
   const payer    = type === 'offer' && form.elements.payer    ? form.elements.payer.value.trim()    : '';
   const lastAvailableDate = type === 'offer' && form.elements.lastAvailableDate ? form.elements.lastAvailableDate.value : '';
   const place  = form.elements.place.value.trim();

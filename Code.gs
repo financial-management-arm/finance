@@ -116,7 +116,7 @@ function doGet(e) {
         var place = String(params.place || '').trim().slice(0, 100);
         var amount = Number(params.amount);
         var type = params.type === 'offer' ? 'offer' : 'cash';
-        var category = type === 'offer' ? String(params.category || '').trim().slice(0, 80) : '';
+        var category = String(params.category || '').trim().slice(0, 80);
         var payer = type === 'offer' ? String(params.payer || '').trim().slice(0, 80) : '';
         var lastAvailableDate = (type === 'offer' && /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '')) ? params.lastAvailableDate : '';
         if (!place) throw new Error('Place is required');
@@ -131,7 +131,7 @@ function doGet(e) {
         var place = String(params.place || '').trim().slice(0, 100);
         var amount = Number(params.amount);
         var type = params.type === 'offer' ? 'offer' : 'cash';
-        var category = type === 'offer' ? String(params.category || '').trim().slice(0, 80) : '';
+        var category = String(params.category || '').trim().slice(0, 80);
         var payer = type === 'offer' ? String(params.payer || '').trim().slice(0, 80) : '';
         var lastAvailableDate = (type === 'offer' && /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '')) ? params.lastAvailableDate : '';
         if (!id) throw new Error('Missing id');
