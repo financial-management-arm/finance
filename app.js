@@ -7,6 +7,7 @@ const state = {
   obligations: [],
   payments: {},   // "id__YYYY-MM" -> true/false
   paymentMeta: {},
+  monthCache: {}, // "YYYY-MM" -> last raw API response (stale-while-revalidate)
   income: [],
   loanHistory: [],
   utilities: [],
@@ -309,23 +310,30 @@ async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
   }
 }
 
+// Apply a raw "all" API response into state and re-render.
+function applyAllData(data) {
+  state.obligations = data.obligations || [];
+  state.payments = {};
+  state.paymentMeta = {};
+  (data.payments || []).forEach(p => {
+    state.payments[p.key] = (p.paid === true || String(p.paid).toUpperCase() === 'TRUE');
+    state.paymentMeta[p.key] = p;
+  });
+  state.income = data.income || [];
+  state.loanHistory = data.loanHistory || [];
+  state.utilities = data.utilities || [];
+  state.cashEntries = data.cashEntries || [];
+  renderPayerFilters();
+  render();
+}
+
 async function fetchAll() {
   showLoading(true);
   try {
-    const data = await callApi({ action: 'all', month: state.month });
-    state.obligations = data.obligations || [];
-    state.payments = {};
-    state.paymentMeta = {};
-    (data.payments || []).forEach(p => {
-      state.payments[p.key] = (p.paid === true || String(p.paid).toUpperCase() === 'TRUE');
-      state.paymentMeta[p.key] = p;
-    });
-    state.income = data.income || [];
-    state.loanHistory = data.loanHistory || [];
-    state.utilities = data.utilities || [];
-    state.cashEntries = data.cashEntries || [];
-    renderPayerFilters();
-    render();
+    const month = state.month;
+    const data = await callApi({ action: 'all', month });
+    state.monthCache[month] = data;
+    applyAllData(data);
   } catch (err) {
     showError('Could not load data: ' + err.message);
   } finally {
@@ -345,6 +353,7 @@ async function setPaymentStatus(id, status) {
 
 async function setPaymentWithAmount(id, status, paidAmt) {
   const key = pkey(id, state.month);
+  delete state.monthCache[state.month]; // this month's cached snapshot is now stale
   const previousPaid = !!state.payments[key];
   const previousMeta = state.paymentMeta[key] ? { ...state.paymentMeta[key] } : null;
   const paid = status === 'paid';
@@ -671,22 +680,24 @@ async function completeLoan(id, button) {
 async function refreshData(showSkeleton = true) {
   if (showSkeleton) showLoading(true);
   try {
-    const data = await callApi({ action: 'all', month: state.month });
-    state.obligations = data.obligations || [];
-    state.payments = {};
-    state.paymentMeta = {};
-    (data.payments || []).forEach(p => {
-      state.payments[p.key] = p.paid === true || String(p.paid).toUpperCase() === 'TRUE';
-      state.paymentMeta[p.key] = p;
-    });
-    state.income = data.income || [];
-    state.loanHistory = data.loanHistory || [];
-    state.utilities = data.utilities || [];
-    state.cashEntries = data.cashEntries || [];
-    renderPayerFilters();
-    render();
+    const month = state.month;
+    const data = await callApi({ action: 'all', month });
+    state.monthCache[month] = data;
+    applyAllData(data);
   } finally {
     if (showSkeleton) showLoading(false);
+  }
+}
+
+// Refresh a month in the background without a full-screen skeleton.
+// Only repaints if the user is still viewing that month when it returns.
+async function revalidateMonth(month) {
+  try {
+    const data = await callApi({ action: 'all', month });
+    state.monthCache[month] = data;
+    if (state.month === month) applyAllData(data);
+  } catch {
+    /* keep the cached view; a later refresh will correct it */
   }
 }
 
@@ -3562,7 +3573,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function changeMonth(month) {
   if (state.month === month) return;
   state.month = month;
-  refreshData(true).catch(err => showError('Could not load month: ' + err.message));
+  const cached = state.monthCache[month];
+  if (cached) {
+    // Instant: paint the cached month, then quietly refresh in the background.
+    applyAllData(cached);
+    revalidateMonth(month);
+  } else {
+    refreshData(true).catch(err => showError('Could not load month: ' + err.message));
+  }
 }
 
 function renderPayerFilters() {
