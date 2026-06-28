@@ -865,6 +865,7 @@ function renderSchedule() {
   if (paymentFilterCount) {
     const count = activePaymentFilterCount();
     paymentFilterCount.textContent = count ? `(${count} active)` : '';
+    updateFilterBadge('payment', count);
   }
   const board = q('payments-board');
   if (board) {
@@ -1304,6 +1305,7 @@ function renderLoans() {
   if (filterCount) {
     const count = activeObligationFilterCount();
     filterCount.textContent = count ? `(${count} active)` : '';
+    updateFilterBadge('obligation', count);
   }
 
   const loansSection = loans.length ? `
@@ -3336,6 +3338,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('pointerdown', setPointerMode, true);
   document.addEventListener('touchstart', setPointerMode, { capture: true, passive: true });
 
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.body.classList.contains('filter-drawer-open')) {
+      closeFilterDrawer();
+    }
+  });
+
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
   // Tab nav
@@ -3561,4 +3569,50 @@ function renderPayerFilters() {
       `<button class="pill" data-filter="${escapeHtml(p)}">${escapeHtml(p)}</button>`
     )
   ].join('');
+}
+
+// ================================================================
+// Filter Drawer
+// ================================================================
+function openFilterDrawer(tab) {
+  const isPayment = tab === 'payment';
+  const paymentBody = document.getElementById('drawer-payment-filters');
+  const obligationBody = document.getElementById('drawer-obligation-filters');
+  const paymentClear = q('payment-clear-filters');
+  const obligationClear = q('obligation-clear-filters');
+  const resultsEl = document.getElementById('filter-results-count');
+
+  if (paymentBody) paymentBody.classList.toggle('hidden', !isPayment);
+  if (obligationBody) obligationBody.classList.toggle('hidden', isPayment);
+  if (paymentClear) paymentClear.classList.toggle('hidden', !isPayment);
+  if (obligationClear) obligationClear.classList.toggle('hidden', isPayment);
+
+  if (resultsEl) {
+    const src = q(isPayment ? 'payment-results-count' : 'obligation-results-count');
+    resultsEl.textContent = src ? src.textContent : '';
+  }
+
+  document.body.classList.add('filter-drawer-open');
+
+  const activeBody = isPayment ? paymentBody : obligationBody;
+  if (activeBody) {
+    const first = activeBody.querySelector('input, select');
+    if (first) setTimeout(() => first.focus(), 320);
+  }
+}
+
+function closeFilterDrawer() {
+  document.body.classList.remove('filter-drawer-open');
+}
+
+function updateFilterBadge(tab, count) {
+  const badgeId = tab === 'payment' ? 'payment-filter-badge' : 'obligation-filter-badge';
+  const btnId   = tab === 'payment' ? 'payment-filter-btn'   : 'obligation-filter-btn';
+  const badge = document.getElementById(badgeId);
+  const btn   = document.getElementById(btnId);
+  if (badge) {
+    badge.textContent = count || '';
+    badge.classList.toggle('hidden', !count);
+  }
+  if (btn) btn.classList.toggle('has-filters', count > 0);
 }

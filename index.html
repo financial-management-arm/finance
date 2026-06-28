@@ -116,123 +116,19 @@
     <section id="page-schedule" class="page active">
       <div class="page-header">
         <h1>Payment Schedule</h1>
+        <div class="page-header-actions">
+          <button class="filter-trigger-btn" id="payment-filter-btn" type="button" onclick="openFilterDrawer('payment')" aria-label="Open filters">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+            Filters
+            <span class="filter-badge hidden" id="payment-filter-badge"></span>
+          </button>
+        </div>
         <div class="month-nav">
           <button class="btn-nav btn-prev" aria-label="Previous month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 15-5-5 5-5"/></svg></button>
           <span class="month-label"></span>
           <button class="btn-nav btn-next" aria-label="Next month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 5 5 5-5 5"/></svg></button>
           <button class="btn-today">Today</button>
         </div>
-      </div>
-      <div class="obligation-tools payment-filter-tools">
-        <div class="obligation-tools-primary">
-          <label class="obligation-search">
-            <span>Search</span>
-            <input id="schedule-search" type="search"
-                   placeholder="Bank, payer, contract, category..."
-                   aria-label="Search payments">
-          </label>
-          <label>
-            <span>Type</span>
-            <select id="payment-type">
-              <option value="all">All types</option>
-              <option value="loan">Loans</option>
-              <option value="other">Other payments</option>
-            </select>
-          </label>
-          <label>
-            <span>Status</span>
-            <select id="payment-status">
-              <option value="unresolved">Unresolved</option>
-              <option value="all">Any status</option>
-              <option value="resolved">Resolved</option>
-              <option value="paid">Paid</option>
-              <option value="partial">Partial</option>
-              <option value="not_done">Did not pay</option>
-              <option value="no_need">No need</option>
-              <option value="unpaid">Unpaid</option>
-            </select>
-          </label>
-          <label class="completed-toggle payment-completed-toggle">
-            <input id="show-completed" type="checkbox">
-            <span>Show completed</span>
-          </label>
-          <label>
-            <span>Sort by</span>
-            <select id="payment-sort-field">
-              <option value="dueDay">Due day</option>
-              <option value="amount">Payment amount</option>
-              <option value="currentBalance">Current debt</option>
-              <option value="loanTotal">Original total</option>
-              <option value="payer">Payer</option>
-              <option value="bank">Bank / payee</option>
-              <option value="category">Category</option>
-              <option value="frequency">Frequency</option>
-              <option value="paymentStatus">Payment status</option>
-              <option value="startDate">Start date</option>
-              <option value="contractNumber">Contract number</option>
-            </select>
-          </label>
-          <label>
-            <span>Direction</span>
-            <select id="payment-sort-direction">
-              <option value="asc">Low to high / A-Z</option>
-              <option value="desc">High to low / Z-A</option>
-            </select>
-          </label>
-        </div>
-        <details class="obligation-advanced payment-advanced">
-          <summary>Advanced filters <span id="payment-filter-count"></span></summary>
-          <div class="filter-bar payment-payer-filters" id="payer-filters">
-            <button class="pill active" data-filter="all">All payers</button>
-          </div>
-          <div class="obligation-filter-grid">
-            <label><span>Category</span><select id="payment-category"><option value="all">All categories</option></select></label>
-            <label><span>Bank / payee</span><select id="payment-bank"><option value="all">All banks / payees</option></select></label>
-            <label>
-              <span>Frequency</span>
-              <select id="payment-frequency">
-                <option value="all">Any frequency</option>
-                <option value="monthly">Every month</option>
-                <option value="quarterly">Every 3 months</option>
-                <option value="one_time">One time</option>
-              </select>
-            </label>
-            <label>
-              <span>Balance state</span>
-              <select id="payment-balance-status">
-                <option value="all">Any balance state</option>
-                <option value="owed">Debt remaining</option>
-                <option value="paid_off">Paid off</option>
-                <option value="current">Updated this month</option>
-                <option value="stale">Needs update</option>
-                <option value="unverified">Unverified</option>
-                <option value="not_applicable">No balance field</option>
-              </select>
-            </label>
-            <fieldset class="obligation-range">
-              <legend>Due day</legend>
-              <input id="payment-due-min" type="number" min="0" max="31" placeholder="Min">
-              <span>to</span>
-              <input id="payment-due-max" type="number" min="0" max="31" placeholder="Max">
-            </fieldset>
-            <fieldset class="obligation-range">
-              <legend>Payment amount</legend>
-              <input id="payment-amount-min" type="number" min="0" placeholder="Min">
-              <span>to</span>
-              <input id="payment-amount-max" type="number" min="0" placeholder="Max">
-            </fieldset>
-            <fieldset class="obligation-range">
-              <legend>Current debt</legend>
-              <input id="payment-debt-min" type="number" min="0" placeholder="Min">
-              <span>to</span>
-              <input id="payment-debt-max" type="number" min="0" placeholder="Max">
-            </fieldset>
-          </div>
-          <div class="obligation-tools-footer">
-            <span id="payment-results-count" class="muted"></span>
-            <button class="button button-ghost" id="payment-clear-filters" type="button">Clear filters</button>
-          </div>
-        </details>
       </div>
       <div class="payments-summary">
         <span id="sched-grand" class="muted"></span>
@@ -247,115 +143,13 @@
       <div class="page-header">
         <h1>Obligations</h1>
         <div class="page-header-actions">
+          <button class="filter-trigger-btn" id="obligation-filter-btn" type="button" onclick="openFilterDrawer('obligation')" aria-label="Open filters">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+            Filters
+            <span class="filter-badge hidden" id="obligation-filter-badge"></span>
+          </button>
           <button class="button button-primary" type="button" onclick="openAddObligationModal()">+ Add</button>
         </div>
-      </div>
-      <div class="obligation-tools" aria-label="Obligation sorting and filtering tools">
-        <div class="obligation-tools-primary">
-          <label class="obligation-search">
-            <span>Search</span>
-            <input id="obligation-search" type="search"
-                   placeholder="Bank, payer, contract, category..."
-                   autocomplete="off">
-          </label>
-          <label>
-            <span>Type</span>
-            <select id="obligation-type">
-              <option value="all">All types</option>
-              <option value="loan">Loans</option>
-              <option value="other">Other obligations</option>
-            </select>
-          </label>
-          <label>
-            <span>Payment status</span>
-            <select id="obligation-payment-status">
-              <option value="all">Any status</option>
-              <option value="unresolved">Unresolved</option>
-              <option value="resolved">Resolved</option>
-              <option value="paid">Paid</option>
-              <option value="partial">Partial</option>
-              <option value="not_done">Did not done</option>
-              <option value="no_need">No need</option>
-              <option value="unpaid">Unpaid</option>
-            </select>
-          </label>
-          <label>
-            <span>Sort by</span>
-            <select id="obligation-sort-field">
-              <option value="currentBalance">Current debt</option>
-              <option value="amount">Payment amount</option>
-              <option value="loanTotal">Original total</option>
-              <option value="dueDay">Due day</option>
-              <option value="payer">Payer</option>
-              <option value="bank">Bank / payee</option>
-              <option value="category">Category</option>
-              <option value="frequency">Frequency</option>
-              <option value="startDate">Start date</option>
-              <option value="contractNumber">Contract number</option>
-              <option value="balanceUpdatedMonth">Balance freshness</option>
-              <option value="paymentStatus">Payment status</option>
-            </select>
-          </label>
-          <label>
-            <span>Direction</span>
-            <select id="obligation-sort-direction">
-              <option value="desc">High to low / Z-A</option>
-              <option value="asc">Low to high / A-Z</option>
-            </select>
-          </label>
-        </div>
-
-        <details class="obligation-advanced">
-          <summary>Advanced filters <span id="obligation-filter-count"></span></summary>
-          <div class="obligation-filter-grid">
-            <label><span>Payer</span><select id="obligation-payer"><option value="all">All payers</option></select></label>
-            <label><span>Category</span><select id="obligation-category"><option value="all">All categories</option></select></label>
-            <label><span>Bank / payee</span><select id="obligation-bank"><option value="all">All banks / payees</option></select></label>
-            <label>
-              <span>Frequency</span>
-              <select id="obligation-frequency">
-                <option value="all">Any frequency</option>
-                <option value="monthly">Every month</option>
-                <option value="quarterly">Every 3 months</option>
-                <option value="one_time">One time</option>
-              </select>
-            </label>
-            <label>
-              <span>Balance state</span>
-              <select id="obligation-balance-status">
-                <option value="all">Any balance state</option>
-                <option value="owed">Debt remaining</option>
-                <option value="paid_off">Paid off</option>
-                <option value="current">Updated this month</option>
-                <option value="stale">Needs update</option>
-                <option value="unverified">Unverified</option>
-                <option value="not_applicable">No balance field</option>
-              </select>
-            </label>
-            <fieldset class="obligation-range">
-              <legend>Due day</legend>
-              <input id="obligation-due-min" type="number" min="0" max="31" placeholder="Min">
-              <span>to</span>
-              <input id="obligation-due-max" type="number" min="0" max="31" placeholder="Max">
-            </fieldset>
-            <fieldset class="obligation-range">
-              <legend>Payment amount</legend>
-              <input id="obligation-amount-min" type="number" min="0" placeholder="Min">
-              <span>to</span>
-              <input id="obligation-amount-max" type="number" min="0" placeholder="Max">
-            </fieldset>
-            <fieldset class="obligation-range">
-              <legend>Current debt</legend>
-              <input id="obligation-debt-min" type="number" min="0" placeholder="Min">
-              <span>to</span>
-              <input id="obligation-debt-max" type="number" min="0" placeholder="Max">
-            </fieldset>
-          </div>
-          <div class="obligation-tools-footer">
-            <span id="obligation-results-count" class="muted"></span>
-            <button class="button button-ghost" id="obligation-clear-filters" type="button">Clear filters</button>
-          </div>
-        </details>
       </div>
       <div class="page-body" id="loans-container"></div>
     </section>
@@ -685,6 +479,288 @@
     </div>
   </div>
 </div>
+
+<!-- ─── FILTER DRAWER ─── -->
+<div class="filter-backdrop" id="filter-backdrop" onclick="closeFilterDrawer()"></div>
+<aside class="filter-drawer" id="filter-drawer" role="dialog" aria-label="Filters" aria-modal="true">
+  <div class="filter-drawer-header">
+    <div class="filter-drawer-title">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+      <span>Filters</span>
+    </div>
+    <button class="filter-drawer-close" type="button" onclick="closeFilterDrawer()" aria-label="Close filters">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5 5 15"/></svg>
+    </button>
+  </div>
+
+  <!-- PAYMENT FILTERS -->
+  <div class="filter-drawer-body" id="drawer-payment-filters">
+    <div class="filter-section">
+      <div class="filter-section-label">Search</div>
+      <label class="filter-input-wrap">
+        <svg class="filter-input-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m13 13 3.5 3.5"/></svg>
+        <input id="schedule-search" class="filter-input" type="search" placeholder="Bank, payer, contract…" aria-label="Search payments">
+      </label>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Payers</div>
+      <div class="filter-pills" id="payer-filters">
+        <button class="pill active" data-filter="all">All payers</button>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Quick filters</div>
+      <div class="filter-grid-2">
+        <label class="filter-field">
+          <span>Type</span>
+          <select id="payment-type">
+            <option value="all">All types</option>
+            <option value="loan">Loans</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Status</span>
+          <select id="payment-status">
+            <option value="unresolved">Unresolved</option>
+            <option value="all">Any status</option>
+            <option value="resolved">Resolved</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="not_done">Did not pay</option>
+            <option value="no_need">No need</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Category</span>
+          <select id="payment-category"><option value="all">All categories</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Bank / payee</span>
+          <select id="payment-bank"><option value="all">All banks</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Frequency</span>
+          <select id="payment-frequency">
+            <option value="all">Any</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="one_time">One time</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Balance state</span>
+          <select id="payment-balance-status">
+            <option value="all">Any</option>
+            <option value="owed">Debt remaining</option>
+            <option value="paid_off">Paid off</option>
+            <option value="current">Updated this month</option>
+            <option value="stale">Needs update</option>
+            <option value="unverified">Unverified</option>
+            <option value="not_applicable">No balance</option>
+          </select>
+        </label>
+      </div>
+      <label class="filter-toggle-row">
+        <input id="show-completed" type="checkbox">
+        <span>Show completed payments</span>
+      </label>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Ranges</div>
+      <div class="filter-range-stack">
+        <fieldset class="filter-range">
+          <legend>Due day</legend>
+          <input id="payment-due-min" type="number" min="0" max="31" placeholder="Min">
+          <span>–</span>
+          <input id="payment-due-max" type="number" min="0" max="31" placeholder="Max">
+        </fieldset>
+        <fieldset class="filter-range">
+          <legend>Payment amount ֏</legend>
+          <input id="payment-amount-min" type="number" min="0" placeholder="Min">
+          <span>–</span>
+          <input id="payment-amount-max" type="number" min="0" placeholder="Max">
+        </fieldset>
+        <fieldset class="filter-range">
+          <legend>Current debt ֏</legend>
+          <input id="payment-debt-min" type="number" min="0" placeholder="Min">
+          <span>–</span>
+          <input id="payment-debt-max" type="number" min="0" placeholder="Max">
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Sort</div>
+      <div class="filter-grid-2">
+        <label class="filter-field">
+          <span>Sort by</span>
+          <select id="payment-sort-field">
+            <option value="dueDay">Due day</option>
+            <option value="amount">Amount</option>
+            <option value="currentBalance">Current debt</option>
+            <option value="loanTotal">Original total</option>
+            <option value="payer">Payer</option>
+            <option value="bank">Bank / payee</option>
+            <option value="category">Category</option>
+            <option value="frequency">Frequency</option>
+            <option value="paymentStatus">Status</option>
+            <option value="startDate">Start date</option>
+            <option value="contractNumber">Contract</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Direction</span>
+          <select id="payment-sort-direction">
+            <option value="asc">Low → High / A–Z</option>
+            <option value="desc">High → Low / Z–A</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- OBLIGATION FILTERS -->
+  <div class="filter-drawer-body hidden" id="drawer-obligation-filters">
+    <div class="filter-section">
+      <div class="filter-section-label">Search</div>
+      <label class="filter-input-wrap">
+        <svg class="filter-input-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m13 13 3.5 3.5"/></svg>
+        <input id="obligation-search" class="filter-input" type="search" placeholder="Bank, payer, contract…" autocomplete="off">
+      </label>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Quick filters</div>
+      <div class="filter-grid-2">
+        <label class="filter-field">
+          <span>Type</span>
+          <select id="obligation-type">
+            <option value="all">All types</option>
+            <option value="loan">Loans</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Payment status</span>
+          <select id="obligation-payment-status">
+            <option value="all">Any</option>
+            <option value="unresolved">Unresolved</option>
+            <option value="resolved">Resolved</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="not_done">Did not pay</option>
+            <option value="no_need">No need</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Payer</span>
+          <select id="obligation-payer"><option value="all">All payers</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Category</span>
+          <select id="obligation-category"><option value="all">All categories</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Bank / payee</span>
+          <select id="obligation-bank"><option value="all">All banks</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Frequency</span>
+          <select id="obligation-frequency">
+            <option value="all">Any</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="one_time">One time</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Balance state</span>
+          <select id="obligation-balance-status">
+            <option value="all">Any</option>
+            <option value="owed">Debt remaining</option>
+            <option value="paid_off">Paid off</option>
+            <option value="current">Updated this month</option>
+            <option value="stale">Needs update</option>
+            <option value="unverified">Unverified</option>
+            <option value="not_applicable">No balance</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Ranges</div>
+      <div class="filter-range-stack">
+        <fieldset class="filter-range">
+          <legend>Due day</legend>
+          <input id="obligation-due-min" type="number" min="0" max="31" placeholder="Min">
+          <span>–</span>
+          <input id="obligation-due-max" type="number" min="0" max="31" placeholder="Max">
+        </fieldset>
+        <fieldset class="filter-range">
+          <legend>Payment amount ֏</legend>
+          <input id="obligation-amount-min" type="number" min="0" placeholder="Min">
+          <span>–</span>
+          <input id="obligation-amount-max" type="number" min="0" placeholder="Max">
+        </fieldset>
+        <fieldset class="filter-range">
+          <legend>Current debt ֏</legend>
+          <input id="obligation-debt-min" type="number" min="0" placeholder="Min">
+          <span>–</span>
+          <input id="obligation-debt-max" type="number" min="0" placeholder="Max">
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Sort</div>
+      <div class="filter-grid-2">
+        <label class="filter-field">
+          <span>Sort by</span>
+          <select id="obligation-sort-field">
+            <option value="currentBalance">Current debt</option>
+            <option value="amount">Amount</option>
+            <option value="loanTotal">Original total</option>
+            <option value="dueDay">Due day</option>
+            <option value="payer">Payer</option>
+            <option value="bank">Bank / payee</option>
+            <option value="category">Category</option>
+            <option value="frequency">Frequency</option>
+            <option value="startDate">Start date</option>
+            <option value="contractNumber">Contract</option>
+            <option value="balanceUpdatedMonth">Balance freshness</option>
+            <option value="paymentStatus">Status</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Direction</span>
+          <select id="obligation-sort-direction">
+            <option value="desc">High → Low / Z–A</option>
+            <option value="asc">Low → High / A–Z</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="filter-drawer-footer">
+    <span class="filter-results-count" id="filter-results-count"></span>
+    <button class="filter-clear-btn" id="payment-clear-filters" type="button">Clear all</button>
+    <button class="filter-clear-btn hidden" id="obligation-clear-filters" type="button">Clear all</button>
+  </div>
+</aside>
+
+<!-- hidden IDs needed by JS but unused in drawer UI -->
+<span id="payment-filter-count" style="display:none"></span>
+<span id="obligation-filter-count" style="display:none"></span>
+<span id="payment-results-count" style="display:none"></span>
+<span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
 <script src="app.js?v=59"></script>
