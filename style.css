@@ -1990,21 +1990,18 @@ tbody tr:hover td { background: transparent; }
   .schedule-actions .search-input { flex: 1 1 100%; width: 100%; }
   .schedule-actions .sort-select { flex: 1 1 152px; }
   .payments-summary { padding: var(--space-3) var(--space-4); flex-wrap: wrap; }
-  .payments-board { grid-template-columns: 1fr; padding: var(--space-4); }
-  .payment-card-head,
-  .payment-basic-card {
-    grid-template-columns: 1fr;
-  }
-  .payment-card-amount,
-  .payment-basic-meta {
-    text-align: left;
-  }
+  .payments-board { padding: var(--space-3); }
+  /* Loan head: title + amount share row 1; actions get a full-width row 2 */
+  .payment-card-head { grid-template-columns: minmax(0, 1fr) auto; }
   .payment-card-actions {
-    justify-content: flex-start;
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
-  .payment-basic-actions {
-    justify-content: flex-start;
-  }
+  /* Standard card: body + amount share row 1; actions wrap below */
+  .payment-basic-card { grid-template-columns: minmax(0, 1fr) auto; }
+  .payment-basic-meta { text-align: right; }
+  .payment-basic-actions { justify-content: flex-start; }
 }
 
 @media (max-width: 480px) {
@@ -2020,18 +2017,19 @@ tbody tr:hover td { background: transparent; }
   #page-schedule th:nth-child(4), #page-schedule td:nth-child(4) { width: 16%; }
   #page-schedule th:nth-child(5), #page-schedule td:nth-child(5) { width: 6%; }
   #page-schedule .check-btn { width: 100%; height: 48px; min-width: 48px; }
-  .payment-loan-card { padding: var(--space-4); }
-  .payment-balance-row { grid-template-columns: 1fr; }
-  .payment-save-balance,
+  .payment-loan-card { padding: var(--space-3); }
+  /* Keep actions as a compact wrapping row — never a tall stack of
+     full-width buttons. They flow 2-3 per line and stay tap-friendly. */
   .payment-done,
+  .payment-partial-btn,
+  .loan-edit-toggle,
   .payment-not-done,
   .payment-no-need {
-    width: 100%;
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 96px;
   }
-  .payment-progress-labels {
-    flex-direction: column;
-    gap: var(--space-1);
-  }
+  .payment-progress-labels { gap: var(--space-3); }
 }
 
 @media (prefers-reduced-motion: reduce) {
