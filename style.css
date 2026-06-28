@@ -112,8 +112,14 @@ body {
 .btn-nav:hover { border-color: var(--primary); color: var(--primary); }
 
 .month-label {
+  padding: 7px 20px;
+  background: var(--color-surface-1, #fff);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
   font-size: 13px; font-weight: 600;
   min-width: 120px; text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  cursor: default; user-select: none;
 }
 
 .btn-today {
@@ -1200,7 +1206,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--color-text-muted);
 }
 .month-nav { gap: var(--space-2); }
-.month-label { font-size: var(--text-13); min-width: 128px; }
+.month-label { font-size: var(--text-13); min-width: 128px; text-align: center; }
 
 .today-body { display: flex; flex-direction: column; gap: var(--space-6); }
 .today-hero {
