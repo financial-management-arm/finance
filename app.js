@@ -3573,13 +3573,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function changeMonth(month) {
   if (state.month === month) return;
   state.month = month;
-  const cached = state.monthCache[month];
-  if (cached) {
-    // Instant: paint the cached month, then quietly refresh in the background.
-    applyAllData(cached);
+  // Every month's data is already in memory from the initial load (the API's
+  // "all" payload is not month-scoped), so repaint instantly — no waiting.
+  render();
+  // Only touch the network the first time a month is opened this session, and
+  // do it in the background (no skeleton): it creates that month's loan-balance
+  // snapshot server-side and picks up any edits made on another device.
+  if (!state.monthCache[month]) {
     revalidateMonth(month);
-  } else {
-    refreshData(true).catch(err => showError('Could not load month: ' + err.message));
   }
 }
 
