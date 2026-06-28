@@ -1873,6 +1873,76 @@ tbody tr:hover td { background: transparent; }
 }
 .util-pay-btn { min-width: 80px; }
 
+/* ════════════════════════════════════════════════
+   COMPACT LIST REDESIGN
+   Narrow single-column payment rows (homework-tracker style):
+   thin cards, tight vertical rhythm, all info & actions preserved.
+   ════════════════════════════════════════════════ */
+
+/* Board → narrow, centered, single column instead of wide grid */
+.payments-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+
+/* Unified subtle hover for every card type */
+.payment-loan-card:hover,
+.payment-basic-card:hover,
+.util-pay-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+  border-color: var(--color-border-strong);
+}
+
+/* ── Loan card → compact row ── */
+.payment-loan-card { padding: var(--space-3) var(--space-4); }
+.payment-card-head { gap: var(--space-3); }
+.payment-card-title h2 { font-size: var(--text-15); }
+.payment-card-title div { margin-top: 2px; font-size: var(--text-11); }
+.payment-card-amount strong { font-size: var(--text-18); }
+.payment-card-amount span { font-size: var(--text-11); }
+.payment-contract-row { margin-top: var(--space-2); padding: var(--space-2); }
+.payment-progress { margin-top: var(--space-2); }
+.payment-progress-bar { height: 5px; }
+.payment-progress-labels { margin-top: var(--space-1); font-size: var(--text-11); }
+.payment-status-actions { margin-top: var(--space-2); }
+
+/* Compact status badge in list rows */
+.payment-loan-card .payment-status-badge,
+.payment-basic-card .payment-status-badge,
+.util-pay-card .payment-status-badge {
+  min-height: 20px;
+  margin-top: 0;
+  padding: 0 var(--space-2);
+  font-size: 9px;
+}
+
+/* Compact action buttons (still ≥34px tap target) */
+.payment-done,
+.payment-partial-btn,
+.loan-edit-toggle,
+.payment-not-done,
+.payment-no-need,
+.util-pay-btn {
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-12);
+}
+
+/* ── Standard + utility rows → match the compact rhythm ── */
+.payment-basic-card { padding: var(--space-3) var(--space-4); gap: var(--space-3); }
+.payment-basic-card h2 { font-size: var(--text-15); margin-top: 2px; }
+.payment-basic-meta strong { font-size: var(--text-16); }
+.util-pay-card { padding: var(--space-3) var(--space-4); }
+
+/* Partial progress strip slimmer in compact rows */
+.partial-info { margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); }
+
 @media (max-width: 900px) and (min-width: 769px) {
   :root { --sidebar-w: 72px; }
   .sidebar-header { justify-content: center; padding: var(--space-4); }
