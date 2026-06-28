@@ -119,7 +119,8 @@ function displayDueAmount(id, scheduled) {
 }
 
 function isPaymentResolved(id, month = state.month) {
-  return ['paid', 'partial', 'not_done', 'no_need'].includes(paymentStatus(id, month));
+  // Partial is intentionally NOT resolved — the card stays visible until paid in full.
+  return ['paid', 'not_done', 'no_need'].includes(paymentStatus(id, month));
 }
 
 function activeObs() {
@@ -487,14 +488,13 @@ function patchPaymentEl(id) {
     }
   }
 
-  // Done/Paid button (card view)
+  // Done/Paid button (card view) — partial keeps a primary "Pay rest" button.
   const doneBtn = el.querySelector('.payment-done');
   if (doneBtn) {
-    const resolved = paid || status === 'partial';
-    doneBtn.textContent = paid ? 'Paid ✓' : status === 'partial' ? 'Partial ✓' : 'Paid';
-    doneBtn.classList.toggle('button-primary', !resolved);
-    doneBtn.classList.toggle('button-secondary', resolved);
-    doneBtn.setAttribute('onclick', resolved
+    doneBtn.textContent = paid ? 'Paid ✓' : status === 'partial' ? 'Pay rest' : 'Paid';
+    doneBtn.classList.toggle('button-primary', !paid);
+    doneBtn.classList.toggle('button-secondary', paid);
+    doneBtn.setAttribute('onclick', paid
       ? `setPaymentStatus('${id}', 'unpaid')`
       : `setPaymentStatus('${id}', 'paid')`);
   }
@@ -509,6 +509,14 @@ function patchPaymentEl(id) {
   if (ob && Number(ob.amount) > 0) {
     const amtEl = el.querySelector('.payment-card-amount strong, .payment-basic-meta strong, .util-pay-amount');
     if (amtEl) amtEl.textContent = amd(displayDueAmount(id, ob.amount));
+  }
+
+  // Balance line (loan card) — read-only, reflects current balance
+  const balLine = el.querySelector('.payment-balance-line span:last-child');
+  if (balLine && ob) {
+    const balRaw = loanBalance(ob);
+    const balKnown = balRaw !== '' && balRaw !== null && balRaw !== undefined && balRaw !== false;
+    balLine.textContent = `Balance: ${balKnown ? amd(Number(balRaw)) : '—'}`;
   }
 
   // Partial info
@@ -966,10 +974,10 @@ function utilityPaymentCard(o, index) {
       <div class="util-pay-actions">
         ${Number(o.amount) > 0 ? `<strong class="util-pay-amount">${amd(displayDueAmount(o.id, o.amount))}</strong>` : ''}
         ${dueDay > 0 ? `<span class="util-pay-due">Day ${dueDay}</span>` : ''}
-        <button class="button ${resolved ? 'button-secondary' : 'button-primary'} payment-done util-pay-btn"
+        <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done util-pay-btn"
                 type="button"
-                onclick="${resolved ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
-          ${paid ? 'Paid ✓' : partial ? 'Partial ✓' : 'Paid'}
+                onclick="${paid ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
+          ${paid ? 'Paid ✓' : partial ? 'Pay rest' : 'Paid'}
         </button>
         ${!paid ? `<button class="button button-ghost payment-partial-btn util-pay-btn" type="button"
                 onclick="openPaymentPanel('${escapeHtml(o.id)}')">Partial</button>` : ''}
@@ -1023,10 +1031,10 @@ function loanPaymentCard(o, index) {
       <div class="payment-card-actions">
         <button class="button button-ghost loan-edit-toggle" type="button"
                 onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
-        <button class="button ${(paid || status === 'partial') ? 'button-secondary' : 'button-primary'} payment-done"
+        <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
                 type="button"
-                onclick="${(paid || status === 'partial') ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
-          ${paid ? 'Paid ✓' : status === 'partial' ? 'Partial ✓' : 'Paid'}
+                onclick="${paid ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
+          ${paid ? 'Paid ✓' : status === 'partial' ? 'Pay rest' : 'Paid'}
         </button>
         ${!paid ? `<button class="button button-ghost payment-partial-btn" type="button"
                 onclick="openPaymentPanel('${escapeHtml(o.id)}')">Partial</button>` : ''}
@@ -1038,14 +1046,6 @@ function loanPaymentCard(o, index) {
         <span class="contract-label">Contract</span>
         ${contracts.map(part => copyChip(part)).join('')}
       </div>` : ''}
-    <div class="payment-balance-row">
-      <label for="pay-bal-${escapeHtml(o.id)}">Balance ֏</label>
-      <input class="payment-balance-input" id="pay-bal-${escapeHtml(o.id)}"
-             type="number" min="0" value="${balKnown ? bal : ''}"
-             placeholder="Enter current balance">
-      <button class="button button-primary payment-save-balance" type="button"
-              onclick="savePaymentBalanceFromInput('${escapeHtml(o.id)}')">Save</button>
-    </div>
     <div class="payment-progress">
       <div class="payment-progress-bar">
         <div class="payment-progress-fill" style="width:${pct}%"></div>
@@ -1053,6 +1053,10 @@ function loanPaymentCard(o, index) {
       <div class="payment-progress-labels">
         <span>${balKnown && total ? `${pct}% paid off` : 'Balance not verified'}</span>
         <span>Total: ${total ? amd(total) : '—'}</span>
+      </div>
+      <div class="payment-progress-labels payment-balance-line">
+        <span></span>
+        <span>Balance: ${balKnown ? amd(bal) : '—'}</span>
       </div>
       ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
       ${staleBalance ? `<div class="balance-stale">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>` : ''}
@@ -1110,10 +1114,10 @@ function standardPaymentCard(o, index) {
     </div>
     ${buildPartialInfo(o.id, o)}
     <div class="payment-basic-actions">
-      <button class="button ${resolved ? 'button-secondary' : 'button-primary'} payment-done"
+      <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
               type="button"
-              onclick="${resolved ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
-        ${paid ? 'Paid ✓' : partial ? 'Partial ✓' : 'Paid'}
+              onclick="${paid ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
+        ${paid ? 'Paid ✓' : partial ? 'Pay rest' : 'Paid'}
       </button>
       ${!paid ? `<button class="button button-ghost payment-partial-btn" type="button"
               onclick="openPaymentPanel('${escapeHtml(o.id)}')">Partial</button>` : ''}

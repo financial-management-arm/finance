@@ -1757,6 +1757,14 @@ tbody tr:hover td { background: transparent; }
   color: var(--color-text-muted);
   font-size: var(--text-12);
 }
+.payment-balance-line {
+  margin-top: var(--space-1);
+}
+.payment-balance-line span:last-child {
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
 .payment-card-time {
   display: block;
   margin-top: var(--space-2);
