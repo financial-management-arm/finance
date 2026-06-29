@@ -3203,6 +3203,60 @@ button:active,
   .loan-card-actions .paid-off-badge { flex: 0 0 auto; }
 }
 
+/* ════════════════════════════════════════════════
+   PAYMENT CARD BUTTONS — one consistent outlined system
+   Every action is a real button: Paid is filled (primary),
+   the rest are outlined in their accent colour. Scoped with
+   :where() so the accent classes below can override cleanly.
+   ════════════════════════════════════════════════ */
+:where(.payment-card-actions, .payment-basic-actions,
+       .util-pay-actions, .payment-status-actions) .button {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-1);
+  color: var(--color-text-muted);
+  transition: background var(--motion-snap), border-color var(--motion-snap),
+              color var(--motion-snap), transform var(--motion-snap);
+}
+:where(.payment-card-actions, .payment-basic-actions,
+       .util-pay-actions, .payment-status-actions) .button:hover {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+}
+
+/* Paid = the one filled, standout button */
+:where(.payment-card-actions, .payment-basic-actions,
+       .util-pay-actions, .payment-status-actions) .button-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-neutral-0);
+}
+:where(.payment-card-actions, .payment-basic-actions,
+       .util-pay-actions, .payment-status-actions) .button-primary:hover {
+  filter: brightness(.96);
+  background: var(--color-primary);
+}
+
+/* Already paid → primary-tinted outline */
+.payment-done.button-secondary {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+  background: var(--color-surface-1);
+}
+
+/* Accent outlines for the secondary actions */
+.payment-partial-btn {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+}
+.payment-partial-btn:hover { background: var(--color-primary-soft); }
+.loan-edit-toggle { color: var(--color-text-muted); }
+.payment-no-need { color: var(--color-text); }
+.payment-not-done {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
+}
+.payment-not-done:hover { background: var(--color-danger-soft); }
+
 /* Respect the OS accessibility preference. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
