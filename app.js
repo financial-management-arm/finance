@@ -1040,8 +1040,6 @@ function loanPaymentCard(o, index) {
         <span>/month${Number(o.dueDay) > 0 ? ` · due ${Number(o.dueDay)}` : ''}</span>
       </div>
       <div class="payment-card-actions">
-        <button class="button button-ghost loan-edit-toggle" type="button"
-                onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
         <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
                 type="button"
                 onclick="${paid ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
@@ -1049,6 +1047,8 @@ function loanPaymentCard(o, index) {
         </button>
         ${!paid ? `<button class="button button-ghost payment-partial-btn" type="button"
                 onclick="openPaymentPanel('${escapeHtml(o.id)}')">Partial</button>` : ''}
+        <button class="button button-ghost loan-edit-toggle" type="button"
+                onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
       </div>
     </div>
     ${paymentStatusBadge(status)}

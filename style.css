@@ -3143,6 +3143,66 @@ button:active,
   .page-body, .payments-board { overflow-x: hidden; }
 }
 
+/* ════════════════════════════════════════════════
+   CARD ACTION BUTTONS — consistent, interactive, tidy rows
+   Schedule cards:  Paid · Partial · Edit
+   Obligation cards: Complete · Edit · Delete (one row, under meta)
+   ════════════════════════════════════════════════ */
+
+/* Primary "Complete" reads as the main action (a touch different) */
+.loan-complete {
+  background: var(--color-success-soft, #dcfce7);
+  border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border));
+}
+.loan-complete:hover {
+  background: color-mix(in srgb, var(--color-success) 16%, var(--color-surface-1));
+  border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+}
+
+/* Tactile press feedback on every card action button */
+.payment-card-actions .button:active,
+.payment-basic-actions .button:active,
+.util-pay-actions .button:active,
+.loan-card-actions .button:active { transform: translateY(1px); }
+
+@media (max-width: 768px) {
+  /* Schedule loan card: Paid · Partial · Edit share one even row */
+  .payment-card-actions {
+    width: 100%;
+    gap: var(--space-2);
+    justify-content: flex-start;
+  }
+  .payment-card-actions .button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-13);
+  }
+
+  /* Obligations loan card: stack identity, then Complete · Edit · Delete
+     as one even row UNDER the bank / "Started …" line. */
+  .loan-card-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .loan-card-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: var(--space-2);
+  }
+  .loan-card-actions .button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-13);
+  }
+  .loan-card-actions .paid-off-badge { flex: 0 0 auto; }
+}
+
 /* Respect the OS accessibility preference. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
