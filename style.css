@@ -3262,12 +3262,12 @@ button:active,
    Stale-balance note sits under the payer; Did not pay / No need
    move into the Contract row (right side) to shorten the card.
    ════════════════════════════════════════════════ */
-.loan-stale-inline {
-  margin-top: var(--space-1);
-  font-size: var(--text-11);
-  font-weight: 600;
-  color: var(--color-warning);
-  line-height: 1.3;
+/* Contract number sits directly under the payer name */
+.loan-contract-inline {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* Contract row now also holds Did not pay / No need on the right */

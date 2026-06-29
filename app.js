@@ -1034,7 +1034,7 @@ function loanPaymentCard(o, index) {
       <div class="payment-card-title">
         <h2>${escapeHtml(o.bank || 'Loan')}</h2>
         <div>${escapeHtml(o.payer || '')}</div>
-        ${staleBalance ? `<div class="loan-stale-inline">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>` : ''}
+        ${contracts.length ? `<div class="loan-contract-inline">${contracts.map(part => copyChip(part)).join('')}</div>` : ''}
       </div>
       <div class="payment-card-amount">
         <strong>${Number(o.amount) > 0 ? amd(displayDueAmount(o.id, o.amount)) : '—'}</strong>
@@ -1053,8 +1053,7 @@ function loanPaymentCard(o, index) {
       </div>
     </div>
     ${paymentStatusBadge(status)}
-    <div class="payment-contract-row${contracts.length ? '' : ' no-contract'}">
-      ${contracts.length ? `<span class="contract-label">Contract</span>${contracts.map(part => copyChip(part)).join('')}` : ''}
+    <div class="payment-contract-row no-contract">
       <div class="payment-status-actions">
         <button class="button button-secondary payment-not-done" type="button"
                 onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
