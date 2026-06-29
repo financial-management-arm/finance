@@ -950,6 +950,29 @@ function paymentCard(o, index) {
   return isLoanRecord(o) ? loanPaymentCard(o, index) : standardPaymentCard(o, index);
 }
 
+// One consistent action row shared by every payment card type so the
+// buttons are always the same set, order, and place.
+function paymentActionsRow(o, isUtility) {
+  const id = escapeHtml(o.id);
+  const paid = isPaid(o.id);
+  const status = paymentStatus(o.id);
+  const editFn = isUtility ? `openUtilEdit('${id}')` : `openLoanEditor('${id}')`;
+  return `<div class="payment-basic-actions payment-actions-row">
+      <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done" type="button"
+              onclick="${paid ? `setPaymentStatus('${id}', 'unpaid')` : `setPaymentStatus('${id}', 'paid')`}">
+        ${paid ? 'Paid ✓' : status === 'partial' ? 'Pay rest' : 'Paid'}
+      </button>
+      ${!paid ? `<button class="button button-ghost payment-partial-btn" type="button"
+              onclick="openPaymentPanel('${id}')">Partial</button>` : ''}
+      <button class="button button-ghost loan-edit-toggle" type="button"
+              onclick="${editFn}">Edit</button>
+      <button class="button button-secondary payment-not-done" type="button"
+              onclick="setPaymentStatus('${id}', 'not_done')">Did not pay</button>
+      <button class="button button-ghost payment-no-need" type="button"
+              onclick="setPaymentStatus('${id}', 'no_need')">No need</button>
+    </div>`;
+}
+
 function utilityPaymentCard(o, index) {
   const paid = isPaid(o.id);
   const partial = isPartial(o.id);
@@ -985,16 +1008,10 @@ function utilityPaymentCard(o, index) {
       <div class="util-pay-actions">
         ${Number(o.amount) > 0 ? `<strong class="util-pay-amount">${amd(displayDueAmount(o.id, o.amount))}</strong>` : ''}
         ${dueDay > 0 ? `<span class="util-pay-due">Day ${dueDay}</span>` : ''}
-        <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done util-pay-btn"
-                type="button"
-                onclick="${paid ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
-          ${paid ? 'Paid ✓' : partial ? 'Pay rest' : 'Paid'}
-        </button>
-        ${!paid ? `<button class="button button-ghost payment-partial-btn util-pay-btn" type="button"
-                onclick="openPaymentPanel('${escapeHtml(o.id)}')">Partial</button>` : ''}
       </div>
     </div>
-    ${buildPartialInfo(o.id, o)}
+    ${buildPartialInfo(o.id, o) || '<div class="partial-info" style="display:none"></div>'}
+    ${paymentActionsRow(o, true)}
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
       <div class="pay-panel-row">
@@ -1040,27 +1057,8 @@ function loanPaymentCard(o, index) {
         <strong>${Number(o.amount) > 0 ? amd(displayDueAmount(o.id, o.amount)) : '—'}</strong>
         <span>/month${Number(o.dueDay) > 0 ? ` · due ${Number(o.dueDay)}` : ''}</span>
       </div>
-      <div class="payment-card-actions">
-        <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
-                type="button"
-                onclick="${paid ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
-          ${paid ? 'Paid ✓' : status === 'partial' ? 'Pay rest' : 'Paid'}
-        </button>
-        ${!paid ? `<button class="button button-ghost payment-partial-btn" type="button"
-                onclick="openPaymentPanel('${escapeHtml(o.id)}')">Partial</button>` : ''}
-        <button class="button button-ghost loan-edit-toggle" type="button"
-                onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
-      </div>
     </div>
     ${paymentStatusBadge(status)}
-    <div class="payment-contract-row no-contract">
-      <div class="payment-status-actions">
-        <button class="button button-secondary payment-not-done" type="button"
-                onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
-        <button class="button button-ghost payment-no-need" type="button"
-                onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No need</button>
-      </div>
-    </div>
     <div class="payment-progress">
       <div class="payment-progress-bar">
         <div class="payment-progress-fill" style="width:${pct}%"></div>
@@ -1076,6 +1074,7 @@ function loanPaymentCard(o, index) {
       ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
     </div>
     ${buildPartialInfo(o.id, o) || '<div class="partial-info" style="display:none"></div>'}
+    ${paymentActionsRow(o)}
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
       <div class="pay-panel-row">
@@ -1120,20 +1119,8 @@ function standardPaymentCard(o, index) {
       <span>${Number(o.dueDay) > 0 ? `Due day ${o.dueDay}` : 'No due day'}</span>
       ${resolved && completedAt ? `<time class="payment-card-time">${paid ? 'Paid' : 'Recorded'} ${formatTimestamp(completedAt)}</time>` : ''}
     </div>
-    ${buildPartialInfo(o.id, o)}
-    <div class="payment-basic-actions">
-      <button class="button ${paid ? 'button-secondary' : 'button-primary'} payment-done"
-              type="button"
-              onclick="${paid ? `setPaymentStatus('${escapeHtml(o.id)}', 'unpaid')` : `setPaymentStatus('${escapeHtml(o.id)}', 'paid')`}">
-        ${paid ? 'Paid ✓' : partial ? 'Pay rest' : 'Paid'}
-      </button>
-      ${!paid ? `<button class="button button-ghost payment-partial-btn" type="button"
-              onclick="openPaymentPanel('${escapeHtml(o.id)}')">Partial</button>` : ''}
-      <button class="button button-secondary payment-not-done" type="button"
-              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
-      <button class="button button-ghost payment-no-need" type="button"
-              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No need</button>
-    </div>
+    ${buildPartialInfo(o.id, o) || '<div class="partial-info" style="display:none"></div>'}
+    ${paymentActionsRow(o)}
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
       <div class="pay-panel-row">

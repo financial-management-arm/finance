@@ -3309,6 +3309,26 @@ button:active,
   }
 }
 
+/* ════════════════════════════════════════════════
+   SHARED PAYMENT ACTION ROW
+   Same five buttons (Paid · Partial · Edit · Did not pay · No need)
+   in the same place on every payment card type.
+   ════════════════════════════════════════════════ */
+.payment-actions-row {
+  grid-column: 1 / -1;
+  margin-top: var(--space-3);
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
+
+@media (max-width: 768px) {
+  .payment-actions-row .button {
+    flex: 1 1 auto;
+    min-width: 92px;
+    min-height: 42px;
+  }
+}
+
 /* Respect the OS accessibility preference. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
