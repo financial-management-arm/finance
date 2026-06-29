@@ -3257,6 +3257,50 @@ button:active,
 }
 .payment-not-done:hover { background: var(--color-danger-soft); }
 
+/* ════════════════════════════════════════════════
+   LOAN PAYMENT CARD — compacted layout
+   Stale-balance note sits under the payer; Did not pay / No need
+   move into the Contract row (right side) to shorten the card.
+   ════════════════════════════════════════════════ */
+.loan-stale-inline {
+  margin-top: var(--space-1);
+  font-size: var(--text-11);
+  font-weight: 600;
+  color: var(--color-warning);
+  line-height: 1.3;
+}
+
+/* Contract row now also holds Did not pay / No need on the right */
+.payment-loan-card .payment-contract-row {
+  margin-top: var(--space-2);
+  justify-content: flex-start;
+}
+.payment-contract-row .payment-status-actions {
+  margin: 0 0 0 auto;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+/* When there is no contract, keep just the actions without the gray band */
+.payment-contract-row.no-contract {
+  background: transparent;
+  padding: var(--space-1) 0;
+}
+
+@media (max-width: 768px) {
+  /* Did not pay / No need become a tidy full-width pair under the contract */
+  .payment-contract-row { gap: var(--space-2); }
+  .payment-contract-row .payment-status-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: nowrap;
+  }
+  .payment-contract-row .payment-status-actions .button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+  }
+}
+
 /* Respect the OS accessibility preference. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -1034,6 +1034,7 @@ function loanPaymentCard(o, index) {
       <div class="payment-card-title">
         <h2>${escapeHtml(o.bank || 'Loan')}</h2>
         <div>${escapeHtml(o.payer || '')}</div>
+        ${staleBalance ? `<div class="loan-stale-inline">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>` : ''}
       </div>
       <div class="payment-card-amount">
         <strong>${Number(o.amount) > 0 ? amd(displayDueAmount(o.id, o.amount)) : '—'}</strong>
@@ -1052,11 +1053,15 @@ function loanPaymentCard(o, index) {
       </div>
     </div>
     ${paymentStatusBadge(status)}
-    ${contracts.length ? `
-      <div class="payment-contract-row">
-        <span class="contract-label">Contract</span>
-        ${contracts.map(part => copyChip(part)).join('')}
-      </div>` : ''}
+    <div class="payment-contract-row${contracts.length ? '' : ' no-contract'}">
+      ${contracts.length ? `<span class="contract-label">Contract</span>${contracts.map(part => copyChip(part)).join('')}` : ''}
+      <div class="payment-status-actions">
+        <button class="button button-secondary payment-not-done" type="button"
+                onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
+        <button class="button button-ghost payment-no-need" type="button"
+                onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No need</button>
+      </div>
+    </div>
     <div class="payment-progress">
       <div class="payment-progress-bar">
         <div class="payment-progress-fill" style="width:${pct}%"></div>
@@ -1070,15 +1075,8 @@ function loanPaymentCard(o, index) {
         <span>Balance: ${balKnown ? amd(bal) : '—'}</span>
       </div>
       ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
-      ${staleBalance ? `<div class="balance-stale">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>` : ''}
     </div>
-    ${buildPartialInfo(o.id, o)}
-    <div class="payment-status-actions">
-      <button class="button button-secondary payment-not-done" type="button"
-              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'not_done')">Did not pay</button>
-      <button class="button button-ghost payment-no-need" type="button"
-              onclick="setPaymentStatus('${escapeHtml(o.id)}', 'no_need')">No need</button>
-    </div>
+    ${buildPartialInfo(o.id, o) || '<div class="partial-info" style="display:none"></div>'}
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
       <div class="pay-panel-row">
