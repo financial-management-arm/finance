@@ -1034,7 +1034,7 @@ function loanPaymentCard(o, index) {
       <div class="payment-card-title">
         <h2>${escapeHtml(o.bank || 'Loan')}</h2>
         <div>${escapeHtml(o.payer || '')}</div>
-        ${contracts.length ? `<div class="loan-contract-inline">${contracts.map(part => copyChip(part)).join('')}</div>` : ''}
+        <div class="loan-contract-inline">${contracts.length ? contracts.map(part => copyChip(part)).join('') : '<span class="contract-empty">No contract</span>'}</div>
       </div>
       <div class="payment-card-amount">
         <strong>${Number(o.amount) > 0 ? amd(displayDueAmount(o.id, o.amount)) : '—'}</strong>
