@@ -613,13 +613,12 @@ function reconRow(l) {
   const src = balanceSourceMonth(l);
   const done = src === state.month;
   const contracts = contractParts(l.contractNumber);
-  const tail = contracts.length ? contracts[0].slice(-4) : '';
   return `<div class="recon-row ${done ? 'is-done' : ''}" data-recon-id="${id}">
     <div class="recon-id">
       <div class="recon-name" style="color:${payerColor(l.payer)}">${escapeHtml(l.payer || '—')}</div>
       <div class="recon-sub">
-        ${tail ? `<code class="recon-contract">…${escapeHtml(tail)}</code>`
-               : '<span class="recon-nocontract">no contract</span>'}
+        ${contracts.length ? contracts.map(part => copyChip(part)).join('')
+                           : '<span class="recon-nocontract">no contract</span>'}
         ${Number(l.amount) > 0 ? `<span>${amd(l.amount)}/mo</span>` : ''}
       </div>
     </div>

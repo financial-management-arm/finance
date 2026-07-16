@@ -3398,12 +3398,21 @@ button:active,
 .recon-sub {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  margin-top: 2px;
+  margin-top: 3px;
   font-size: var(--text-11);
   color: var(--color-text-muted);
 }
-.recon-contract { font-variant-numeric: tabular-nums; }
+/* Full contract code, one-click copy — paste it into the bank app to
+   look up the remaining balance. Kept compact for the dense row. */
+.recon-sub .copy-chip {
+  min-height: 26px;
+  height: 26px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-11);
+  font-variant-numeric: tabular-nums;
+}
 .recon-nocontract { font-style: italic; }
 .recon-prev-wrap { display: grid; justify-items: end; text-align: right; }
 .recon-prev {
