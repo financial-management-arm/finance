@@ -212,6 +212,13 @@ function payers() {
   return [...new Set(all.map(o => String(o.payer || '').trim()).filter(Boolean))];
 }
 
+// Existing creditors, so new obligations reuse an exact name instead of a
+// near-duplicate that would split the bank filter.
+function creditors() {
+  return [...new Set(activeObs().map(o => String(o.bank || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
 function payerColor(payer) {
   const index = payers().indexOf(payer);
   return PALETTE[(index < 0 ? 0 : index) % PALETTE.length];
@@ -904,6 +911,8 @@ function openAddObligationModal() {
   const payerList = [...new Set(activeObs().map(o => String(o.payer || '').trim()).filter(Boolean))];
   q('add-ob-payer').setAttribute('list', 'add-ob-payer-list');
   q('add-ob-payer-list').innerHTML = payerList.map(p => `<option value="${escapeHtml(p)}">`).join('');
+  q('add-ob-bank').setAttribute('list', 'add-ob-bank-list');
+  q('add-ob-bank-list').innerHTML = creditors().map(b => `<option value="${escapeHtml(b)}">`).join('');
   q('add-ob-startdate-row').classList.add('hidden');
   q('add-ob-startdate').required = false;
   q('add-ob-modal').classList.remove('hidden');
