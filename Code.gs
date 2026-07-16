@@ -334,6 +334,20 @@ function addObligation(ss, params) {
   var dueDay = Math.round(Number(params.dueDay) || 0);
   var startDate = String(params.startDate || '');
   var frequency = String(params.frequency || 'monthly').trim();
+  // Optional loan details, so a new obligation can be entered in one pass
+  // instead of being added and then immediately edited.
+  var currentBalance = params.currentBalance === '' || params.currentBalance === undefined
+    ? '' : Number(params.currentBalance);
+  var loanTotal = params.loanTotal === '' || params.loanTotal === undefined
+    ? '' : Number(params.loanTotal);
+  var contractNumber = String(params.contractNumber || '').trim().slice(0, 120);
+
+  if (currentBalance !== '' && (!isFinite(currentBalance) || currentBalance < 0)) {
+    throw new Error('Invalid current balance');
+  }
+  if (loanTotal !== '' && (!isFinite(loanTotal) || loanTotal < 0)) {
+    throw new Error('Invalid loan total');
+  }
 
   if (!bank) throw new Error('Bank/Payee name is required');
   if (!payer) throw new Error('Payer is required');
@@ -350,12 +364,13 @@ function addObligation(ss, params) {
       case 'category': return category;
       case 'amount': return amount;
       case 'dueDay': return dueDay;
-      case 'currentBalance': return '';
-      case 'loanTotal': return '';
-      case 'contractNumber': return '';
+      case 'currentBalance': return currentBalance;
+      case 'loanTotal': return loanTotal;
+      case 'contractNumber': return contractNumber;
       case 'active': return true;
       case 'startDate': return startDate;
-      case 'balanceUpdatedMonth': return '';
+      // A balance entered at creation was read now, so stamp it as this month.
+      case 'balanceUpdatedMonth': return currentBalance === '' ? '' : currentMonth();
       case 'completedAt': return '';
       case 'updatedAt': return now;
       case 'frequency': return frequency;

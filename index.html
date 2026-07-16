@@ -360,6 +360,9 @@
         </label>
         <label>Monthly amount<input name="amount" type="number" min="0" value="0" required></label>
         <label>Due day<input name="dueDay" type="number" min="0" max="31" value="0"></label>
+        <label>Current balance<input name="currentBalance" type="number" min="0" placeholder="optional"></label>
+        <label>Original loan total<input name="loanTotal" type="number" min="0" placeholder="optional"></label>
+        <label class="edit-wide">Contract number<input name="contractNumber" type="text" placeholder="optional"></label>
         <label class="edit-wide hidden" id="add-ob-startdate-row">Start month
           <input id="add-ob-startdate" name="startDate" type="month">
         </label>
@@ -385,6 +388,20 @@
       <input id="edit-id" type="hidden">
       <div class="edit-grid">
         <label>Bank / Payee<input id="edit-bank" type="text" required></label>
+        <label>Category
+          <select id="edit-category">
+            <option value="business">Business</option>
+            <option value="personal">Personal</option>
+            <option value="loan">Loan</option>
+          </select>
+        </label>
+        <label>Frequency
+          <select id="edit-frequency">
+            <option value="monthly">Every month</option>
+            <option value="quarterly">Every 3 months</option>
+            <option value="one_time">One time only</option>
+          </select>
+        </label>
         <label>Monthly Payment<input id="edit-amount" type="number" min="0" required></label>
         <label>Due Day<input id="edit-due-day" type="number" min="0" max="31" required></label>
         <label>Current Balance<input id="edit-balance" type="number" min="0"></label>
@@ -816,6 +833,6 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=74"></script>
+<script src="app.js?v=75"></script>
 </body>
 </html>

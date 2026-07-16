@@ -946,7 +946,10 @@ async function submitAddObligation(event) {
       amount: Number(v('amount')) || 0,
       dueDay: Number(v('dueDay')) || 0,
       startDate: v('startDate') || '',
-      frequency: v('frequency')
+      frequency: v('frequency'),
+      currentBalance: v('currentBalance') === '' ? '' : Number(v('currentBalance')),
+      loanTotal: v('loanTotal') === '' ? '' : Number(v('loanTotal')),
+      contractNumber: v('contractNumber').trim()
     });
     await refreshData(false);
     renderCurrentTab();
@@ -1891,7 +1894,7 @@ function loanCard(o) {
         <button class="button button-secondary loan-complete" type="button"
                 onclick="completeLoan('${escapeHtml(o.id)}', this)">Complete</button>
         <button class="button button-ghost loan-edit-toggle" type="button"
-                onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
+                onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
         <button class="button btn-delete-ghost" type="button"
                 onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
       </div>
@@ -1974,7 +1977,7 @@ function nonLoanCard(o) {
       </div>
       <div class="loan-card-actions">
         <button class="button button-ghost loan-edit-toggle" type="button"
-                onclick="toggleInlineLoanEdit('${escapeHtml(o.id)}')">Edit</button>
+                onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
         <button class="button btn-delete-ghost" type="button"
                 onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
       </div>
@@ -2103,6 +2106,8 @@ function openLoanEditor(id) {
   if (!loan) return;
   q('edit-id').value = loan.id;
   q('edit-bank').value = loan.bank || '';
+  q('edit-category').value = String(loan.category || 'personal').toLowerCase();
+  q('edit-frequency').value = String(loan.frequency || 'monthly').toLowerCase().trim() || 'monthly';
   q('edit-amount').value = Number(loan.amount) || 0;
   q('edit-due-day').value = Number(loan.dueDay) || 0;
   q('edit-balance').value = loan.currentBalance === '' ? '' : Number(loan.currentBalance);
@@ -2123,6 +2128,10 @@ function submitLoanEdit(event) {
   const optionalNumber = id => q(id).value === '' ? '' : Number(q(id).value);
   updateLoan(q('edit-id').value, {
     bank: q('edit-bank').value.trim(),
+    // Sent explicitly: the backend defaults frequency to 'monthly' when it is
+    // absent, so omitting it silently reset quarterly/one-time obligations.
+    category: q('edit-category').value,
+    frequency: q('edit-frequency').value,
     amount: Number(q('edit-amount').value),
     dueDay: Number(q('edit-due-day').value),
     currentBalance: optionalNumber('edit-balance'),
