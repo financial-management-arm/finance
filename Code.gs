@@ -240,7 +240,11 @@ function updateBalance(ss, params, month) {
     balanceUpdatedMonth: month,
     updatedAt: isoNow()
   });
-  syncCurrentSnapshot(ss, id, month);
+  // Make the write visible before syncCurrentSnapshot re-reads the row, and
+  // pass the source month explicitly: a balance saved for `month` was read in
+  // `month` by definition, so the ledger must not depend on that re-read.
+  SpreadsheetApp.flush();
+  syncCurrentSnapshot(ss, id, month, month);
   return { success: true, balanceUpdatedMonth: month };
 }
 
@@ -277,7 +281,8 @@ function updateLoan(ss, params, month) {
     balanceUpdatedMonth: balanceChanged ? month : existing.balanceUpdatedMonth,
     updatedAt: isoNow()
   });
-  syncCurrentSnapshot(ss, id, month);
+  SpreadsheetApp.flush();
+  syncCurrentSnapshot(ss, id, month, balanceChanged ? month : existing.balanceUpdatedMonth);
   return {
     success: true,
     balanceUpdatedMonth: balanceChanged ? month : existing.balanceUpdatedMonth
@@ -472,7 +477,9 @@ function removeFutureLoanSnapshots(ss, id, month) {
   }
 }
 
-function syncCurrentSnapshot(ss, id, month) {
+// sourceMonth: the month the balance was actually read in. Passed explicitly by
+// callers that just wrote it, so the ledger never depends on a read-after-write.
+function syncCurrentSnapshot(ss, id, month, sourceMonth) {
   ensureMonthlyLoanSnapshot(ss, month);
   var obligation = findObjectByKey(ss.getSheetByName('Obligations'), 'id', id);
   if (!obligation || !isLoan(obligation)) return;
@@ -489,7 +496,7 @@ function syncCurrentSnapshot(ss, id, month) {
     currentBalance: obligation.currentBalance,
     loanTotal: obligation.loanTotal,
     contractNumber: obligation.contractNumber,
-    balanceSourceMonth: obligation.balanceUpdatedMonth || '',
+    balanceSourceMonth: sourceMonth || obligation.balanceUpdatedMonth || '',
     completed: !isActive(obligation),
     completedAt: obligation.completedAt || '',
     snapshotAt: isoNow(),

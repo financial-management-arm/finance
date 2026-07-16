@@ -240,6 +240,13 @@ function balanceSourceMonth(loan, month = state.month) {
   return String((snapshot && snapshot.balanceSourceMonth) || loan.balanceUpdatedMonth || '');
 }
 
+// When the balance was actually read. updateBalance always stamps the
+// obligation itself, so trust that first — the month snapshot can lag behind it.
+function balanceReadMonth(loan, month = state.month) {
+  if (String(loan.balanceUpdatedMonth || '') === month) return month;
+  return balanceSourceMonth(loan, month);
+}
+
 const CASH_CATEGORIES = { cash: 'Cash', aparik: 'Ապառիկ', credit_line: 'Credit Line' };
 
 function isCreditLine(o) {
@@ -594,7 +601,7 @@ function renderReconcile() {
     </div>
     ${Object.keys(groups).sort((a, b) => a.localeCompare(b)).map(bank => {
       const rows = groups[bank];
-      const done = rows.filter(l => balanceSourceMonth(l) === state.month).length;
+      const done = rows.filter(l => balanceReadMonth(l) === state.month).length;
       return `<section class="recon-group">
         <header class="recon-group-head">
           <h2>${escapeHtml(bank)}</h2>
@@ -610,7 +617,7 @@ function renderReconcile() {
 function reconRow(l) {
   const id = escapeHtml(l.id);
   const prev = loanBalance(l);
-  const src = balanceSourceMonth(l);
+  const src = balanceReadMonth(l);
   const done = src === state.month;
   const contracts = contractParts(l.contractNumber);
   return `<div class="recon-row ${done ? 'is-done' : ''}" data-recon-id="${id}">
@@ -643,7 +650,7 @@ function reconRow(l) {
 
 function updateReconProgress() {
   const loans = activeLoans();
-  const done = loans.filter(l => balanceSourceMonth(l) === state.month).length;
+  const done = loans.filter(l => balanceReadMonth(l) === state.month).length;
   const label = q('recon-progress');
   if (label) label.textContent = `${done} / ${loans.length} done`;
   const fill = q('recon-bar-fill');
