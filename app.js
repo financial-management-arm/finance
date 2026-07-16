@@ -227,9 +227,21 @@ function currentMonthDay() {
   return state.month === todayMonth() ? new Date().getDate() : 0;
 }
 
+// Sheets stores "2026-07" as a date, so it comes back as an ISO timestamp.
+// At UTC+4 that is "2026-06-30T20:00:00.000Z" — parsing it locally recovers July.
+// Accepts either form and always returns "YYYY-MM".
+function toMonthKey(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const str = String(value);
+  if (/^\d{4}-\d{2}$/.test(str)) return str;
+  const date = new Date(str);
+  if (Number.isNaN(date.getTime())) return str;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function loanSnapshot(id, month = state.month) {
   return state.loanHistory.find(row =>
-    String(row.obligationId) === String(id) && String(row.month) === month
+    String(row.obligationId) === String(id) && toMonthKey(row.month) === month
   );
 }
 
@@ -241,13 +253,13 @@ function loanBalance(loan, month = state.month) {
 
 function balanceSourceMonth(loan, month = state.month) {
   const snapshot = loanSnapshot(loan.id, month);
-  return String((snapshot && snapshot.balanceSourceMonth) || loan.balanceUpdatedMonth || '');
+  return toMonthKey((snapshot && snapshot.balanceSourceMonth) || loan.balanceUpdatedMonth || '');
 }
 
 // When the balance was actually read. updateBalance always stamps the
 // obligation itself, so trust that first — the month snapshot can lag behind it.
 function balanceReadMonth(loan, month = state.month) {
-  if (String(loan.balanceUpdatedMonth || '') === month) return month;
+  if (toMonthKey(loan.balanceUpdatedMonth) === month) return month;
   return balanceSourceMonth(loan, month);
 }
 
@@ -793,7 +805,7 @@ async function reconcileSave(id, input) {
   const prevBalance = loan.currentBalance;
   const prevMonth = loan.balanceUpdatedMonth;
   const snap = state.loanHistory.find(s =>
-    String(s.obligationId) === String(id) && String(s.month) === state.month
+    String(s.obligationId) === String(id) && toMonthKey(s.month) === state.month
   );
   const prevSnap = snap ? { currentBalance: snap.currentBalance, balanceSourceMonth: snap.balanceSourceMonth } : null;
 
@@ -878,7 +890,7 @@ async function saveBalance(id, balance) {
       ob.balanceUpdatedMonth = state.month;
     }
     const snap = state.loanHistory.find(s =>
-      String(s.obligationId) === String(id) && String(s.month) === state.month
+      String(s.obligationId) === String(id) && toMonthKey(s.month) === state.month
     );
     if (snap) { snap.currentBalance = balance; snap.balanceSourceMonth = state.month; }
     renderCurrentTab();
