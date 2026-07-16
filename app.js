@@ -619,6 +619,7 @@ function reconRow(l) {
       <div class="recon-sub">
         ${contracts.length ? contracts.map(part => copyChip(part)).join('')
                            : '<span class="recon-nocontract">no contract</span>'}
+        ${Number(l.loanTotal) > 0 ? `<span class="recon-initial">${amd(l.loanTotal)} initial</span>` : ''}
         ${Number(l.amount) > 0 ? `<span>${amd(l.amount)}/mo</span>` : ''}
       </div>
     </div>

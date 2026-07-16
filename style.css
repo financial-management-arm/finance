@@ -3414,6 +3414,13 @@ button:active,
   font-variant-numeric: tabular-nums;
 }
 .recon-nocontract { font-style: italic; }
+/* Original principal — the second way to spot a loan in the bank app */
+.recon-initial {
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .recon-prev-wrap { display: grid; justify-items: end; text-align: right; }
 .recon-prev {
   font-size: var(--text-13);
