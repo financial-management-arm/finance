@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=53">
+  <link rel="stylesheet" href="style.css?v=54">
 </head>
 <body>
 
@@ -161,6 +161,11 @@
         <h1>Reconcile balances</h1>
         <div class="page-header-actions">
           <span class="recon-progress" id="recon-progress">0 / 0 done</span>
+          <button class="filter-trigger-btn" id="recon-filter-btn" type="button" onclick="openFilterDrawer('recon')" aria-label="Open filters">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+            Filters
+            <span class="filter-badge hidden" id="recon-filter-badge"></span>
+          </button>
         </div>
         <div class="month-nav">
           <button class="btn-nav btn-prev" aria-label="Previous month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 15-5-5 5-5"/></svg></button>
@@ -767,10 +772,39 @@
     </div>
   </div>
 
+  <!-- RECONCILE FILTERS -->
+  <div class="filter-drawer-body hidden" id="drawer-recon-filters">
+    <div class="filter-section">
+      <div class="filter-section-label">Search</div>
+      <label class="filter-input-wrap">
+        <svg class="filter-input-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m13 13 3.5 3.5"/></svg>
+        <input class="filter-input" id="recon-search" type="search" placeholder="Bank, payer or contract">
+      </label>
+      <label class="filter-toggle-row">
+        <input type="checkbox" id="recon-show-done">
+        Show reconciled loans
+      </label>
+    </div>
+    <div class="filter-section">
+      <div class="filter-section-label">Narrow down</div>
+      <div class="filter-grid-2">
+        <label class="filter-field">
+          <span>Bank</span>
+          <select id="recon-bank"><option value="all">All banks</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Payer</span>
+          <select id="recon-payer"><option value="all">All payers</option></select>
+        </label>
+      </div>
+    </div>
+  </div>
+
   <div class="filter-drawer-footer">
     <span class="filter-results-count" id="filter-results-count"></span>
     <button class="filter-clear-btn" id="payment-clear-filters" type="button">Clear all</button>
     <button class="filter-clear-btn hidden" id="obligation-clear-filters" type="button">Clear all</button>
+    <button class="filter-clear-btn hidden" id="recon-clear-filters" type="button">Clear all</button>
   </div>
 </aside>
 
@@ -781,6 +815,6 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=70"></script>
+<script src="app.js?v=71"></script>
 </body>
 </html>

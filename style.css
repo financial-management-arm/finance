@@ -3394,6 +3394,13 @@ button:active,
 .recon-row:last-child { border-bottom: none; }
 .recon-row.is-done { background: color-mix(in srgb, var(--color-success) 7%, transparent); }
 .recon-row.is-saving { opacity: .65; }
+/* Reconciled rows slide out, so what's left on screen is what's left to do */
+.recon-row.is-leaving {
+  opacity: 0;
+  transform: translateX(24px);
+  transition: opacity .24s ease, transform .24s ease;
+  pointer-events: none;
+}
 .recon-name { font-size: var(--text-13); font-weight: 700; }
 .recon-sub {
   display: flex;

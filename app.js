@@ -8,6 +8,10 @@ const state = {
   payments: {},   // "id__YYYY-MM" -> true/false
   paymentMeta: {},
   monthCache: {}, // "YYYY-MM" -> last raw API response (stale-while-revalidate)
+  reconSearch: '',
+  reconBank: 'all',
+  reconPayer: 'all',
+  reconShowDone: false, // reconciled loans drop out of the list until toggled on
   income: [],
   loanHistory: [],
   utilities: [],
@@ -576,40 +580,122 @@ function patchPaymentEl(id) {
 // Reconcile — monthly balance entry, one bank app at a time.
 // Saves in place (never re-renders) so typing is never interrupted.
 // ================================================================
+function reconBankOf(l) { return String(l.bank || 'Other'); }
+
+function filteredReconLoans() {
+  let rows = activeLoans();
+  // Reconciled loans drop out of the list — that is the whole point at 70 loans.
+  if (!state.reconShowDone) rows = rows.filter(l => balanceReadMonth(l) !== state.month);
+  if (state.reconBank !== 'all') rows = rows.filter(l => reconBankOf(l) === state.reconBank);
+  if (state.reconPayer !== 'all') rows = rows.filter(l => String(l.payer || '') === state.reconPayer);
+  if (state.reconSearch) {
+    const needle = state.reconSearch.toLocaleLowerCase();
+    rows = rows.filter(l =>
+      [l.bank, l.payer, l.contractNumber, l.loanTotal, l.amount]
+        .some(v => String(v || '').toLocaleLowerCase().includes(needle))
+    );
+  }
+  return rows;
+}
+
+function activeReconFilterCount() {
+  return [
+    state.reconSearch,
+    state.reconBank !== 'all',
+    state.reconPayer !== 'all',
+    state.reconShowDone
+  ].filter(Boolean).length;
+}
+
+function clearReconFilters() {
+  state.reconSearch = '';
+  state.reconBank = 'all';
+  state.reconPayer = 'all';
+  state.reconShowDone = false;
+  renderReconcile();
+}
+
+function syncReconControls() {
+  const map = {
+    'recon-search': state.reconSearch,
+    'recon-bank': state.reconBank,
+    'recon-payer': state.reconPayer
+  };
+  Object.entries(map).forEach(([id, value]) => {
+    const el = q(id);
+    if (el && el.value !== value) el.value = value;
+  });
+  const toggle = q('recon-show-done');
+  if (toggle) toggle.checked = state.reconShowDone;
+}
+
+function syncReconFilterOptions(all) {
+  const uniq = values => [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  fillReconSelect('recon-bank', 'All banks', uniq(all.map(reconBankOf)), 'reconBank');
+  fillReconSelect('recon-payer', 'All payers', uniq(all.map(l => String(l.payer || ''))), 'reconPayer');
+}
+
+function fillReconSelect(id, allLabel, values, stateKey) {
+  const sel = q(id);
+  if (!sel) return;
+  if (!values.includes(state[stateKey])) state[stateKey] = 'all';
+  sel.innerHTML = [`<option value="all">${allLabel}</option>`]
+    .concat(values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`))
+    .join('');
+  sel.value = state[stateKey];
+}
+
 function renderReconcile() {
   const container = q('recon-container');
   if (!container) return;
-  const loans = activeLoans();
+  const all = activeLoans();
+  syncReconFilterOptions(all);
+  syncReconControls();
+  updateFilterBadge('recon', activeReconFilterCount());
 
-  if (!loans.length) {
+  if (!all.length) {
     container.innerHTML = '<div class="empty-state">No active loans to reconcile.</div>';
     updateReconProgress();
     return;
   }
 
-  const groups = {};
-  loans.forEach(l => {
-    const bank = String(l.bank || 'Other');
-    (groups[bank] = groups[bank] || []).push(l);
-  });
-
-  container.innerHTML = `
+  const loans = filteredReconLoans();
+  const hidden = state.reconShowDone ? 0 : all.filter(l => balanceReadMonth(l) === state.month).length;
+  const intro = `
     <div class="recon-intro">
       <div class="recon-bar"><div class="recon-bar-fill" id="recon-bar-fill"></div></div>
-      <p class="recon-hint">Open one bank app at a time and type each remaining balance.
-         Enter saves and jumps to the next loan.</p>
-    </div>
-    ${Object.keys(groups).sort((a, b) => a.localeCompare(b)).map(bank => {
-      const rows = groups[bank];
-      const done = rows.filter(l => balanceReadMonth(l) === state.month).length;
-      return `<section class="recon-group">
-        <header class="recon-group-head">
-          <h2>${escapeHtml(bank)}</h2>
-          <span class="recon-group-count">${done}/${rows.length}</span>
-        </header>
-        ${rows.map(reconRow).join('')}
-      </section>`;
-    }).join('')}`;
+      <p class="recon-hint">
+        <span id="recon-results-count">${reconResultsText(all, loans)}</span>
+        — open one bank app at a time and type each remaining balance. Enter saves and jumps to the next loan.
+      </p>
+    </div>`;
+
+  if (!loans.length) {
+    const noFilters = !state.reconSearch && state.reconBank === 'all' && state.reconPayer === 'all';
+    container.innerHTML = `${intro}
+      <div class="empty-state">
+        ${hidden && noFilters
+          ? `All ${all.length} loans reconciled for ${monthLabel(state.month)}.`
+          : 'No loans match these filters.'}
+      </div>`;
+    updateReconProgress();
+    return;
+  }
+
+  const groups = {};
+  loans.forEach(l => { (groups[reconBankOf(l)] = groups[reconBankOf(l)] || []).push(l); });
+
+  container.innerHTML = intro + Object.keys(groups).sort((a, b) => a.localeCompare(b)).map(bank => {
+    const inBank = all.filter(l => reconBankOf(l) === bank);
+    const done = inBank.filter(l => balanceReadMonth(l) === state.month).length;
+    return `<section class="recon-group" data-bank="${escapeHtml(bank)}">
+      <header class="recon-group-head">
+        <h2>${escapeHtml(bank)}</h2>
+        <span class="recon-group-count">${done}/${inBank.length}</span>
+      </header>
+      ${groups[bank].map(reconRow).join('')}
+    </section>`;
+  }).join('');
 
   updateReconProgress();
 }
@@ -703,6 +789,7 @@ async function reconcileSave(id, input) {
   if (loanBalance(loan) === val && balanceSourceMonth(loan) === state.month) return;
 
   const row = input.closest('.recon-row');
+  const bank = reconBankOf(loan);
   const prevBalance = loan.currentBalance;
   const prevMonth = loan.balanceUpdatedMonth;
   const snap = state.loanHistory.find(s =>
@@ -723,13 +810,17 @@ async function reconcileSave(id, input) {
   }
   const deltaEl = q('recon-delta-' + id);
   if (deltaEl) { deltaEl.textContent = 'saved'; deltaEl.className = 'recon-delta is-saved'; }
-  updateReconGroupCount(row);
+  updateReconGroupCount(bank);
+  updateReconResultsCount();
   updateReconProgress();
 
   try {
     await callApi({ action: 'updateBalance', id, balance: val, month: state.month });
     state.monthCache = {}; // balances changed — cached month snapshots are stale
-    if (row) row.classList.remove('is-saving');
+    if (row) {
+      row.classList.remove('is-saving');
+      if (!state.reconShowDone) reconRetireRow(row, bank);
+    }
   } catch (err) {
     loan.currentBalance = prevBalance;
     loan.balanceUpdatedMonth = prevMonth;
@@ -745,13 +836,37 @@ async function reconcileSave(id, input) {
   }
 }
 
-function updateReconGroupCount(row) {
-  const group = row && row.closest('.recon-group');
+function updateReconGroupCount(bank) {
+  const group = document.querySelector(`.recon-group[data-bank="${CSS.escape(bank)}"]`);
   if (!group) return;
-  const rows = group.querySelectorAll('.recon-row');
-  const done = group.querySelectorAll('.recon-row.is-done').length;
+  const inBank = activeLoans().filter(l => reconBankOf(l) === bank);
+  const done = inBank.filter(l => balanceReadMonth(l) === state.month).length;
   const count = group.querySelector('.recon-group-count');
-  if (count) count.textContent = `${done}/${rows.length}`;
+  if (count) count.textContent = `${done}/${inBank.length}`;
+}
+
+function reconResultsText(all, loans) {
+  const hidden = state.reconShowDone ? 0 : all.filter(l => balanceReadMonth(l) === state.month).length;
+  return `Showing ${loans.length} of ${all.length} loans${hidden ? ` · ${hidden} reconciled hidden` : ''}`;
+}
+
+function updateReconResultsCount() {
+  const el = q('recon-results-count');
+  if (el) el.textContent = reconResultsText(activeLoans(), filteredReconLoans());
+}
+
+// Once saved, a reconciled loan slides out — what's left on screen is what's left to do.
+function reconRetireRow(row, bank) {
+  row.classList.add('is-leaving');
+  setTimeout(() => {
+    const group = row.closest('.recon-group');
+    row.remove();
+    if (group && !group.querySelector('.recon-row')) group.remove();
+    if (!document.querySelector('.recon-row')) { renderReconcile(); return; }
+    updateReconGroupCount(bank);
+    updateReconResultsCount();
+    updateReconProgress();
+  }, 260);
 }
 
 async function saveBalance(id, balance) {
@@ -3626,6 +3741,29 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   q('obligation-clear-filters').addEventListener('click', clearObligationFilters);
 
+  const reconControls = {
+    'recon-search': 'reconSearch',
+    'recon-bank': 'reconBank',
+    'recon-payer': 'reconPayer'
+  };
+  Object.entries(reconControls).forEach(([id, stateKey]) => {
+    const control = q(id);
+    if (!control) return;
+    control.addEventListener(control.tagName === 'SELECT' ? 'change' : 'input', event => {
+      state[stateKey] = event.target.value.trim();
+      renderReconcile();
+    });
+  });
+  const reconShowDone = q('recon-show-done');
+  if (reconShowDone) {
+    reconShowDone.addEventListener('change', event => {
+      state.reconShowDone = event.target.checked;
+      renderReconcile();
+    });
+  }
+  const reconClear = q('recon-clear-filters');
+  if (reconClear) reconClear.addEventListener('click', clearReconFilters);
+
   q('income-sort').addEventListener('change', event => {
     state.incomeSort = event.target.value;
     renderIncome();
@@ -3771,27 +3909,25 @@ function renderPayerFilters() {
 // ================================================================
 // Filter Drawer
 // ================================================================
+const FILTER_TABS = ['payment', 'obligation', 'recon'];
+
 function openFilterDrawer(tab) {
-  const isPayment = tab === 'payment';
-  const paymentBody = document.getElementById('drawer-payment-filters');
-  const obligationBody = document.getElementById('drawer-obligation-filters');
-  const paymentClear = q('payment-clear-filters');
-  const obligationClear = q('obligation-clear-filters');
+  FILTER_TABS.forEach(t => {
+    const body = document.getElementById(`drawer-${t}-filters`);
+    const clear = q(`${t}-clear-filters`);
+    if (body) body.classList.toggle('hidden', t !== tab);
+    if (clear) clear.classList.toggle('hidden', t !== tab);
+  });
+
   const resultsEl = document.getElementById('filter-results-count');
-
-  if (paymentBody) paymentBody.classList.toggle('hidden', !isPayment);
-  if (obligationBody) obligationBody.classList.toggle('hidden', isPayment);
-  if (paymentClear) paymentClear.classList.toggle('hidden', !isPayment);
-  if (obligationClear) obligationClear.classList.toggle('hidden', isPayment);
-
   if (resultsEl) {
-    const src = q(isPayment ? 'payment-results-count' : 'obligation-results-count');
+    const src = q(`${tab}-results-count`);
     resultsEl.textContent = src ? src.textContent : '';
   }
 
   document.body.classList.add('filter-drawer-open');
 
-  const activeBody = isPayment ? paymentBody : obligationBody;
+  const activeBody = document.getElementById(`drawer-${tab}-filters`);
   if (activeBody) {
     const first = activeBody.querySelector('input, select');
     if (first) setTimeout(() => first.focus(), 320);
@@ -3803,10 +3939,8 @@ function closeFilterDrawer() {
 }
 
 function updateFilterBadge(tab, count) {
-  const badgeId = tab === 'payment' ? 'payment-filter-badge' : 'obligation-filter-badge';
-  const btnId   = tab === 'payment' ? 'payment-filter-btn'   : 'obligation-filter-btn';
-  const badge = document.getElementById(badgeId);
-  const btn   = document.getElementById(btnId);
+  const badge = document.getElementById(`${tab}-filter-badge`);
+  const btn   = document.getElementById(`${tab}-filter-btn`);
   if (badge) {
     badge.textContent = count || '';
     badge.classList.toggle('hidden', !count);
