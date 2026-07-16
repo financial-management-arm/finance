@@ -776,6 +776,25 @@ function findObjectByKey(sheet, keyField, keyValue) {
   return null;
 }
 
+// Sheets stores 'YYYY-MM' and 'YYYY-MM-DD' cells as real dates, so they come
+// back as Date objects rather than the strings that were written. Normalise
+// either form to 'YYYY-MM' in the sheet's own timezone — string slicing a Date
+// yields 'Sat Jul' or (via UTC skew) '2026-06' for July, which silently breaks
+// every month-keyed lookup in the report.
+function toMonthKey(value) {
+  if (value === null || value === undefined || value === '') return '';
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM');
+  }
+  var str = String(value);
+  if (/^\d{4}-\d{2}/.test(str)) return str.slice(0, 7);
+  var parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM');
+  }
+  return str;
+}
+
 function isLoan(obligation) {
   return String(obligation.category).toLowerCase() === 'loan' ||
     Number(obligation.loanTotal) > 0 || Number(obligation.currentBalance) > 0;
@@ -846,7 +865,7 @@ function getReportData(ss, params) {
   var loansByMonth = {};
   loans.forEach(function(l) {
     if (filterPayer && String(l.payer || '').trim() !== filterPayer) return;
-    var mo = String(l.month || '');
+    var mo = toMonthKey(l.month);
     if (!loansByMonth[mo]) loansByMonth[mo] = [];
     loansByMonth[mo].push(l);
   });
@@ -857,11 +876,11 @@ function getReportData(ss, params) {
 
   months.forEach(function(mo) {
     var monthIncome = income.reduce(function(sum, row) {
-      return String(row.date || '').slice(0, 7) === mo ? sum + (Number(row.amount) || 0) : sum;
+      return toMonthKey(row.date) === mo ? sum + (Number(row.amount) || 0) : sum;
     }, 0);
 
     var monthPaid = payments.reduce(function(sum, row) {
-      var rowMonth = String(row.month || '');
+      var rowMonth = toMonthKey(row.month);
       if (!rowMonth) {
         var pts = String(row.key || '').split('__');
         rowMonth = pts.length === 2 ? pts[1] : '';
@@ -887,9 +906,9 @@ function getReportData(ss, params) {
     var monthlyObs = activeObs.filter(function(o) {
       var freq = String(o.frequency || 'monthly').toLowerCase().trim();
       if (!freq || freq === 'monthly') return true;
-      if (freq === 'one_time') return String(o.startDate || '').slice(0, 7) === mo;
+      if (freq === 'one_time') return toMonthKey(o.startDate) === mo;
       if (freq === 'quarterly') {
-        var start = String(o.startDate || '').slice(0, 7);
+        var start = toMonthKey(o.startDate);
         if (!start) return true;
         var sy = parseInt(start.split('-')[0]), sm = parseInt(start.split('-')[1]);
         var cy = parseInt(mo.split('-')[0]),   cm = parseInt(mo.split('-')[1]);

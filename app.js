@@ -292,11 +292,11 @@ function isObligationDueThisMonth(ob, month) {
   const freq = String(ob.frequency || 'monthly').toLowerCase().trim();
   if (!freq || freq === 'monthly') return true;
   if (freq === 'one_time') {
-    const dueMon = String(ob.startDate || '').slice(0, 7);
+    const dueMon = toMonthKey(ob.startDate);
     return dueMon === month;
   }
   if (freq === 'quarterly') {
-    const start = String(ob.startDate || '').slice(0, 7);
+    const start = toMonthKey(ob.startDate);
     if (!start) return true;
     const [sy, sm] = start.split('-').map(Number);
     const [cy, cm] = month.split('-').map(Number);
