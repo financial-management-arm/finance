@@ -3329,6 +3329,140 @@ button:active,
   }
 }
 
+/* ════════════════════════════════════════════════
+   RECONCILE — monthly balance entry, grouped by bank
+   ════════════════════════════════════════════════ */
+.recon-progress {
+  font-size: var(--text-12);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.recon-intro { max-width: 880px; margin: 0 auto var(--space-4); }
+.recon-bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+  overflow: hidden;
+}
+.recon-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-success));
+  transition: width var(--motion-standard) var(--ease-enter);
+}
+.recon-hint {
+  margin-top: var(--space-2);
+  font-size: var(--text-12);
+  color: var(--color-text-muted);
+}
+.recon-group {
+  max-width: 880px;
+  margin: 0 auto var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-1);
+  overflow: hidden;
+}
+.recon-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.recon-group-head h2 { margin: 0; font-size: var(--text-14); }
+.recon-group-count {
+  font-size: var(--text-11);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.recon-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 168px auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--motion-snap), opacity var(--motion-snap);
+}
+.recon-row:last-child { border-bottom: none; }
+.recon-row.is-done { background: color-mix(in srgb, var(--color-success) 7%, transparent); }
+.recon-row.is-saving { opacity: .65; }
+.recon-name { font-size: var(--text-13); font-weight: 700; }
+.recon-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 2px;
+  font-size: var(--text-11);
+  color: var(--color-text-muted);
+}
+.recon-contract { font-variant-numeric: tabular-nums; }
+.recon-nocontract { font-style: italic; }
+.recon-prev-wrap { display: grid; justify-items: end; text-align: right; }
+.recon-prev {
+  font-size: var(--text-13);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.recon-prev-when { font-size: var(--text-10); color: var(--color-text-muted); }
+.recon-entry { display: grid; gap: 2px; }
+.recon-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-1);
+  color: var(--color-text);
+  font-size: var(--text-14);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+.recon-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+.recon-input::-webkit-inner-spin-button,
+.recon-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.recon-delta {
+  min-height: 13px;
+  font-size: var(--text-10);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.recon-delta.is-down,
+.recon-delta.is-saved { color: var(--color-success); }
+.recon-delta.is-up { color: var(--color-warning); }
+.recon-delta.is-flat { color: var(--color-text-muted); }
+.recon-keep {
+  min-height: 40px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-1);
+  color: var(--color-text-muted);
+}
+.recon-keep:hover { background: var(--color-surface-2); }
+
+@media (max-width: 768px) {
+  /* Two compact lines per loan: [payer | last balance] / [input | Same] */
+  .recon-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--space-2);
+    padding: var(--space-3);
+  }
+  .recon-entry { grid-column: 1; }
+  .recon-keep { grid-column: 2; }
+  .recon-intro, .recon-group { max-width: 100%; }
+}
+
 /* Respect the OS accessibility preference. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

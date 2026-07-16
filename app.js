@@ -565,6 +565,188 @@ function patchPaymentEl(id) {
   if (g) g.textContent = `Total: ${amd(totalAmt(all))} · ${allResolved.length}/${all.length} resolved`;
 }
 
+// ================================================================
+// Reconcile — monthly balance entry, one bank app at a time.
+// Saves in place (never re-renders) so typing is never interrupted.
+// ================================================================
+function renderReconcile() {
+  const container = q('recon-container');
+  if (!container) return;
+  const loans = activeLoans();
+
+  if (!loans.length) {
+    container.innerHTML = '<div class="empty-state">No active loans to reconcile.</div>';
+    updateReconProgress();
+    return;
+  }
+
+  const groups = {};
+  loans.forEach(l => {
+    const bank = String(l.bank || 'Other');
+    (groups[bank] = groups[bank] || []).push(l);
+  });
+
+  container.innerHTML = `
+    <div class="recon-intro">
+      <div class="recon-bar"><div class="recon-bar-fill" id="recon-bar-fill"></div></div>
+      <p class="recon-hint">Open one bank app at a time and type each remaining balance.
+         Enter saves and jumps to the next loan.</p>
+    </div>
+    ${Object.keys(groups).sort((a, b) => a.localeCompare(b)).map(bank => {
+      const rows = groups[bank];
+      const done = rows.filter(l => balanceSourceMonth(l) === state.month).length;
+      return `<section class="recon-group">
+        <header class="recon-group-head">
+          <h2>${escapeHtml(bank)}</h2>
+          <span class="recon-group-count">${done}/${rows.length}</span>
+        </header>
+        ${rows.map(reconRow).join('')}
+      </section>`;
+    }).join('')}`;
+
+  updateReconProgress();
+}
+
+function reconRow(l) {
+  const id = escapeHtml(l.id);
+  const prev = loanBalance(l);
+  const src = balanceSourceMonth(l);
+  const done = src === state.month;
+  const contracts = contractParts(l.contractNumber);
+  const tail = contracts.length ? contracts[0].slice(-4) : '';
+  return `<div class="recon-row ${done ? 'is-done' : ''}" data-recon-id="${id}">
+    <div class="recon-id">
+      <div class="recon-name" style="color:${payerColor(l.payer)}">${escapeHtml(l.payer || '—')}</div>
+      <div class="recon-sub">
+        ${tail ? `<code class="recon-contract">…${escapeHtml(tail)}</code>`
+               : '<span class="recon-nocontract">no contract</span>'}
+        ${Number(l.amount) > 0 ? `<span>${amd(l.amount)}/mo</span>` : ''}
+      </div>
+    </div>
+    <div class="recon-prev-wrap">
+      <span class="recon-prev">${prev !== null ? amd(prev) : '—'}</span>
+      <span class="recon-prev-when">${src ? monthLabel(src) : 'never read'}</span>
+    </div>
+    <div class="recon-entry">
+      <input class="recon-input" id="recon-input-${id}" type="number" inputmode="numeric" min="0"
+             placeholder="${prev !== null ? prev : 'balance'}"
+             onfocus="this.select()"
+             oninput="reconcileDelta('${id}', this)"
+             onkeydown="reconcileKey(event, '${id}', this)"
+             onblur="reconcileSave('${id}', this)">
+      <span class="recon-delta" id="recon-delta-${id}"></span>
+    </div>
+    <button class="button button-ghost recon-keep" type="button"
+            onclick="reconcileKeep('${id}')" title="Balance unchanged">Same</button>
+  </div>`;
+}
+
+function updateReconProgress() {
+  const loans = activeLoans();
+  const done = loans.filter(l => balanceSourceMonth(l) === state.month).length;
+  const label = q('recon-progress');
+  if (label) label.textContent = `${done} / ${loans.length} done`;
+  const fill = q('recon-bar-fill');
+  if (fill) fill.style.width = loans.length ? `${Math.round(done / loans.length * 100)}%` : '0%';
+}
+
+function reconcileDelta(id, input) {
+  const el = q('recon-delta-' + id);
+  if (!el) return;
+  const loan = state.obligations.find(o => String(o.id) === String(id));
+  const prev = loan ? loanBalance(loan) : null;
+  const raw = String(input.value).trim();
+  if (raw === '' || prev === null) { el.textContent = ''; el.className = 'recon-delta'; return; }
+  const val = Number(raw);
+  if (!isFinite(val)) { el.textContent = ''; el.className = 'recon-delta'; return; }
+  const diff = val - prev;
+  if (diff === 0) { el.textContent = 'no change'; el.className = 'recon-delta is-flat'; return; }
+  el.textContent = `${diff < 0 ? '−' : '+'}${amd(Math.abs(diff))}`;
+  el.className = 'recon-delta ' + (diff < 0 ? 'is-down' : 'is-up');
+}
+
+function reconcileKey(event, id, input) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  reconcileSave(id, input);
+  const inputs = Array.from(document.querySelectorAll('.recon-input'));
+  const next = inputs[inputs.indexOf(input) + 1];
+  if (next) { next.focus(); next.select(); } else input.blur();
+}
+
+function reconcileKeep(id) {
+  const loan = state.obligations.find(o => String(o.id) === String(id));
+  const cur = loan ? loanBalance(loan) : null;
+  if (cur === null) { showError('No previous balance to keep — enter one.'); return; }
+  const input = q('recon-input-' + id);
+  if (!input) return;
+  input.value = cur;
+  reconcileSave(id, input);
+}
+
+async function reconcileSave(id, input) {
+  const raw = String(input.value).trim();
+  if (raw === '') return;
+  const val = Number(raw);
+  if (!isFinite(val) || val < 0) { showError('Enter a valid balance.'); return; }
+
+  const loan = state.obligations.find(o => String(o.id) === String(id));
+  if (!loan) return;
+  // Already saved with this exact value this month — nothing to do.
+  if (loanBalance(loan) === val && balanceSourceMonth(loan) === state.month) return;
+
+  const row = input.closest('.recon-row');
+  const prevBalance = loan.currentBalance;
+  const prevMonth = loan.balanceUpdatedMonth;
+  const snap = state.loanHistory.find(s =>
+    String(s.obligationId) === String(id) && String(s.month) === state.month
+  );
+  const prevSnap = snap ? { currentBalance: snap.currentBalance, balanceSourceMonth: snap.balanceSourceMonth } : null;
+
+  // Optimistic: stamp locally and mark the row done immediately.
+  loan.currentBalance = val;
+  loan.balanceUpdatedMonth = state.month;
+  if (snap) { snap.currentBalance = val; snap.balanceSourceMonth = state.month; }
+  if (row) {
+    row.classList.add('is-done', 'is-saving');
+    const prevEl = row.querySelector('.recon-prev');
+    if (prevEl) prevEl.textContent = amd(val);
+    const whenEl = row.querySelector('.recon-prev-when');
+    if (whenEl) whenEl.textContent = monthLabel(state.month);
+  }
+  const deltaEl = q('recon-delta-' + id);
+  if (deltaEl) { deltaEl.textContent = 'saved'; deltaEl.className = 'recon-delta is-saved'; }
+  updateReconGroupCount(row);
+  updateReconProgress();
+
+  try {
+    await callApi({ action: 'updateBalance', id, balance: val, month: state.month });
+    state.monthCache = {}; // balances changed — cached month snapshots are stale
+    if (row) row.classList.remove('is-saving');
+  } catch (err) {
+    loan.currentBalance = prevBalance;
+    loan.balanceUpdatedMonth = prevMonth;
+    if (snap && prevSnap) {
+      snap.currentBalance = prevSnap.currentBalance;
+      snap.balanceSourceMonth = prevSnap.balanceSourceMonth;
+    }
+    if (row) row.classList.remove('is-saving', 'is-done');
+    if (deltaEl) { deltaEl.textContent = 'not saved'; deltaEl.className = 'recon-delta is-up'; }
+    updateReconGroupCount(row);
+    updateReconProgress();
+    showError('Could not save balance — try again.');
+  }
+}
+
+function updateReconGroupCount(row) {
+  const group = row && row.closest('.recon-group');
+  if (!group) return;
+  const rows = group.querySelectorAll('.recon-row');
+  const done = group.querySelectorAll('.recon-row.is-done').length;
+  const count = group.querySelector('.recon-group-count');
+  if (count) count.textContent = `${done}/${rows.length}`;
+}
+
 async function saveBalance(id, balance) {
   try {
     await callApi({ action: 'updateBalance', id, balance, month: state.month });
@@ -751,6 +933,7 @@ function renderCurrentTab() {
     case 'dashboard':  renderDashboard();  break;
     case 'schedule':   renderSchedule();   break;
     case 'loans':      renderLoans();      break;
+    case 'reconcile':  renderReconcile();  break;
     case 'income':     renderIncome();     break;
     case 'utilities':  renderUtilities();  break;
     case 'reports':    renderReports();    break;
