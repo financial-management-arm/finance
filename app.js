@@ -76,6 +76,9 @@ const state = {
   reportHealthSort: 'month-asc',
 };
 
+const DATA_CACHE_PREFIX = 'finance-arm:month:';
+const DATA_CACHE_MAX_AGE = 10 * 60 * 1000;
+
 // ================================================================
 // Utilities
 // ================================================================
@@ -319,6 +322,30 @@ function dueThisMonth() {
 // ================================================================
 // API
 // ================================================================
+function monthCacheKey(month) {
+  return `${DATA_CACHE_PREFIX}${month}`;
+}
+
+function readCachedMonth(month) {
+  try {
+    const raw = localStorage.getItem(monthCacheKey(month));
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached || !cached.data || Date.now() - Number(cached.savedAt || 0) > DATA_CACHE_MAX_AGE) return null;
+    return cached.data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedMonth(month, data) {
+  try {
+    localStorage.setItem(monthCacheKey(month), JSON.stringify({ savedAt: Date.now(), data }));
+  } catch {
+    /* storage can be full or disabled; the app still works without it */
+  }
+}
+
 async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
@@ -368,6 +395,7 @@ async function fetchAll() {
     const month = state.month;
     const data = await callApi({ action: 'all', month });
     state.monthCache[month] = data;
+    writeCachedMonth(month, data);
     applyAllData(data);
   } catch (err) {
     showError('Could not load data: ' + err.message);
@@ -1016,6 +1044,7 @@ async function refreshData(showSkeleton = true) {
     const month = state.month;
     const data = await callApi({ action: 'all', month });
     state.monthCache[month] = data;
+    writeCachedMonth(month, data);
     applyAllData(data);
   } finally {
     if (showSkeleton) showLoading(false);
@@ -1028,6 +1057,7 @@ async function revalidateMonth(month) {
   try {
     const data = await callApi({ action: 'all', month });
     state.monthCache[month] = data;
+    writeCachedMonth(month, data);
     if (state.month === month) applyAllData(data);
   } catch {
     /* keep the cached view; a later refresh will correct it */
@@ -3905,7 +3935,14 @@ document.addEventListener('DOMContentLoaded', () => {
     state.income = [];
     render();
   } else {
-    fetchAll();
+    const cached = readCachedMonth(state.month);
+    if (cached) {
+      state.monthCache[state.month] = cached;
+      applyAllData(cached);
+      revalidateMonth(state.month);
+    } else {
+      fetchAll();
+    }
   }
 
   document.addEventListener('visibilitychange', () => {
@@ -3920,15 +3957,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function changeMonth(month) {
   if (state.month === month) return;
   state.month = month;
-  // Every month's data is already in memory from the initial load (the API's
-  // "all" payload is not month-scoped), so repaint instantly — no waiting.
-  render();
-  // Only touch the network the first time a month is opened this session, and
-  // do it in the background (no skeleton): it creates that month's loan-balance
-  // snapshot server-side and picks up any edits made on another device.
-  if (!state.monthCache[month]) {
-    revalidateMonth(month);
+  const cached = state.monthCache[month] || readCachedMonth(month);
+  if (cached) {
+    state.monthCache[month] = cached;
+    applyAllData(cached);
+  } else {
+    render();
   }
+  revalidateMonth(month);
 }
 
 function renderPayerFilters() {
