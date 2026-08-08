@@ -254,13 +254,18 @@ function loanSnapshot(id, month = state.month) {
 
 function loanBalance(loan, month = state.month) {
   const snapshot = loanSnapshot(loan.id, month);
-  const value = snapshot ? snapshot.currentBalance : loan.currentBalance;
+  const snapshotValue = snapshot ? snapshot.currentBalance : null;
+  const value = snapshotValue === '' || snapshotValue === null || snapshotValue === undefined
+    ? loan.currentBalance
+    : snapshotValue;
   return value === '' || value === null || value === undefined ? null : Number(value);
 }
 
 function balanceSourceMonth(loan, month = state.month) {
   const snapshot = loanSnapshot(loan.id, month);
-  return toMonthKey((snapshot && snapshot.balanceSourceMonth) || loan.balanceUpdatedMonth || '');
+  const snapshotValue = snapshot ? snapshot.currentBalance : null;
+  const useSnapshot = snapshotValue !== '' && snapshotValue !== null && snapshotValue !== undefined;
+  return toMonthKey((useSnapshot && snapshot && snapshot.balanceSourceMonth) || loan.balanceUpdatedMonth || '');
 }
 
 // When the balance was actually read. updateBalance always stamps the
