@@ -24,11 +24,15 @@ function doGet(e) {
   var params = (e && e.parameter) || {};
   var action = params.action || 'all';
   var month = validMonth(params.month) ? params.month : currentMonth();
+  if (action === 'all') {
+    var cached = getAllCache(month);
+    if (cached) return jsonOutput(cached);
+  }
   var ss = SpreadsheetApp.openById(SS_ID);
   var result;
 
   try {
-    ensureSchema(ss);
+    if (action !== 'all') ensureSchema(ss);
 
     if (action === 'all') {
       withLock(function() {
@@ -36,14 +40,15 @@ function doGet(e) {
       });
       result = {
         obligations: sheetToJson(ss, 'Obligations'),
-        payments: sheetToJson(ss, 'Payments'),
+        payments: rowsForMonth(sheetToJson(ss, 'Payments'), month, paymentRowMonth),
         income: sheetToJson(ss, 'Income'),
-        loanHistory: sheetToJson(ss, 'Loans'),
+        loanHistory: rowsForMonth(sheetToJson(ss, 'Loans'), month, function(row) { return row.month; }),
         utilities: sheetToJson(ss, 'Utilities'),
         cashEntries: sheetToJson(ss, 'Cash'),
         serverMonth: month,
         syncedAt: isoNow()
       };
+      putAllCache(month, result);
     } else if (action === 'setPayment') {
       result = withLock(function() {
         return setPayment(ss, params);
@@ -161,13 +166,53 @@ function doGet(e) {
     } else {
       result = { error: 'Unknown action: ' + action };
     }
+    if (action !== 'all' && action !== 'getReportData' && action !== 'repairSchema' && !(result && result.error)) {
+      clearAllCache();
+    }
   } catch (err) {
     result = { error: err && err.message ? err.message : String(err) };
   }
 
+  return jsonOutput(result);
+}
+
+function jsonOutput(result) {
   return ContentService
     .createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function allCacheKey(month) {
+  return 'all:' + month;
+}
+
+function getAllCache(month) {
+  try {
+    var text = CacheService.getScriptCache().get(allCacheKey(month));
+    return text ? JSON.parse(text) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function putAllCache(month, result) {
+  try {
+    CacheService.getScriptCache().put(allCacheKey(month), JSON.stringify(result), 60);
+  } catch (err) {
+    // CacheService has a size limit; large datasets simply skip server cache.
+  }
+}
+
+function clearAllCache() {
+  try {
+    var cache = CacheService.getScriptCache();
+    var current = currentMonth();
+    cache.remove(allCacheKey(current));
+    cache.remove(allCacheKey(shiftMonthGs(current, -1)));
+    cache.remove(allCacheKey(shiftMonthGs(current, 1)));
+  } catch (err) {
+    /* best-effort cache invalidation */
+  }
 }
 
 function setPayment(ss, params) {
@@ -722,6 +767,18 @@ function sheetToJson(ss, name) {
     headers.forEach(function(header, index) { obj[header] = row[index]; });
     return obj;
   });
+}
+
+function rowsForMonth(rows, month, getMonth) {
+  return rows.filter(function(row) {
+    return toMonthKey(getMonth(row)) === month;
+  });
+}
+
+function paymentRowMonth(row) {
+  if (row.month) return row.month;
+  var match = String(row.key || '').match(/__(\d{4}-\d{2})$/);
+  return match ? match[1] : '';
 }
 
 function appendObject(sheet, object) {

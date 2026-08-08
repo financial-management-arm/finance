@@ -8,6 +8,7 @@ const state = {
   payments: {},   // "id__YYYY-MM" -> true/false
   paymentMeta: {},
   monthCache: {}, // "YYYY-MM" -> last raw API response (stale-while-revalidate)
+  loanSnapshotIndex: {},
   reconSearch: '',
   reconBank: 'all',
   reconPayer: 'all',
@@ -103,6 +104,10 @@ function amd(n) {
 }
 
 function pkey(id, month) { return `${id}__${month}`; }
+
+function validMonthParam(value) {
+  return /^\d{4}-\d{2}$/.test(String(value || ''));
+}
 
 function paymentStatus(id, month = state.month) {
   const key = pkey(id, month);
@@ -250,9 +255,7 @@ function toMonthKey(value) {
 }
 
 function loanSnapshot(id, month = state.month) {
-  return state.loanHistory.find(row =>
-    String(row.obligationId) === String(id) && toMonthKey(row.month) === month
-  );
+  return state.loanSnapshotIndex[`${month}__${id}`] || null;
 }
 
 function loanBalance(loan, month = state.month) {
@@ -346,6 +349,15 @@ function writeCachedMonth(month, data) {
   }
 }
 
+function invalidateCachedMonth(month = state.month) {
+  delete state.monthCache[month];
+  try {
+    localStorage.removeItem(monthCacheKey(month));
+  } catch {
+    /* storage can be unavailable */
+  }
+}
+
 async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
@@ -358,6 +370,9 @@ async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
       const res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
+      if (params.action && !['all', 'getReportData', 'repairSchema'].includes(params.action)) {
+        invalidateCachedMonth(validMonthParam(params.month) ? params.month : state.month);
+      }
       return json;
     } catch (err) {
       clearTimeout(timer);
@@ -383,6 +398,10 @@ function applyAllData(data) {
   });
   state.income = data.income || [];
   state.loanHistory = data.loanHistory || [];
+  state.loanSnapshotIndex = {};
+  state.loanHistory.forEach(row => {
+    state.loanSnapshotIndex[`${toMonthKey(row.month)}__${row.obligationId}`] = row;
+  });
   state.utilities = data.utilities || [];
   state.cashEntries = data.cashEntries || [];
   renderPayerFilters();
@@ -416,7 +435,7 @@ async function setPaymentStatus(id, status) {
 
 async function setPaymentWithAmount(id, status, paidAmt) {
   const key = pkey(id, state.month);
-  delete state.monthCache[state.month]; // this month's cached snapshot is now stale
+  invalidateCachedMonth(state.month); // this month's cached snapshot is now stale
   const previousPaid = !!state.payments[key];
   const previousMeta = state.paymentMeta[key] ? { ...state.paymentMeta[key] } : null;
   const paid = status === 'paid';
@@ -869,6 +888,7 @@ async function reconcileSave(id, input) {
   try {
     await callApi({ action: 'updateBalance', id, balance: val, month: state.month });
     state.monthCache = {}; // balances changed — cached month snapshots are stale
+    invalidateCachedMonth(state.month);
     if (row) {
       row.classList.remove('is-saving');
       if (!state.reconShowDone) reconRetireRow(row, bank);
