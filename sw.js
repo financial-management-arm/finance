@@ -1,13 +1,13 @@
-const CACHE = 'finances-arm-v59';
+const CACHE = 'finances-arm-v61';
 
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=55',
-  './app.js?v=78',
+  './style.css?v=57',
+  './app.js?v=80',
   './config.js?v=21',
   './manifest.json',
-  './icon.svg'
+  './icon.png'
 ];
 
 self.addEventListener('install', event => {
@@ -22,7 +22,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(key => key !== CACHE)
+          .filter(key => key.startsWith('finances-arm-') && key !== CACHE)
           .map(key => caches.delete(key))
       )
     )
@@ -33,33 +33,23 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
 
-  if (request.method !== 'GET') return;
-
-  if (request.url.includes('script.google.com')) {
-    event.respondWith(
-      fetch(request).catch(() =>
-        new Response(
-          JSON.stringify({ error: 'offline' }),
-          { headers: { 'Content-Type': 'application/json' } }
-        )
-      )
-    );
-    return;
+  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  const network = async () => {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(CACHE);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  };
+  if (request.mode === 'navigate') {
+    const update = network().catch(() => null);
+    event.waitUntil(update);
+    event.respondWith((async () => {
+      const cached = await caches.match(request) || await caches.match('./index.html');
+      return cached || await update || new Response('Offline. Reconnect to open Finances.', { status: 503 });
+    })());
+  } else {
+    event.respondWith(caches.match(request).then(cached => cached || network()));
   }
-
-  event.respondWith(
-    fetch(request)
-      .then(response => {
-        if (response && response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(request, copy));
-        }
-        return response;
-      })
-      .catch(() =>
-        caches.match(request).then(cached =>
-          cached || caches.match('./index.html')
-        )
-      )
-  );
 });

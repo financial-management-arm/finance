@@ -78,7 +78,14 @@ const state = {
 };
 
 const DATA_CACHE_PREFIX = 'finance-arm:month:';
-const DATA_CACHE_MAX_AGE = 10 * 60 * 1000;
+const DATA_CACHE_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
+const monthRequests = new Map();
+const monthFreshAt = {};
+let dataRevision = 0;
+let pendingWrites = 0;
+let loadedMonth = '';
+let appliedFingerprint = '';
+let filterReturnFocus = null;
 
 // ================================================================
 // Utilities
@@ -198,7 +205,7 @@ function payerClass(p) {
 const PALETTE = ['#2563eb','#db2777','#16a34a','#d97706','#7c3aed','#0891b2','#9a3412','#475569'];
 
 function personalUtilsAsObs() {
-  return activeUtils().filter(isUtilPersonal).map(u => {
+  return activeUtils().filter(shouldShowUtilityInPayments).map(u => {
     const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
     return {
       id: u.id,
@@ -213,6 +220,33 @@ function personalUtilsAsObs() {
       contractNumber: ''
     };
   });
+}
+
+function utilitySearchText(u) {
+  return [u.name, u.payer, u.provider, u.abonentNumber, u.type]
+    .map(value => String(value || '').toLowerCase())
+    .join(' ');
+}
+
+function isRealEstateUtility(u) {
+  return /\b(real[_\s-]?estate|office|rent|tenant|unit)\b|օֆիս|վարձ/.test(utilitySearchText(u));
+}
+
+function isDepositCoveredUtility(u) {
+  const text = utilitySearchText(u);
+  return isRealEstateUtility(u) && (
+    text.includes('deposit') ||
+    text.includes('դեպոզիտ') ||
+    text.includes('ավանդ') ||
+    (isUtilFixed(u) && Number(u.amount || 0) <= 0)
+  );
+}
+
+function shouldShowUtilityInPayments(u) {
+  if (!isUtilPersonal(u)) return false;
+  if (isDepositCoveredUtility(u)) return false;
+  if (isUtilFixed(u) && Number(u.amount || 0) <= 0) return false;
+  return true;
 }
 
 function payers() {
@@ -326,7 +360,7 @@ function dueThisMonth() {
 // API
 // ================================================================
 function monthCacheKey(month) {
-  return `${DATA_CACHE_PREFIX}${month}`;
+  return `${DATA_CACHE_PREFIX}${encodeURIComponent(API_URL)}:${month}`;
 }
 
 function readCachedMonth(month) {
@@ -358,7 +392,33 @@ function invalidateCachedMonth(month = state.month) {
   }
 }
 
-async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
+async function callApi(params, options = {}) {
+  const isWrite = params.action && !['all', 'getReportData'].includes(params.action);
+  if (!isWrite) return requestApi(params, options);
+  // A read started before a write must never overwrite the user's newer changes.
+  dataRevision++;
+  pendingWrites++;
+  state.monthCache = {};
+  Object.keys(monthFreshAt).forEach(month => delete monthFreshAt[month]);
+  try {
+    Object.keys(localStorage).filter(key => key.startsWith(DATA_CACHE_PREFIX)).forEach(key => localStorage.removeItem(key));
+  } catch { /* storage is optional */ }
+  setSyncStatus('saving', 'Saving changes...');
+  try {
+    const result = await requestApi(params, { ...options, retries: 0 });
+    setSyncStatus('ready', 'Changes saved');
+    return result;
+  } catch (err) {
+    setSyncStatus('error', 'Save failed. Try again');
+    throw err;
+  } finally {
+    pendingWrites--;
+    dataRevision++;
+    if (!pendingWrites && loadedMonth !== state.month) revalidateMonth(state.month, true);
+  }
+}
+
+async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
   url.searchParams.set('_t', Date.now());
@@ -368,6 +428,7 @@ async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
       const res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       if (params.action && !['all', 'getReportData', 'repairSchema'].includes(params.action)) {
@@ -389,6 +450,11 @@ async function callApi(params, { retries = 1, timeout = 30000 } = {}) {
 
 // Apply a raw "all" API response into state and re-render.
 function applyAllData(data) {
+  const fingerprint = JSON.stringify([state.month, data.obligations, data.payments, data.income, data.loanHistory, data.utilities, data.cashEntries]);
+  loadedMonth = state.month;
+  document.body.classList.remove('month-pending');
+  if (fingerprint === appliedFingerprint) return;
+  appliedFingerprint = fingerprint;
   state.obligations = data.obligations || [];
   state.payments = {};
   state.paymentMeta = {};
@@ -409,18 +475,7 @@ function applyAllData(data) {
 }
 
 async function fetchAll() {
-  showLoading(true);
-  try {
-    const month = state.month;
-    const data = await callApi({ action: 'all', month });
-    state.monthCache[month] = data;
-    writeCachedMonth(month, data);
-    applyAllData(data);
-  } catch (err) {
-    showError('Could not load data: ' + err.message);
-  } finally {
-    showLoading(false);
-  }
+  return revalidateMonth(state.month, true);
 }
 
 async function togglePayment(id) {
@@ -434,6 +489,7 @@ async function setPaymentStatus(id, status) {
 }
 
 async function setPaymentWithAmount(id, status, paidAmt) {
+  const paymentMonth = state.month;
   const key = pkey(id, state.month);
   invalidateCachedMonth(state.month); // this month's cached snapshot is now stale
   const previousPaid = !!state.payments[key];
@@ -470,12 +526,21 @@ async function setPaymentWithAmount(id, status, paidAmt) {
       completedAt: result.completedAt || '',
       updatedAt: new Date().toISOString()
     };
+    if (!pendingWrites && state.month === paymentMonth && loadedMonth === paymentMonth) {
+      const data = {
+        obligations: state.obligations, payments: Object.values(state.paymentMeta),
+        income: state.income, loanHistory: state.loanHistory,
+        utilities: state.utilities, cashEntries: state.cashEntries
+      };
+      state.monthCache[paymentMonth] = data;
+      writeCachedMonth(paymentMonth, data);
+    }
   } catch (err) {
     state.payments[key] = previousPaid;
     if (previousMeta) state.paymentMeta[key] = previousMeta;
     else delete state.paymentMeta[key];
     patchPaymentEl(id);
-    showError('Could not save — will retry automatically.');
+    showError('Payment was not saved. Please try again.');
   }
 }
 
@@ -645,6 +710,11 @@ function patchPaymentEl(id) {
   if (t) t.textContent = amd(totalAmt(obs));
   if (c) c.textContent = `${visResolved.length}/${obs.length}`;
   if (g) g.textContent = `Total: ${amd(totalAmt(all))} · ${allResolved.length}/${all.length} resolved`;
+  renderPaymentOverview(all, obs);
+  if (state.tab === 'schedule' && !obs.some(o => String(o.id) === String(id))) {
+    el.remove();
+    if (!obs.length) renderSchedule();
+  }
 }
 
 // ================================================================
@@ -1059,29 +1129,60 @@ async function completeLoan(id, button) {
 }
 
 async function refreshData(showSkeleton = true) {
-  if (showSkeleton) showLoading(true);
-  try {
-    const month = state.month;
-    const data = await callApi({ action: 'all', month });
-    state.monthCache[month] = data;
-    writeCachedMonth(month, data);
-    applyAllData(data);
-  } finally {
-    if (showSkeleton) showLoading(false);
-  }
+  return revalidateMonth(state.month, true);
 }
 
 // Refresh a month in the background without a full-screen skeleton.
 // Only repaints if the user is still viewing that month when it returns.
-async function revalidateMonth(month) {
-  try {
-    const data = await callApi({ action: 'all', month });
-    state.monthCache[month] = data;
-    writeCachedMonth(month, data);
-    if (state.month === month) applyAllData(data);
-  } catch {
-    /* keep the cached view; a later refresh will correct it */
-  }
+async function revalidateMonth(month, force = false) {
+  if (pendingWrites) return;
+  if (!force && Date.now() - (monthFreshAt[month] || 0) < 60000) return;
+  const requestKey = `${month}:${dataRevision}`;
+  if (monthRequests.has(requestKey)) return monthRequests.get(requestKey);
+  const revision = dataRevision;
+  setSyncStatus('loading', loadedMonth === month ? 'Updating...' : 'Loading this month...');
+  const task = (async () => {
+    try {
+      const data = await callApi({ action: 'all', month });
+      if (revision !== dataRevision || pendingWrites) return;
+      state.monthCache[month] = data;
+      monthFreshAt[month] = Date.now();
+      writeCachedMonth(month, data);
+      if (state.month !== month) return;
+      const editing = loadedMonth === month && (
+        document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') ||
+        document.querySelector('.modal-backdrop:not(.hidden), .pay-panel:not(.hidden)')
+      );
+      if (editing) {
+        setSyncStatus('ready', 'Update ready. Tap to refresh');
+      } else {
+        applyAllData(data);
+        setSyncStatus('ready', 'Up to date');
+      }
+    } catch (err) {
+      if (state.month !== month || revision !== dataRevision) return;
+      setSyncStatus('error', loadedMonth === month ? 'Saved view. Tap to retry' : 'Could not load. Tap to retry');
+      if (loadedMonth !== month) showError('Could not load this month. Use the refresh button to retry.');
+    } finally {
+      monthRequests.delete(requestKey);
+      if (state.month === month) showLoading(false);
+    }
+  })();
+  monthRequests.set(requestKey, task);
+  return task;
+}
+
+function setSyncStatus(status, label) {
+  const button = q('sync-button');
+  if (!button) return;
+  button.dataset.status = status;
+  q('sync-status').textContent = label;
+  button.disabled = status === 'saving';
+}
+
+function toggleMobileNav(open = q('mobile-menu').classList.contains('hidden')) {
+  q('mobile-menu').classList.toggle('hidden', !open);
+  q('mobile-more-button').setAttribute('aria-expanded', String(open));
 }
 
 async function addIncome(entry) {
@@ -1118,10 +1219,14 @@ function showToast(msg) {
 }
 
 function switchTab(tab) {
+  toggleMobileNav(false);
   state.tab = tab;
-  document.querySelectorAll('.sidebar-nav a').forEach(a =>
-    a.classList.toggle('active', a.dataset.tab === tab)
-  );
+  document.querySelectorAll('.sidebar-nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.tab === tab);
+    if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  q('mobile-more-button').classList.toggle('active', ['reconcile', 'utilities', 'reports'].includes(tab));
   document.querySelectorAll('.page').forEach(p =>
     p.classList.toggle('active', p.id === 'page-' + tab)
   );
@@ -1130,6 +1235,7 @@ function switchTab(tab) {
 
 function renderCurrentTab() {
   updateMonthLabels();
+  if (loadedMonth !== state.month) return;
   switch (state.tab) {
     case 'dashboard':  renderDashboard();  break;
     case 'schedule':   renderSchedule();   break;
@@ -1284,6 +1390,7 @@ function renderSchedule() {
     q('sched-total').textContent = amd(totalAmt(obs));
     q('sched-count').textContent = `${visResolved.length}/${obs.length}`;
     q('sched-grand').textContent = `Total: ${amd(totalAmt(all))} · ${allResolved.length}/${all.length} resolved`;
+    renderPaymentOverview(all, obs);
     return;
   }
   const tbody = q('sched-tbody');
@@ -1327,6 +1434,40 @@ function renderSchedule() {
   q('sched-total').textContent  = amd(totalAmt(obs));
   q('sched-count').textContent  = `${visResolved2.length}/${obs.length}`;
   q('sched-grand').textContent  = `Total: ${amd(totalAmt(all))} · ${allResolved2.length}/${all.length} resolved`;
+}
+
+function renderPaymentOverview(all, visible) {
+  const unresolved = all.filter(o => !isPaymentResolved(o.id));
+  const remaining = unresolved.reduce((sum, o) => sum + Math.max(0, displayDueAmount(o.id, Number(o.amount) || 0)), 0);
+  const resolved = all.length - unresolved.length;
+  const percent = all.length ? Math.round(resolved / all.length * 100) : 0;
+  const loans = activeLoans();
+  let unknown = 0, stale = 0;
+  const debt = loans.reduce((sum, loan) => {
+    const balance = loanBalance(loan);
+    if (balance === '' || balance == null || balance === false || !Number.isFinite(Number(balance))) { unknown++; return sum; }
+    if (balanceSourceMonth(loan) !== state.month) stale++;
+    return sum + Number(balance);
+  }, 0);
+  q('overview-remaining').textContent = amd(remaining);
+  q('overview-caption').textContent = unresolved.length ? `${unresolved.length} payments still to resolve` : all.length ? 'Everything is taken care of.' : 'No payments scheduled this month.';
+  q('overview-debt').textContent = loans.length && unknown === loans.length ? 'Not verified' : amd(debt);
+  q('overview-debt-note').textContent = unknown ? `${unknown} unverified balances excluded` : stale ? `Includes ${stale} earlier balances` : 'Balances verified this month';
+  q('overview-resolved').textContent = `${resolved} of ${all.length}`;
+  q('overview-percent').textContent = `${percent}%`;
+  q('completion-orbit').style.setProperty('--completion', `${percent}%`);
+  q('sched-grand').textContent = `${visible.length} shown of ${all.length} scheduled`;
+  q('sched-count').textContent = 'Scheduled in this view';
+  q('payment-results-count').textContent = `Showing ${visible.length} of ${all.length} payments`;
+  if (document.body.classList.contains('filter-drawer-open') && !q('drawer-payment-filters').classList.contains('hidden')) {
+    q('filter-results-count').textContent = q('payment-results-count').textContent;
+  }
+  const search = q('payment-quick-search');
+  if (document.activeElement !== search) search.value = state.search;
+  const quickSort = q('payment-quick-sort');
+  const sort = `${state.paymentSortField}:${state.paymentSortDirection}`;
+  quickSort.value = [...quickSort.options].some(option => option.value === sort) ? sort : 'custom';
+  syncShowCompletedToggle();
 }
 
 function paymentCard(o, index) {
@@ -2900,7 +3041,8 @@ function renderUtilities() {
     if (ai >= 0) return -1; if (bi >= 0) return 1;
     return a.localeCompare(b);
   });
-  container.innerHTML = sortedPayers.map(payer => {
+  const friendly = renderUnitCards(utils);
+  const detailed = sortedPayers.map(payer => {
     const items = groups[payer];
     const doneCount = items.filter(u => state.payments[pkey(u.id, state.month)]).length;
     const allDone = doneCount === items.length;
@@ -2912,6 +3054,42 @@ function renderUtilities() {
       <div class="util-group-list">${items.map(utilityRow).join('')}</div>
     </section>`;
   }).join('');
+  container.innerHTML = friendly + `<div class="util-detail-title">Detailed list</div>` + detailed;
+}
+
+function renderUnitCards(utils) {
+  const units = utils.filter(u => isUtilPersonal(u) || isRealEstateUtility(u));
+  if (!units.length) return '';
+  return `<div class="unit-card-grid">${units.map(unitCard).join('')}</div>`;
+}
+
+function unitCard(u) {
+  const key = pkey(u.id, state.month);
+  const paid = !!state.payments[key];
+  const depositCovered = isDepositCoveredUtility(u);
+  const payable = shouldShowUtilityInPayments(u);
+  const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
+  const amount = Number(u.amount) || 0;
+  const status = depositCovered ? 'Using deposit' : paid ? 'Done this month' : payable ? 'Payment needed' : 'No upcoming payment';
+  const statusClass = depositCovered || !payable ? 'is-muted' : paid ? 'is-done' : 'is-due';
+  return `<article class="unit-card ${statusClass}">
+    <div class="unit-card-top">
+      <div>
+        <div class="unit-name">${escapeHtml(u.name || 'Unit')}</div>
+        <div class="unit-sub">${escapeHtml(u.payer || 'No payer')}${u.provider ? ` · ${escapeHtml(u.provider)}` : ''}</div>
+      </div>
+      <span class="unit-status">${status}</span>
+    </div>
+    <div class="unit-card-meta">
+      ${Number(u.dueDay) > 0 ? `<span>Day ${Number(u.dueDay)}</span>` : '<span>No due day</span>'}
+      ${amount > 0 ? `<span>${amd(amount)}</span>` : '<span>No amount</span>'}
+      ${rawAbonent ? `<button class="unit-copy" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>` : ''}
+    </div>
+    <div class="unit-actions">
+      ${payable ? `<button class="button ${paid ? 'button-secondary' : 'button-primary'} btn-sm" type="button" onclick="toggleUtilityPaid('${escapeHtml(u.id)}')">${paid ? 'Undo' : 'Mark done'}</button>` : ''}
+      <button class="button button-ghost btn-sm" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')">Edit</button>
+    </div>
+  </article>`;
 }
 
 function utilityRow(u) {
@@ -3733,7 +3911,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  q('payment-quick-search').addEventListener('input', event => {
+    state.search = event.target.value.trim();
+    q('schedule-search').value = state.search;
+    renderSchedule();
+  });
+  q('payment-quick-sort').addEventListener('change', event => {
+    [state.paymentSortField, state.paymentSortDirection] = event.target.value.split(':');
+    syncPaymentControls();
+    renderSchedule();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') toggleMobileNav(false);
+    if (event.key !== 'Tab' || !document.body.classList.contains('filter-drawer-open')) return;
+    const focusable = [...q('filter-drawer').querySelectorAll('button, input, select')].filter(el => !el.disabled && el.getClientRects().length);
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  });
+  document.addEventListener('click', event => {
+    if (!event.target.closest('#mobile-menu, .mobile-more')) toggleMobileNav(false);
+  });
+  window.addEventListener('online', () => revalidateMonth(state.month, true));
+  window.addEventListener('offline', () => setSyncStatus('error', 'Offline. Showing saved data'));
 
   // Tab nav
   document.querySelectorAll('.sidebar-nav a').forEach(a => {
@@ -3953,6 +4154,8 @@ document.addEventListener('DOMContentLoaded', () => {
     state.obligations = [];
     state.payments = {};
     state.income = [];
+    loadedMonth = state.month;
+    document.body.classList.remove('month-pending');
     render();
   } else {
     const cached = readCachedMonth(state.month);
@@ -3970,7 +4173,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.body.classList.contains('is-loading')) return;
     if (!q('loan-edit-modal').classList.contains('hidden')) return;
     if (state.reportLoading) return;
-    refreshData(false).catch(() => {});
+    revalidateMonth(state.month);
   });
 });
 
@@ -3982,7 +4185,8 @@ function changeMonth(month) {
     state.monthCache[month] = cached;
     applyAllData(cached);
   } else {
-    render();
+    document.body.classList.add('month-pending');
+    updateMonthLabels();
   }
   revalidateMonth(month);
 }
@@ -4003,6 +4207,7 @@ function renderPayerFilters() {
 const FILTER_TABS = ['payment', 'obligation', 'recon'];
 
 function openFilterDrawer(tab) {
+  filterReturnFocus = document.activeElement;
   FILTER_TABS.forEach(t => {
     const body = document.getElementById(`drawer-${t}-filters`);
     const clear = q(`${t}-clear-filters`);
@@ -4017,16 +4222,20 @@ function openFilterDrawer(tab) {
   }
 
   document.body.classList.add('filter-drawer-open');
+  q('filter-drawer').inert = false;
+  document.querySelector('.app').inert = true;
 
   const activeBody = document.getElementById(`drawer-${tab}-filters`);
   if (activeBody) {
-    const first = activeBody.querySelector('input, select');
-    if (first) setTimeout(() => first.focus(), 320);
+    q('filter-drawer').querySelector('.filter-drawer-close').focus();
   }
 }
 
 function closeFilterDrawer() {
   document.body.classList.remove('filter-drawer-open');
+  document.querySelector('.app').inert = false;
+  q('filter-drawer').inert = true;
+  filterReturnFocus?.focus();
 }
 
 function updateFilterBadge(tab, count) {

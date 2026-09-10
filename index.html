@@ -3,17 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#080d18">
+  <meta name="theme-color" content="#f5f5f7">
   <title>Finance Manager · Harutyunyan</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=55">
+  <link rel="stylesheet" href="style.css?v=57">
 </head>
-<body>
+<body class="month-pending">
 
 <!-- Loading overlay -->
 <div id="loading" class="loading-overlay hidden" aria-hidden="true"></div>
@@ -26,8 +23,8 @@
     <div class="sidebar-header">
       <div class="sidebar-logo"><img src="icon.png" alt="Finances logo" class="sidebar-logo-img"></div>
       <div>
-        <div class="sidebar-title">Finance Manager</div>
-        <div class="sidebar-sub">Family command center</div>
+        <div class="sidebar-title">Finances</div>
+        <div class="sidebar-sub">Everything in balance.</div>
       </div>
     </div>
     <ul class="sidebar-nav">
@@ -36,13 +33,21 @@
       <li><a href="#" data-tab="loans" aria-label="Obligations"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4V7Zm3-3h10v3H7V4Zm1 8h8M8 16h5"/></svg><span class="nav-label">Obligations</span></a></li>
       <li><a href="#" data-tab="reconcile" aria-label="Reconcile balances"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11M4 7l3-3M4 7l3 3M20 17H9m11 0-3-3m3 3-3 3"/></svg><span class="nav-label">Reconcile</span></a></li>
       <li><a href="#" data-tab="income" aria-label="Income and Cash"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income &amp; Cash</span></a></li>
-      <li><a href="#" data-tab="utilities" aria-label="Utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Utilities</span></a></li>
+      <li><a href="#" data-tab="utilities" aria-label="Units and utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Units</span></a></li>
       <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V10h4v8H4Zm6 0V4h4v14h-4Zm6 0v-6h4v6h-4Z"/></svg><span class="nav-label">Reports</span></a></li>
+      <li class="mobile-more"><button id="mobile-more-button" type="button" onclick="toggleMobileNav()" aria-expanded="false" aria-controls="mobile-menu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h1m5 0h1m5 0h1"/></svg><span>More</span></button></li>
     </ul>
+    <div class="sidebar-footer"><span class="workspace-avatar">H</span><div><strong>Harutyunyan</strong><span>Personal workspace</span></div></div>
   </nav>
+  <div id="mobile-menu" class="mobile-menu hidden" aria-label="More pages">
+    <button type="button" onclick="switchTab('reconcile')">Reconcile balances <span>Check your remaining debt</span></button>
+    <button type="button" onclick="switchTab('utilities')">Units &amp; utilities <span>Manage recurring expenses</span></button>
+    <button type="button" onclick="switchTab('reports')">Reports <span>See the bigger picture</span></button>
+  </div>
 
   <!-- ═══════════════ MAIN ═══════════════ -->
   <main class="main">
+    <div class="workspace-bar"><span>Your financial workspace</span><button id="sync-button" type="button" onclick="refreshData(false).catch(() => {})" title="Refresh data"><span class="sync-dot" aria-hidden="true"></span><span id="sync-status" role="status" aria-live="polite">Connecting...</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 8a6 6 0 1 0 0 5M16 3v5h-5"/></svg></button></div>
 
     <!-- ─── DASHBOARD ─── -->
     <section id="page-dashboard" class="page">
@@ -116,7 +121,7 @@
     <!-- ─── SCHEDULE ─── -->
     <section id="page-schedule" class="page active">
       <div class="page-header">
-        <h1>Payment Schedule</h1>
+        <div><div class="page-kicker">A little clarity. Every day.</div><h1>Payments</h1></div>
         <div class="page-header-actions">
           <button class="filter-trigger-btn" id="payment-filter-btn" type="button" onclick="openFilterDrawer('payment')" aria-label="Open filters">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
@@ -131,12 +136,20 @@
           <button class="btn-today">Today</button>
         </div>
       </div>
-      <div class="payments-summary">
-        <span id="sched-grand" class="muted"></span>
-        <strong id="sched-total"></strong>
-        <span id="sched-count" class="muted"></span>
+      <div class="payments-workspace">
+        <section class="payment-overview" aria-label="Monthly overview">
+          <div class="overview-main"><span class="overview-eyebrow">LEFT TO PAY THIS MONTH</span><strong id="overview-remaining">&#8212;</strong><span id="overview-caption">Your payments, in perspective.</span></div>
+          <div class="overview-stat"><span>Total loan debt</span><strong id="overview-debt">&#8212;</strong><span id="overview-debt-note">Latest known balances</span></div>
+          <div class="overview-completion"><div class="completion-orbit" id="completion-orbit"><strong id="overview-percent">0%</strong></div><div><strong id="overview-resolved">&#8212;</strong><span>Payments resolved</span></div></div>
+        </section>
+        <div class="payment-toolbar">
+          <label class="quick-search"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input id="payment-quick-search" type="search" placeholder="Search payer, bank or contract" aria-label="Search payments"></label>
+          <label class="quick-sort"><span>Sort</span><select id="payment-quick-sort" aria-label="Quick payment sort"><option value="dueDay:asc">Due date</option><option value="amount:desc">Amount: high to low</option><option value="amount:asc">Amount: low to high</option><option value="payer:asc">Payer: A to Z</option><option value="bank:asc">Bank: A to Z</option><option value="currentBalance:desc">Debt: high to low</option><option value="custom" disabled>Custom sort</option></select></label>
+          <label class="completed-switch"><input id="show-completed" type="checkbox"><span class="switch-track" aria-hidden="true"></span><span>Show completed</span></label>
+        </div>
+        <div class="payments-summary"><div><h2>Your payments</h2><span id="sched-grand" class="muted"></span></div><div><strong id="sched-total"></strong><span id="sched-count" class="muted"></span></div></div>
+        <div class="payments-board" id="payments-board"></div>
       </div>
-      <div class="payments-board" id="payments-board"></div>
     </section>
 
     <!-- ─── LOANS ─── -->
@@ -288,9 +301,9 @@
     <!-- ─── UTILITIES ─── -->
     <section id="page-utilities" class="page">
       <div class="page-header">
-        <h1>Utilities</h1>
+        <h1>Units &amp; Utilities</h1>
         <div class="page-header-actions">
-          <button class="btn-primary" type="button" onclick="openAddUtilityModal()">+ Add utility</button>
+          <button class="btn-primary" type="button" onclick="openAddUtilityModal()">+ Add unit / utility</button>
         </div>
         <div class="month-nav">
           <button class="btn-nav btn-prev" aria-label="Previous month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 15-5-5 5-5"/></svg></button>
@@ -523,7 +536,7 @@
 
 <!-- ─── FILTER DRAWER ─── -->
 <div class="filter-backdrop" id="filter-backdrop" onclick="closeFilterDrawer()"></div>
-<aside class="filter-drawer" id="filter-drawer" role="dialog" aria-label="Filters" aria-modal="true">
+<aside class="filter-drawer" id="filter-drawer" role="dialog" aria-label="Filters" aria-modal="true" inert>
   <div class="filter-drawer-header">
     <div class="filter-drawer-title">
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
@@ -605,10 +618,6 @@
           </select>
         </label>
       </div>
-      <label class="filter-toggle-row">
-        <input id="show-completed" type="checkbox">
-        <span>Show completed payments</span>
-      </label>
     </div>
 
     <div class="filter-section">
@@ -834,6 +843,6 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=78"></script>
+<script src="app.js?v=80"></script>
 </body>
 </html>

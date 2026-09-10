@@ -35,14 +35,15 @@ function doGet(e) {
     if (action !== 'all') ensureSchema(ss);
 
     if (action === 'all') {
+      var monthly;
       withLock(function() {
-        ensureMonthlyLoanSnapshot(ss, month);
+        monthly = ensureMonthlyLoanSnapshot(ss, month);
       });
       result = {
-        obligations: sheetToJson(ss, 'Obligations'),
+        obligations: monthly.obligations,
         payments: rowsForMonth(sheetToJson(ss, 'Payments'), month, paymentRowMonth),
         income: sheetToJson(ss, 'Income'),
-        loanHistory: rowsForMonth(sheetToJson(ss, 'Loans'), month, function(row) { return row.month; }),
+        loanHistory: rowsForMonth(monthly.history, month, function(row) { return row.month; }),
         utilities: sheetToJson(ss, 'Utilities'),
         cashEntries: sheetToJson(ss, 'Cash'),
         serverMonth: month,
@@ -210,6 +211,7 @@ function clearAllCache() {
     cache.remove(allCacheKey(current));
     cache.remove(allCacheKey(shiftMonthGs(current, -1)));
     cache.remove(allCacheKey(shiftMonthGs(current, 1)));
+    cache.remove(allCacheKey(shiftMonthGs(current, 2)));
   } catch (err) {
     /* best-effort cache invalidation */
   }
@@ -290,6 +292,7 @@ function updateBalance(ss, params, month) {
   // `month` by definition, so the ledger must not depend on that re-read.
   SpreadsheetApp.flush();
   syncCurrentSnapshot(ss, id, month, month);
+  refreshFutureBalanceSnapshots(ss, id, month, balance);
   return { success: true, balanceUpdatedMonth: month };
 }
 
@@ -490,10 +493,10 @@ function updateUtility(ss, params) {
 // Creates one immutable monthly row per active loan. Existing rows are not
 // overwritten here; edits are synchronized explicitly by syncCurrentSnapshot.
 function ensureMonthlyLoanSnapshot(ss, month) {
-  if (month < currentMonth()) return;
   var obligations = sheetToJson(ss, 'Obligations');
   var historySheet = ss.getSheetByName('Loans');
   var history = sheetToJson(ss, 'Loans');
+  if (month < currentMonth()) return { obligations: obligations, history: history };
   var existing = {};
   history.forEach(function(row) { existing[String(row.snapshotKey)] = true; });
 
@@ -522,6 +525,7 @@ function ensureMonthlyLoanSnapshot(ss, month) {
     });
   });
   appendObjects(historySheet, rows);
+  return { obligations: obligations, history: history.concat(rows) };
 }
 
 function removeFutureLoanSnapshots(ss, id, month) {
@@ -534,6 +538,30 @@ function removeFutureLoanSnapshots(ss, id, month) {
     if (String(values[row][idCol]) === String(id) && String(values[row][monthCol]) > month) {
       sheet.deleteRow(row + 1);
     }
+  }
+}
+
+function refreshFutureBalanceSnapshots(ss, id, month, balance) {
+  var sheet = ss.getSheetByName('Loans');
+  var headers = SCHEMAS.Loans;
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var values = sheet.getDataRange().getValues();
+  var monthCol = headers.indexOf('month');
+  var idCol = headers.indexOf('obligationId');
+  var balanceCol = headers.indexOf('currentBalance');
+  var sourceCol = headers.indexOf('balanceSourceMonth');
+  var updatedCol = headers.indexOf('updatedAt');
+  var now = isoNow();
+  for (var row = 1; row < values.length; row++) {
+    if (String(values[row][idCol]) !== String(id)) continue;
+    var rowMonth = toMonthKey(values[row][monthCol]);
+    if (rowMonth <= month) continue;
+    var sourceMonth = toMonthKey(values[row][sourceCol]);
+    if (sourceMonth && sourceMonth >= month) continue;
+    values[row][balanceCol] = balance;
+    values[row][sourceCol] = month;
+    values[row][updatedCol] = now;
+    sheet.getRange(row + 1, 1, 1, headers.length).setValues([values[row].slice(0, headers.length)]);
   }
 }
 
