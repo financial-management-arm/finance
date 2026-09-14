@@ -412,7 +412,7 @@ async function callApi(params, options = {}) {
   setSyncStatus('saving', 'Saving changes...');
   try {
     const repeatable = ['setPayment', 'updateBalance'].includes(params.action);
-    const send = () => requestApi(params, { ...options, retries: repeatable ? 1 : 0, timeout: options.timeout ?? (repeatable ? 45000 : 30000) });
+    const send = () => requestApi(params, { ...options, retries: repeatable ? 1 : 0, timeout: options.timeout ?? 45000 });
     const task = repeatable ? financialWriteQueue.then(send) : send();
     if (repeatable) financialWriteQueue = task.catch(() => {});
     const result = await task;

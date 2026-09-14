@@ -166,6 +166,7 @@ function doGet(e) {
       result = getReportData(ss, params);
     } else if (action === 'repairSchema') {
       ensureSchema(ss);
+      runDataMigrations(ss);
       result = { success: true, sheets: Object.keys(SCHEMAS), repairedAt: isoNow() };
     } else {
       result = { error: 'Unknown action: ' + action };
@@ -687,9 +688,14 @@ function ensureSchema(ss) {
     utilities.getRange(2, abonentCol, utilRows, 1).setNumberFormat('@');
   }
 
-  // Backfill month column for existing Payments rows that have a key but no month
+}
+
+// One-time-style legacy data repairs. These read entire sheets, so they only
+// run for the explicit 'repairSchema' action, not on every ordinary write
+// (running them on every write was adding several seconds of latency to
+// every save as the sheets grew, which is what caused 'Save failed' timeouts).
+function runDataMigrations(ss) {
   backfillPaymentMonths(ss);
-  // Migrate Cash sheet: insert type column before updatedAt if old 4-col data exists
   migrateCashTypeColumn(ss);
 }
 
