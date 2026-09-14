@@ -1282,7 +1282,7 @@ function switchTab(tab) {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  q('mobile-more-button').classList.toggle('active', ['cash', 'reconcile', 'utilities', 'reports'].includes(tab));
+  q('mobile-more-button').classList.toggle('active', ['cash', 'offers', 'reconcile', 'utilities', 'reports'].includes(tab));
   document.querySelectorAll('.page').forEach(p =>
     p.classList.toggle('active', p.id === 'page-' + tab)
   );
@@ -1299,6 +1299,7 @@ function renderCurrentTab() {
     case 'reconcile':  renderReconcile();  break;
     case 'income':     renderIncome();     break;
     case 'cash':       renderCash();       break;
+    case 'offers':     renderOffers();     break;
     case 'utilities':  renderUtilities();  break;
     case 'reports':    renderReports();    break;
   }
@@ -2425,6 +2426,25 @@ function renderIncome() {
 function renderCash() {
   const cashContent = q('cash-content');
   if (cashContent) cashContent.innerHTML = renderCashTab();
+  updateCashDatalists();
+}
+
+function renderOffers() {
+  const offersContent = q('offers-content');
+  if (offersContent) offersContent.innerHTML = renderOffersTab();
+  updateCashDatalists();
+}
+
+function updateCashDatalists() {
+  const allCategories = [...new Set(state.cashEntries.map(e => e.category).filter(Boolean))].sort();
+  const payerSuggestions = [...new Set([
+    ...state.obligations.map(o => o.payer).filter(Boolean),
+    ...state.cashEntries.map(e => e.payer).filter(Boolean)
+  ])].sort();
+  const catList = q('all-categories-list');
+  const payerList = q('offer-payers-list');
+  if (catList) catList.innerHTML = allCategories.map(c => `<option value="${escapeHtml(c)}">`).join('');
+  if (payerList) payerList.innerHTML = payerSuggestions.map(p => `<option value="${escapeHtml(p)}">`).join('');
 }
 
 function cashEntryIsOffer(e) {
@@ -2488,10 +2508,10 @@ function setCashPayerFilter(payer) { state.cashPayerFilter = payer; renderCash()
 function setCashPlaceFilter(place) { state.cashPlaceFilter = place; renderCash(); }
 function setCashSort(sort) { state.cashSort = sort; renderCash(); }
 
-function setOfferFilter(cat) { state.offerFilter = cat; renderCash(); }
-function setOfferPayerFilter(payer) { state.offerPayerFilter = payer; renderCash(); }
-function setOfferPlaceFilter(place) { state.offerPlaceFilter = place; renderCash(); }
-function setOfferSort(sort) { state.offerSort = sort; renderCash(); }
+function setOfferFilter(cat) { state.offerFilter = cat; renderOffers(); }
+function setOfferPayerFilter(payer) { state.offerPayerFilter = payer; renderOffers(); }
+function setOfferPlaceFilter(place) { state.offerPlaceFilter = place; renderOffers(); }
+function setOfferSort(sort) { state.offerSort = sort; renderOffers(); }
 
 function renderCashHoldingsSection(allCash) {
   const categories   = [...new Set(allCash.map(e => e.category).filter(Boolean))].sort();
@@ -2636,23 +2656,11 @@ function renderOfferSection(allOffers) {
 }
 
 function renderCashTab() {
-  const offerEntries = state.cashEntries.filter(cashEntryIsOffer);
-  const cashEntries  = state.cashEntries.filter(e => !cashEntryIsOffer(e));
-  const cashTotal    = cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const offerTotal   = offerEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-
-  const allCategories = [...new Set(state.cashEntries.map(e => e.category).filter(Boolean))].sort();
-  const payerSuggestions = [...new Set([
-    ...state.obligations.map(o => o.payer).filter(Boolean),
-    ...state.cashEntries.map(e => e.payer).filter(Boolean)
-  ])].sort();
-
-  const datalists = `
-    <datalist id="all-categories-list">${allCategories.map(c => `<option value="${escapeHtml(c)}">`).join('')}</datalist>
-    <datalist id="offer-payers-list">${payerSuggestions.map(p => `<option value="${escapeHtml(p)}">`).join('')}</datalist>`;
+  const cashEntries = state.cashEntries.filter(e => !cashEntryIsOffer(e));
+  const cashTotal   = cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
   const summary = `
-    <div class="actives-summary">
+    <div class="actives-summary-2">
       <div class="actives-stat">
         <span class="actives-stat-label">Cash Holdings</span>
         <span class="actives-stat-value">${amd(cashTotal)}</span>
@@ -2660,82 +2668,52 @@ function renderCashTab() {
       </div>
       <div class="actives-stat-sep"></div>
       <div class="actives-stat">
+        <span class="actives-stat-label">Places</span>
+        <span class="actives-stat-value">${new Set(cashEntries.map(e => e.place).filter(Boolean)).size}</span>
+      </div>
+    </div>`;
+
+  return `${summary}
+    <div class="cash-section-head">
+      <span class="cash-section-title">Cash Holdings</span>
+      <span class="cash-section-badge">${cashEntries.length}</span>
+    </div>
+    ${renderCashHoldingsSection(cashEntries)}`;
+}
+
+function renderOffersTab() {
+  const offerEntries = state.cashEntries.filter(cashEntryIsOffer);
+  const offerTotal   = offerEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  const summary = `
+    <div class="actives-summary-2">
+      <div class="actives-stat">
         <span class="actives-stat-label">Loan Offers</span>
         <span class="actives-stat-value is-warning">${amd(offerTotal)}</span>
         <span class="actives-stat-sub">${offerEntries.length} entr${offerEntries.length === 1 ? 'y' : 'ies'}</span>
       </div>
       <div class="actives-stat-sep"></div>
       <div class="actives-stat">
-        <span class="actives-stat-label">Total Liquid</span>
-        <span class="actives-stat-value is-success">${amd(cashTotal + offerTotal)}</span>
-        <span class="actives-stat-sub">cash + offers</span>
+        <span class="actives-stat-label">Lenders</span>
+        <span class="actives-stat-value">${new Set(offerEntries.map(e => e.place).filter(Boolean)).size}</span>
       </div>
     </div>`;
 
-  return `${datalists}<div class="cash-tab-layout">
-    <div class="cash-add-panel">
-      <span class="cash-add-eyebrow">New Entry</span>
-      <form class="cash-add-form" onsubmit="submitAddCash(event)">
-        <div class="form-group">
-          <label class="form-label">Section</label>
-          <select class="form-input" id="cash-new-type">
-            <option value="cash">Cash Holding</option>
-            <option value="offer">Loan Offer</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Category</label>
-          <input class="form-input" id="cash-new-category" type="text" list="all-categories-list" placeholder="e.g. Ապառիկ, Cash, Credit Line" maxlength="80">
-        </div>
-        <div id="cash-new-offer-fields">
-          <div class="form-group">
-            <label class="form-label">For whom</label>
-            <input class="form-input" id="cash-new-payer" type="text" list="offer-payers-list" placeholder="e.g. Hovhannes" maxlength="80">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Last available</label>
-            <input class="form-input" id="cash-new-date" type="date">
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Bank / Place</label>
-          <input class="form-input" id="cash-new-place" placeholder="e.g. Wallet, ACBA" required maxlength="100">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Amount (֏)</label>
-          <input class="form-input" id="cash-new-amount" type="number" placeholder="0" min="0" step="1000" required>
-        </div>
-        <button class="btn-add" type="submit">Add Entry</button>
-      </form>
-    </div>
-    <div class="cash-list-panel">
-      ${summary}
-      <div class="cash-section-head">
-        <span class="cash-section-title">Cash Holdings</span>
-        <span class="cash-section-badge">${cashEntries.length}</span>
-      </div>
-      ${renderCashHoldingsSection(cashEntries)}
-      ${renderOfferSection(offerEntries)}
-    </div>
-  </div>`;
+  return `${summary}${renderOfferSection(offerEntries)}`;
 }
-
 async function submitAddCash(event) {
   event.preventDefault();
-  const type     = document.getElementById('cash-new-type').value || 'cash';
   const category = document.getElementById('cash-new-category').value.trim();
-  const payer    = document.getElementById('cash-new-payer').value.trim();
-  const lastAvailableDate = document.getElementById('cash-new-date').value;
   const place    = document.getElementById('cash-new-place').value.trim();
   const amount   = Number(document.getElementById('cash-new-amount').value) || 0;
   if (!place) return;
+  const type = 'cash', payer = '', lastAvailableDate = '';
   const entry = { id: 'cash-' + Date.now(), place, amount, type, category, payer, lastAvailableDate, updatedAt: new Date().toISOString() };
   state.cashEntries = [...state.cashEntries, entry];
   document.getElementById('cash-new-place').value = '';
   document.getElementById('cash-new-amount').value = '';
   document.getElementById('cash-new-category').value = '';
-  document.getElementById('cash-new-payer').value = '';
-  document.getElementById('cash-new-date').value = '';
+  closeCashAddModal();
   renderCash();
   try {
     await callApi({ action: 'addCashEntry', place, amount, type, category, payer, lastAvailableDate });
@@ -2744,6 +2722,49 @@ async function submitAddCash(event) {
     renderCash();
     showError('Could not save — please try again.');
   }
+}
+
+async function submitAddOffer(event) {
+  event.preventDefault();
+  const category = document.getElementById('offer-new-category').value.trim();
+  const payer    = document.getElementById('offer-new-payer').value.trim();
+  const lastAvailableDate = document.getElementById('offer-new-date').value;
+  const place    = document.getElementById('offer-new-place').value.trim();
+  const amount   = Number(document.getElementById('offer-new-amount').value) || 0;
+  if (!place) return;
+  const type = 'offer';
+  const entry = { id: 'cash-' + Date.now(), place, amount, type, category, payer, lastAvailableDate, updatedAt: new Date().toISOString() };
+  state.cashEntries = [...state.cashEntries, entry];
+  document.getElementById('offer-new-place').value = '';
+  document.getElementById('offer-new-amount').value = '';
+  document.getElementById('offer-new-category').value = '';
+  document.getElementById('offer-new-payer').value = '';
+  document.getElementById('offer-new-date').value = '';
+  closeOfferAddModal();
+  renderOffers();
+  try {
+    await callApi({ action: 'addCashEntry', place, amount, type, category, payer, lastAvailableDate });
+  } catch (err) {
+    state.cashEntries = state.cashEntries.filter(e => e.id !== entry.id);
+    renderOffers();
+    showError('Could not save — please try again.');
+  }
+}
+
+function openCashAddModal() {
+  q('cash-add-modal').classList.remove('hidden');
+}
+
+function closeCashAddModal() {
+  q('cash-add-modal').classList.add('hidden');
+}
+
+function openOfferAddModal() {
+  q('offer-add-modal').classList.remove('hidden');
+}
+
+function closeOfferAddModal() {
+  q('offer-add-modal').classList.add('hidden');
 }
 
 function openCashEdit(id) {
@@ -2772,12 +2793,12 @@ async function saveCashEdit(event, id) {
   if (!place) return;
   const prev = state.cashEntries.find(e => e.id === id);
   state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount, type, category, payer, lastAvailableDate } : e);
-  renderCash();
+  renderCash(); renderOffers();
   try {
     await callApi({ action: 'updateCashEntry', id, place, amount, type, category, payer, lastAvailableDate });
   } catch (err) {
     if (prev) state.cashEntries = state.cashEntries.map(e => e.id === id ? prev : e);
-    renderCash();
+    renderCash(); renderOffers();
     showError('Could not save — please try again.');
   }
 }
@@ -2787,12 +2808,12 @@ async function confirmDeleteCash(id) {
   if (!entry) return;
   if (!confirm(`Delete "${entry.place}" (${amd(Number(entry.amount))})?`)) return;
   state.cashEntries = state.cashEntries.filter(e => e.id !== id);
-  renderCash();
+  renderCash(); renderOffers();
   try {
     await callApi({ action: 'deleteCashEntry', id });
   } catch (err) {
     state.cashEntries = [...state.cashEntries, entry];
-    renderCash();
+    renderCash(); renderOffers();
     showError('Could not delete — please try again.');
   }
 }
@@ -3797,7 +3818,7 @@ function renderBalancePanel() {
       <div class="bs-row bs-net-row">
         <span class="bs-label bs-liquidity-label">Total offers</span>
         <span class="bs-value bs-offer">${amdCompact(totalOffers)}</span>
-      </div>` : `<div class="bs-row"><span class="bs-no-cash"><button class="bs-link-btn" onclick="switchTab('cash')">Add loan offer →</button></span></div>`}
+      </div>` : `<div class="bs-row"><span class="bs-no-cash"><button class="bs-link-btn" onclick="switchTab('offers')">Add loan offer →</button></span></div>`}
 
     </div>
   </div>`;

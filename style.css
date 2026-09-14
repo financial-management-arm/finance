@@ -2886,6 +2886,7 @@ button:active,
 
 /* ── Actives summary bar ── */
 .actives-summary { display: grid; grid-template-columns: 1fr 1px 1fr 1px 1fr; background: var(--color-surface-1); border: 1px solid var(--color-border); border-radius: var(--radius-card); margin-bottom: var(--space-5); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.actives-summary-2 { display: grid; grid-template-columns: 1fr 1px 1fr; background: var(--color-surface-1); border: 1px solid var(--color-border); border-radius: var(--radius-card); margin-bottom: var(--space-5); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .actives-stat { display: flex; flex-direction: column; gap: 3px; padding: var(--space-4) var(--space-5); }
 .actives-stat-sep { background: var(--color-border); }
 .actives-stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-subtle); }

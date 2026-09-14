@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=58">
+  <link rel="stylesheet" href="style.css?v=59">
 </head>
 <body class="month-pending">
 
@@ -34,16 +34,18 @@
       <li><a href="#" data-tab="reconcile" aria-label="Reconcile balances"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11M4 7l3-3M4 7l3 3M20 17H9m11 0-3-3m3 3-3 3"/></svg><span class="nav-label">Reconcile</span></a></li>
       <li><a href="#" data-tab="income" aria-label="Income"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income</span></a></li>
       <li><a href="#" data-tab="cash" aria-label="Cash"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h14v10H7V4Zm-4 4h14v10H3V8Zm4 5h6"/></svg><span class="nav-label">Cash</span></a></li>
-      <li><a href="#" data-tab="utilities" aria-label="Units and utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Units</span></a></li>
+      <li><a href="#" data-tab="offers" aria-label="Loan offers"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11V3Z"/><circle cx="14" cy="8" r="1.6"/></svg><span class="nav-label">Offers</span></a></li>
+      <li><a href="#" data-tab="utilities" aria-label="Utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Utilities</span></a></li>
       <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V10h4v8H4Zm6 0V4h4v14h-4Zm6 0v-6h4v6h-4Z"/></svg><span class="nav-label">Reports</span></a></li>
       <li class="mobile-more"><button id="mobile-more-button" type="button" onclick="toggleMobileNav()" aria-expanded="false" aria-controls="mobile-menu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h1m5 0h1m5 0h1"/></svg><span>More</span></button></li>
     </ul>
     <div class="sidebar-footer"><span class="workspace-avatar">H</span><div><strong>Harutyunyan</strong><span>Personal workspace</span></div></div>
   </nav>
   <div id="mobile-menu" class="mobile-menu hidden" aria-label="More pages">
-    <button type="button" onclick="switchTab('cash')">Cash <span>Track cash holdings &amp; loan offers</span></button>
+    <button type="button" onclick="switchTab('cash')">Cash <span>Track cash holdings</span></button>
+    <button type="button" onclick="switchTab('offers')">Loan offers <span>Pre-approved credit lines</span></button>
     <button type="button" onclick="switchTab('reconcile')">Reconcile balances <span>Check your remaining debt</span></button>
-    <button type="button" onclick="switchTab('utilities')">Units &amp; utilities <span>Manage recurring expenses</span></button>
+    <button type="button" onclick="switchTab('utilities')">Utilities <span>Manage recurring expenses</span></button>
     <button type="button" onclick="switchTab('reports')">Reports <span>See the bigger picture</span></button>
   </div>
 
@@ -268,11 +270,92 @@
     <section id="page-cash" class="page">
       <div class="page-header">
         <h1>Cash</h1>
+        <div class="page-header-actions">
+          <button class="button button-primary" type="button" onclick="openCashAddModal()">+ Add cash</button>
+        </div>
       </div>
       <div class="page-body">
         <div id="cash-content"></div>
       </div>
     </section>
+
+    <!-- ─── LOAN OFFERS ─── -->
+    <section id="page-offers" class="page">
+      <div class="page-header">
+        <h1>Loan Offers</h1>
+        <div class="page-header-actions">
+          <button class="button button-primary" type="button" onclick="openOfferAddModal()">+ Add offer</button>
+        </div>
+      </div>
+      <div class="page-body">
+        <div id="offers-content"></div>
+      </div>
+    </section>
+
+    <datalist id="all-categories-list"></datalist>
+    <datalist id="offer-payers-list"></datalist>
+
+    <div class="modal-backdrop hidden" id="cash-add-modal">
+      <div class="edit-modal income-add-dialog" role="dialog" aria-modal="true" aria-labelledby="cash-add-title">
+        <div class="modal-header">
+          <h2 id="cash-add-title">Add cash</h2>
+          <button class="modal-close" type="button" onclick="closeCashAddModal()" aria-label="Close">×</button>
+        </div>
+        <form onsubmit="submitAddCash(event)">
+          <div class="form-group">
+            <label class="form-label" for="cash-new-category">Category</label>
+            <input class="form-input" id="cash-new-category" type="text" list="all-categories-list" placeholder="e.g. Ապառիկ, Cash" maxlength="80">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cash-new-place">Bank / Place</label>
+            <input class="form-input" id="cash-new-place" placeholder="e.g. Wallet, ACBA" required maxlength="100">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cash-new-amount">Amount (֏)</label>
+            <input class="form-input" id="cash-new-amount" type="number" placeholder="0" min="0" step="1000" required>
+          </div>
+          <div class="modal-actions">
+            <button class="button button-ghost" type="button" onclick="closeCashAddModal()">Cancel</button>
+            <button class="button button-primary" type="submit">Add cash</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="offer-add-modal">
+      <div class="edit-modal income-add-dialog" role="dialog" aria-modal="true" aria-labelledby="offer-add-title">
+        <div class="modal-header">
+          <h2 id="offer-add-title">Add loan offer</h2>
+          <button class="modal-close" type="button" onclick="closeOfferAddModal()" aria-label="Close">×</button>
+        </div>
+        <form onsubmit="submitAddOffer(event)">
+          <div class="form-group">
+            <label class="form-label" for="offer-new-category">Category</label>
+            <input class="form-input" id="offer-new-category" type="text" list="all-categories-list" placeholder="e.g. Credit Line" maxlength="80">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="offer-new-payer">For whom</label>
+            <input class="form-input" id="offer-new-payer" type="text" list="offer-payers-list" placeholder="e.g. Hovhannes" maxlength="80">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="offer-new-date">Last available</label>
+            <input class="form-input" id="offer-new-date" type="date">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="offer-new-place">Bank / Place</label>
+            <input class="form-input" id="offer-new-place" placeholder="e.g. ACBA" required maxlength="100">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="offer-new-amount">Amount (֏)</label>
+            <input class="form-input" id="offer-new-amount" type="number" placeholder="0" min="0" step="1000" required>
+          </div>
+          <div class="modal-actions">
+            <button class="button button-ghost" type="button" onclick="closeOfferAddModal()">Cancel</button>
+            <button class="button button-primary" type="submit">Add offer</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <div class="modal-backdrop hidden" id="income-add-modal">
       <div class="edit-modal income-add-dialog" role="dialog" aria-modal="true" aria-labelledby="income-add-title">
@@ -311,7 +394,7 @@
     <!-- ─── UTILITIES ─── -->
     <section id="page-utilities" class="page">
       <div class="page-header">
-        <h1>Units &amp; Utilities</h1>
+        <h1>Utilities</h1>
         <div class="page-header-actions">
           <button class="btn-primary" type="button" onclick="openAddUtilityModal()">+ Add unit / utility</button>
         </div>
@@ -855,7 +938,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=82"></script>
+<script src="app.js?v=83"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>
