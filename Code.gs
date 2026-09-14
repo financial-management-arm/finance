@@ -907,12 +907,14 @@ function toMonthKey(value) {
   return str;
 }
 
-// Mirrors the frontend's isCreditLine()/isLoanRecord(): an obligation tagged as a
-// credit line with nothing currently drawn on it (balance 0) is available credit,
-// not debt — counting it as a loan inflated debt totals and loan-payoff projections.
+// Mirrors the frontend's isCreditLine()/isLoanRecord(). The category label is
+// unreliable (the Add/Edit Obligation form has no dedicated "credit line"
+// category, so these often get tagged 'loan' too) — an obligation with nothing
+// currently drawn on it (balance 0) but a credit limit set is available credit,
+// not debt, regardless of category. Counting it as a loan inflated debt totals
+// and loan-payoff projections.
 function isCreditLineObligation(obligation) {
-  return String(obligation.category || '').toLowerCase().indexOf('credit') !== -1 &&
-    (Number(obligation.currentBalance) || 0) === 0;
+  return (Number(obligation.loanTotal) || 0) > 0 && (Number(obligation.currentBalance) || 0) === 0;
 }
 
 function isLoan(obligation) {

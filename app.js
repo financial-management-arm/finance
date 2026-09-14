@@ -323,9 +323,12 @@ function balanceReadMonth(loan, month = state.month) {
 
 const CASH_CATEGORIES = { cash: 'Cash', aparik: 'Ապառիկ', credit_line: 'Credit Line' };
 
+// The category label is unreliable — the Add/Edit Obligation form has no
+// dedicated "credit line" category, so these often get tagged 'loan' too.
+// A credit facility with nothing currently drawn is available credit, not debt,
+// regardless of what category it was filed under.
 function isCreditLine(o) {
-  return String(o.category || '').toLowerCase().includes('credit') &&
-    (Number(o.currentBalance) || 0) === 0;
+  return (Number(o.loanTotal) || 0) > 0 && (Number(o.currentBalance) || 0) === 0;
 }
 
 function isLoanRecord(obligation) {
