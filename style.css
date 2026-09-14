@@ -1208,6 +1208,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .month-nav { gap: var(--space-2); }
 .month-label { font-size: var(--text-13); min-width: 128px; text-align: center; }
 
+.today-overview-block { margin-bottom: 28px; }
+.today-overview-heading { margin-bottom: var(--space-4); }
 .today-body { display: flex; flex-direction: column; gap: var(--space-6); }
 .today-hero {
   display: flex;
@@ -2927,31 +2929,49 @@ button:active,
 /* ── Balance Sheet breakdown ── */
 .bs-cash-breakdown { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }
 .bs-cash-item { font-size: 11px; color: var(--color-muted); background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 20px; padding: 2px 10px; }
-.bs-no-cash { font-size: var(--text-13); color: var(--color-muted); }
 .bs-link-btn { background: none; border: none; color: var(--color-primary); font-size: var(--text-13); cursor: pointer; padding: 0; text-decoration: underline; }
 .bs-manage-btn { cursor: pointer; background: none; border: 1px solid var(--color-border); color: var(--color-muted); font-size: 12px; padding: 3px 10px; border-radius: 20px; transition: color var(--motion-fast), border-color var(--motion-fast); }
 .bs-manage-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
 
-/* ── Balance Sheet panel ── */
-.bs-panel { max-width: 440px; }
+/* ── Financial Position panel ── */
 .bs-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) 0; }
-.bs-divider { border-top: 1px solid var(--color-border); margin-top: var(--space-2); padding-top: var(--space-3); }
+.bs-row-note { font-size: 11px; color: var(--color-muted); padding: 0 0 var(--space-2); }
 .bs-label { font-size: var(--text-13); color: var(--color-muted); font-weight: 500; }
 .bs-value { font-size: var(--text-14); font-weight: 600; color: var(--color-text); text-align: right; display: flex; align-items: center; gap: 6px; }
 .bs-debt { color: var(--color-danger); }
-.bs-net-row { border-top: 2px solid var(--color-border); margin-top: var(--space-2); padding-top: var(--space-3); }
-.bs-net-label { font-size: var(--text-14); font-weight: 700; color: var(--color-text); }
-.bs-net { font-size: var(--text-16); font-weight: 700; }
 .bs-net-pos { color: var(--color-success); }
 .bs-net-neg { color: var(--color-danger); }
 .bs-credit { color: var(--color-primary); }
-.bs-liquidity { color: var(--color-text); font-size: var(--text-16); }
-.bs-liquidity-label { font-weight: 700; color: var(--color-text); font-size: var(--text-14); }
-.bs-cash-input { width: 148px; height: 34px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-2); color: var(--color-text); font: 600 var(--text-14) Inter, sans-serif; text-align: right; transition: border-color var(--motion-fast), box-shadow var(--motion-fast); }
-.bs-cash-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent); }
 .bs-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); padding: var(--space-3) 0 var(--space-1); }
 .bs-section-divider { border-top: 1px solid var(--color-border); margin: var(--space-3) 0 0; }
-.bs-offer { color: var(--color-primary); font-size: var(--text-16); font-weight: 700; }
+
+.bs-headline { display: flex; align-items: stretch; gap: var(--space-6); padding-bottom: var(--space-1); }
+.bs-headline-col { display: flex; flex-direction: column; gap: 3px; }
+.bs-headline-col-secondary { padding-left: var(--space-6); border-left: 1px solid var(--color-border); justify-content: center; }
+.bs-headline-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+.bs-headline-value { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.bs-headline-value-sm { font-size: 20px; color: var(--color-text); }
+.bs-headline-sub { font-size: 11px; color: var(--color-muted); }
+
+.bs-cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+.bs-col-label { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); padding-bottom: var(--space-2); }
+.bs-col-label::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+.bs-col-label-asset::before { background: var(--color-success); }
+.bs-col-label-liability::before { background: var(--color-danger); }
+
+.bs-offers-head { display: flex; align-items: baseline; justify-content: space-between; }
+.bs-offers-note { font-size: 11px; color: var(--color-muted); }
+.bs-offer-chips { display: flex; flex-wrap: wrap; gap: 8px; padding-top: var(--space-1); }
+.bs-offer-chip { cursor: pointer; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; border: 1px solid transparent; background: none; display: flex; align-items: center; gap: 5px; }
+.bs-offer-chip strong { font-weight: 700; }
+.bs-offer-chip.is-approved { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 12%, transparent); border-color: color-mix(in srgb, var(--color-success) 25%, transparent); }
+.bs-offer-chip.is-pending { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 12%, transparent); border-color: color-mix(in srgb, var(--color-warning) 25%, transparent); }
+
+@media (max-width: 640px) {
+  .bs-headline { flex-direction: column; gap: var(--space-3); }
+  .bs-headline-col-secondary { padding-left: 0; border-left: none; padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+  .bs-cols { grid-template-columns: 1fr; gap: var(--space-4); }
+}
 /* ── Offer tags ── */
 .offer-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .offer-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap; }

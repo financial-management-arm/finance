@@ -338,6 +338,22 @@ function activeLoans() {
   return activeObs().filter(isLoanRecord);
 }
 
+// Quarterly obligations spread over 3 months, one-time items aren't recurring —
+// summing raw .amount for every active obligation overstates true monthly cost.
+function monthlyEquivalent(o) {
+  const freq = String(o.frequency || 'monthly').toLowerCase().trim();
+  const amt = Number(o.amount) || 0;
+  if (freq === 'quarterly') return amt / 3;
+  if (freq === 'one_time') return 0;
+  return amt;
+}
+
+// Variable-rate utilities don't have a reliable fixed monthly amount —
+// treat them the same way the Payments tab does (0 until a bill is entered).
+function monthlyUtilAmount(u) {
+  return isUtilFixed(u) ? (Number(u.amount) || 0) : 0;
+}
+
 function isObligationDueThisMonth(ob, month) {
   month = month || state.month;
   const freq = String(ob.frequency || 'monthly').toLowerCase().trim();
@@ -1293,7 +1309,6 @@ function renderCurrentTab() {
   updateMonthLabels();
   if (loadedMonth !== state.month) return;
   switch (state.tab) {
-    case 'dashboard':  renderDashboard();  break;
     case 'schedule':   renderSchedule();   break;
     case 'loans':      renderLoans();      break;
     case 'reconcile':  renderReconcile();  break;
@@ -1301,7 +1316,7 @@ function renderCurrentTab() {
     case 'cash':       renderCash();       break;
     case 'offers':     renderOffers();     break;
     case 'utilities':  renderUtilities();  break;
-    case 'reports':    renderReports();    break;
+    case 'reports':    renderDashboard();  renderReports();  break;
   }
 }
 
@@ -3764,29 +3779,13 @@ function renderHealthPanel(d) {
   </div>`;
 }
 
-async function saveCash(amount) {
-  const amt = Math.max(0, Math.round(Number(String(amount).replace(/[^\d.]/g, '')) || 0));
-  state.cash = amt;
-  const loans = activeLoans();
-  const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
-  const net = amt - totalDebt;
-  const netEl = document.querySelector('.bs-net');
-  if (netEl) {
-    netEl.textContent = (net >= 0 ? '+' : '−') + amdCompact(Math.abs(net));
-    netEl.className = 'bs-value bs-net ' + (net >= 0 ? 'bs-net-pos' : 'bs-net-neg');
-  }
-  try {
-    await callApi({ action: 'setCash', amount: amt });
-  } catch (err) {
-    showError('Could not save cash: ' + err.message);
-  }
-}
-
 function renderBalancePanel() {
   const loans = activeLoans();
   const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
   const cashOnlyEntries = state.cashEntries.filter(e => !cashEntryIsOffer(e));
   const offerEntries = state.cashEntries.filter(e => cashEntryIsOffer(e));
+  const approvedOffers = offerEntries.filter(cashEntryIsApproved);
+  const pendingOffers  = offerEntries.filter(e => !cashEntryIsApproved(e));
   const cash = cashOnlyEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const netPos = cash - totalDebt;
   const netIsPos = netPos >= 0;
@@ -3794,68 +3793,77 @@ function renderBalancePanel() {
   const creditLineObs = activeObs().filter(isCreditLine);
   const availableCredit = creditLineObs.reduce((s, o) => s + (Number(o.loanTotal) || 0), 0);
   const liquidFunds = cash + availableCredit;
-  const totalOffers = offerEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const approvedOfferTotal = approvedOffers.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const pendingOfferTotal  = pendingOffers.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
   const cashDetail = cashOnlyEntries.length
     ? cashOnlyEntries.map(e => `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`).join('')
-    : `<span class="bs-no-cash"><button class="bs-link-btn" onclick="switchTab('cash')">Add cash →</button></span>`;
+    : `<button class="bs-link-btn" onclick="switchTab('cash')">Add cash →</button>`;
   const creditDetail = creditLineObs.map(o =>
     `<span class="bs-cash-item">${escapeHtml(o.bank)}: ${amdCompact(Number(o.loanTotal))}</span>`
-  ).join('');
-  const offerDetail = offerEntries.map(e =>
-    `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`
   ).join('');
 
   return `<div class="report-panel bs-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16M6 13h2"/></svg>
-        Balance Sheet
+        Financial Position
       </div>
       <button class="rp-badge bs-manage-btn" onclick="switchTab('cash')">Manage →</button>
     </div>
     <div class="report-panel-body rp-pad">
 
-      <div class="bs-section-label">Net Position</div>
-      <div class="bs-row">
-        <span class="bs-label">Cash on hand</span>
-        <span class="bs-value">${amdCompact(cash)}</span>
-      </div>
-      <div class="bs-cash-breakdown">${cashDetail}</div>
-      <div class="bs-row">
-        <span class="bs-label">Total debt</span>
-        <span class="bs-value bs-debt">${amdCompact(totalDebt)}</span>
-      </div>
-      <div class="bs-row bs-net-row">
-        <span class="bs-label bs-net-label">Net position</span>
-        <span class="bs-value bs-net ${netIsPos ? 'bs-net-pos' : 'bs-net-neg'}">${netIsPos ? '+' : '−'}${amdCompact(Math.abs(netPos))}</span>
+      <div class="bs-headline">
+        <div class="bs-headline-col">
+          <span class="bs-headline-label">Net Position</span>
+          <span class="bs-headline-value ${netIsPos ? 'bs-net-pos' : 'bs-net-neg'}">${netIsPos ? '+' : '−'}${amdCompact(Math.abs(netPos))}</span>
+          <span class="bs-headline-sub">${amdCompact(cash)} cash − ${amdCompact(totalDebt)} debt</span>
+        </div>
+        <div class="bs-headline-col bs-headline-col-secondary">
+          <span class="bs-headline-label">Liquid Funds</span>
+          <span class="bs-headline-value bs-headline-value-sm">${amdCompact(liquidFunds)}</span>
+          <span class="bs-headline-sub">cash + available credit</span>
+        </div>
       </div>
 
       <div class="bs-section-divider"></div>
-      <div class="bs-section-label">Liquid Funds</div>
-      <div class="bs-row">
-        <span class="bs-label">Cash on hand</span>
-        <span class="bs-value">${amdCompact(cash)}</span>
-      </div>
-      ${availableCredit > 0 ? `
-      <div class="bs-row">
-        <span class="bs-label">Credit lines</span>
-        <span class="bs-value bs-credit">${amdCompact(availableCredit)}</span>
-      </div>
-      <div class="bs-cash-breakdown">${creditDetail}</div>` : ''}
-      <div class="bs-row bs-net-row">
-        <span class="bs-label bs-liquidity-label">Liquid funds</span>
-        <span class="bs-value bs-liquidity">${amdCompact(liquidFunds)}</span>
+
+      <div class="bs-cols">
+        <div class="bs-col">
+          <div class="bs-col-label bs-col-label-asset">Assets</div>
+          <div class="bs-row">
+            <span class="bs-label">Cash on hand</span>
+            <span class="bs-value">${amdCompact(cash)}</span>
+          </div>
+          <div class="bs-cash-breakdown">${cashDetail}</div>
+          ${availableCredit > 0 ? `
+          <div class="bs-row">
+            <span class="bs-label">Available credit lines</span>
+            <span class="bs-value bs-credit">${amdCompact(availableCredit)}</span>
+          </div>
+          <div class="bs-cash-breakdown">${creditDetail}</div>
+          <div class="bs-row-note">Existing lines, not yet drawn</div>` : ''}
+        </div>
+        <div class="bs-col">
+          <div class="bs-col-label bs-col-label-liability">Liabilities</div>
+          <div class="bs-row">
+            <span class="bs-label">Total debt</span>
+            <span class="bs-value bs-debt">${amdCompact(totalDebt)}</span>
+          </div>
+          <div class="bs-row-note">${loans.length} active loan${loans.length !== 1 ? 's' : ''}</div>
+        </div>
       </div>
 
       <div class="bs-section-divider"></div>
-      <div class="bs-section-label">Loan Offers</div>
+      <div class="bs-offers-head">
+        <span class="bs-section-label" style="padding:0">Loan Offers</span>
+        <span class="bs-offers-note">not counted in position above</span>
+      </div>
       ${offerEntries.length ? `
-      <div class="bs-cash-breakdown">${offerDetail}</div>
-      <div class="bs-row bs-net-row">
-        <span class="bs-label bs-liquidity-label">Total offers</span>
-        <span class="bs-value bs-offer">${amdCompact(totalOffers)}</span>
-      </div>` : `<div class="bs-row"><span class="bs-no-cash"><button class="bs-link-btn" onclick="switchTab('offers')">Add loan offer →</button></span></div>`}
+      <div class="bs-offer-chips">
+        ${approvedOffers.length ? `<button class="bs-offer-chip is-approved" onclick="switchTab('offers')">Approved <strong>${amdCompact(approvedOfferTotal)}</strong></button>` : ''}
+        ${pendingOffers.length ? `<button class="bs-offer-chip is-pending" onclick="switchTab('offers')">Pending <strong>${amdCompact(pendingOfferTotal)}</strong></button>` : ''}
+      </div>` : `<button class="bs-link-btn" onclick="switchTab('offers')">Add loan offer →</button>`}
 
     </div>
   </div>`;
@@ -3864,9 +3872,9 @@ function renderBalancePanel() {
 function renderReportSummary(d) {
   const loans = activeLoans();
   const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
-  const monthlyObl = activeObs().reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const monthlyObl = activeObs().reduce((s, o) => s + monthlyEquivalent(o), 0);
   const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
-  const monthlyUtil = utils.reduce((s, u) => s + (Number(u.amount) || 0), 0);
+  const monthlyUtil = utils.reduce((s, u) => s + monthlyUtilAmount(u), 0);
   const monthlyTotal = monthlyObl + monthlyUtil;
   const cfData = d.cashFlow || [];
   const avgIncome = cfData.length ? Math.round(cfData.reduce((s, r) => s + (r.income || 0), 0) / cfData.length) : 0;
@@ -3915,11 +3923,11 @@ function renderCategoryPanel() {
     const cat = String(o.category || 'other').toLowerCase().trim();
     if (!byCategory[cat]) byCategory[cat] = { ...( catMeta[cat] || { label: cat.charAt(0).toUpperCase() + cat.slice(1), color: 'var(--muted)' }), count: 0, total: 0 };
     byCategory[cat].count++;
-    byCategory[cat].total += Number(o.amount) || 0;
+    byCategory[cat].total += monthlyEquivalent(o);
   });
   if (utils.length) {
     if (!byCategory.utility) byCategory.utility = { ...catMeta.utility, count: 0, total: 0 };
-    utils.forEach(u => { byCategory.utility.count++; byCategory.utility.total += Number(u.amount) || 0; });
+    utils.forEach(u => { byCategory.utility.count++; byCategory.utility.total += monthlyUtilAmount(u); });
   }
 
   const cats = Object.values(byCategory).sort((a, b) => b.total - a.total);
@@ -3956,12 +3964,12 @@ function renderPayerPanel() {
   all.forEach(o => {
     const p = String(o.payer || '').trim(); if (!p) return;
     if (!byPayer[p]) byPayer[p] = { count: 0, total: 0 };
-    byPayer[p].count++; byPayer[p].total += Number(o.amount) || 0;
+    byPayer[p].count++; byPayer[p].total += monthlyEquivalent(o);
   });
   utils.forEach(u => {
     const p = String(u.payer || '').trim(); if (!p) return;
     if (!byPayer[p]) byPayer[p] = { count: 0, total: 0 };
-    byPayer[p].count++; byPayer[p].total += Number(u.amount) || 0;
+    byPayer[p].count++; byPayer[p].total += monthlyUtilAmount(u);
   });
 
   const payerArr = Object.entries(byPayer).sort((a, b) => b[1].total - a[1].total);
