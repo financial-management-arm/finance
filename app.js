@@ -2528,25 +2528,21 @@ function renderCashEntryCard(e) {
 }
 
 
-function setCashFilter(cat) { state.cashFilter = cat; renderCash(); }
-function setCashPayerFilter(payer) { state.cashPayerFilter = payer; renderCash(); }
-function setCashPlaceFilter(place) { state.cashPlaceFilter = place; renderCash(); }
-function setCashSort(sort) { state.cashSort = sort; renderCash(); }
-
-function setOfferFilter(cat) { state.offerFilter = cat; renderOffers(); }
-function setOfferPayerFilter(payer) { state.offerPayerFilter = payer; renderOffers(); }
-function setOfferPlaceFilter(place) { state.offerPlaceFilter = place; renderOffers(); }
-function setOfferSort(sort) { state.offerSort = sort; renderOffers(); }
-function setOfferStatusFilter(status) { state.offerStatusFilter = status; renderOffers(); }
-
 function renderCashHoldingsSection(allCash) {
-  const categories   = [...new Set(allCash.map(e => e.category).filter(Boolean))].sort();
-  const payers       = [...new Set(allCash.map(e => e.payer).filter(Boolean))].sort();
-  const places       = [...new Set(allCash.map(e => e.place).filter(Boolean))].sort();
-  const catFilter    = state.cashFilter      || 'all';
-  const payerFilter  = state.cashPayerFilter || 'all';
-  const placeFilter  = state.cashPlaceFilter || 'all';
-  const sort         = state.cashSort        || 'amount-desc';
+  const categories = [...new Set(allCash.map(e => e.category).filter(Boolean))].sort();
+  const payers     = [...new Set(allCash.map(e => e.payer).filter(Boolean))].sort();
+  const places     = [...new Set(allCash.map(e => e.place).filter(Boolean))].sort();
+
+  state.cashFilter      = setObligationSelectOptions('cash-type', categories, 'All types', state.cashFilter || 'all');
+  state.cashPayerFilter = setObligationSelectOptions('cash-payer', payers, 'All payers', state.cashPayerFilter || 'all');
+  state.cashPlaceFilter = setObligationSelectOptions('cash-place', places, 'All places', state.cashPlaceFilter || 'all');
+  const cashSortSel = q('cash-sort');
+  if (cashSortSel) cashSortSel.value = state.cashSort || 'amount-desc';
+
+  const catFilter   = state.cashFilter;
+  const payerFilter = state.cashPayerFilter;
+  const placeFilter = state.cashPlaceFilter;
+  const sort        = state.cashSort || 'amount-desc';
 
   const filtered = allCash.filter(e => {
     if (catFilter   !== 'all' && (e.category || '') !== catFilter)   return false;
@@ -2568,39 +2564,14 @@ function renderCashHoldingsSection(allCash) {
   const total = sorted.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all';
 
-  function filterChips(items, active, onClickFn, extraClass) {
-    return [
-      `<button class="f-chip ${extraClass||''} ${active==='all'?'is-active':''}" onclick="${onClickFn}('all')">All</button>`,
-      ...items.map(v => `<button class="f-chip ${extraClass||''} ${active===v?'is-active':''}" onclick="${onClickFn}('${escapeHtml(v)}')">${escapeHtml(v)}</button>`)
-    ].join('');
-  }
+  updateFilterBadge('cash', activeCashFilterCount());
+
+  const resultsText = isFiltered
+    ? `Showing ${sorted.length} of ${allCash.length} entries`
+    : `${sorted.length} entr${sorted.length === 1 ? 'y' : 'ies'}`;
 
   return `
-    <div class="filter-strip">
-      <div class="filter-rows">
-        <div class="filter-row">
-          <span class="filter-row-label">Type</span>
-          <div class="filter-chips">${filterChips(categories, catFilter, 'setCashFilter', '')}</div>
-        </div>
-        ${payers.length ? `<div class="filter-row">
-          <span class="filter-row-label">Person</span>
-          <div class="filter-chips">${filterChips(payers, payerFilter, 'setCashPayerFilter', 'f-chip-payer')}</div>
-        </div>` : ''}
-        ${places.length > 1 ? `<div class="filter-row">
-          <span class="filter-row-label">Place</span>
-          <div class="filter-chips">${filterChips(places, placeFilter, 'setCashPlaceFilter', 'f-chip-place')}</div>
-        </div>` : ''}
-      </div>
-      <select class="filter-sort-select" onchange="setCashSort(this.value)">
-        <option value="amount-desc" ${sort==='amount-desc'?'selected':''}>Amount ↓</option>
-        <option value="amount-asc"  ${sort==='amount-asc' ?'selected':''}>Amount ↑</option>
-        <option value="date-desc"   ${sort==='date-desc'  ?'selected':''}>Date ↓</option>
-        <option value="date-asc"    ${sort==='date-asc'   ?'selected':''}>Date ↑</option>
-        <option value="category"    ${sort==='category'   ?'selected':''}>Category A→Z</option>
-        <option value="payer"       ${sort==='payer'      ?'selected':''}>Person A→Z</option>
-        <option value="place"       ${sort==='place'      ?'selected':''}>Place A→Z</option>
-      </select>
-    </div>
+    <span id="cash-results-count" class="cash-results-line">${resultsText}</span>
     ${sorted.length
       ? `<div class="cash-entries-list">${sorted.map(renderCashEntryCard).join('')}</div>
          <div class="section-total">${isFiltered ? 'Filtered: ' : 'Total: '}<strong>${amd(total)}</strong></div>`
@@ -2608,14 +2579,23 @@ function renderCashHoldingsSection(allCash) {
 }
 
 function renderOfferSection(allOffers) {
-  const categories   = [...new Set(allOffers.map(e => e.category).filter(Boolean))].sort();
-  const payers       = [...new Set(allOffers.map(e => e.payer).filter(Boolean))].sort();
-  const places       = [...new Set(allOffers.map(e => e.place).filter(Boolean))].sort();
-  const catFilter    = state.offerFilter       || 'all';
-  const payerFilter  = state.offerPayerFilter  || 'all';
-  const placeFilter  = state.offerPlaceFilter  || 'all';
+  const categories = [...new Set(allOffers.map(e => e.category).filter(Boolean))].sort();
+  const payers     = [...new Set(allOffers.map(e => e.payer).filter(Boolean))].sort();
+  const places     = [...new Set(allOffers.map(e => e.place).filter(Boolean))].sort();
+
+  state.offerFilter      = setObligationSelectOptions('offer-type', categories, 'All types', state.offerFilter || 'all');
+  state.offerPayerFilter = setObligationSelectOptions('offer-payer', payers, 'All payers', state.offerPayerFilter || 'all');
+  state.offerPlaceFilter = setObligationSelectOptions('offer-place', places, 'All places', state.offerPlaceFilter || 'all');
+  const offerStatusSel = q('offer-status');
+  if (offerStatusSel) offerStatusSel.value = state.offerStatusFilter || 'all';
+  const offerSortSel = q('offer-sort');
+  if (offerSortSel) offerSortSel.value = state.offerSort || 'amount-desc';
+
+  const catFilter    = state.offerFilter;
+  const payerFilter  = state.offerPayerFilter;
+  const placeFilter  = state.offerPlaceFilter;
   const statusFilter = state.offerStatusFilter || 'all';
-  const sort         = state.offerSort         || 'amount-desc';
+  const sort         = state.offerSort || 'amount-desc';
 
   const filtered = allOffers.filter(e => {
     if (catFilter    !== 'all' && (e.category || '') !== catFilter)   return false;
@@ -2641,17 +2621,11 @@ function renderOfferSection(allOffers) {
   const total = sorted.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all' || statusFilter !== 'all';
 
-  function filterChips(items, active, onClickFn, extraClass) {
-    return [
-      `<button class="f-chip ${extraClass||''} ${active==='all'?'is-active':''}" onclick="${onClickFn}('all')">All</button>`,
-      ...items.map(v => `<button class="f-chip ${extraClass||''} ${active===v?'is-active':''}" onclick="${onClickFn}('${escapeHtml(v)}')">${escapeHtml(v)}</button>`)
-    ].join('');
-  }
+  updateFilterBadge('offer', activeOfferFilterCount());
 
-  function statusChips() {
-    const opts = [['all', 'All'], ['approved', 'Approved'], ['pending', 'Pending']];
-    return opts.map(([v, label]) => `<button class="f-chip ${statusFilter===v?'is-active':''}" onclick="setOfferStatusFilter('${v}')">${label}</button>`).join('');
-  }
+  const resultsText = isFiltered
+    ? `Showing ${sorted.length} of ${allOffers.length} offers`
+    : `${sorted.length} offer${sorted.length === 1 ? '' : 's'}`;
 
   function subsection(title, list, badgeClass) {
     if (!list.length) return '';
@@ -2670,35 +2644,7 @@ function renderOfferSection(allOffers) {
       <span class="cash-section-badge">${allOffers.length}</span>
     </div>
     <p class="offers-block-note">Pre-approved credit — not yet drawn</p>
-    <div class="filter-strip">
-      <div class="filter-rows">
-        <div class="filter-row">
-          <span class="filter-row-label">Status</span>
-          <div class="filter-chips">${statusChips()}</div>
-        </div>
-        <div class="filter-row">
-          <span class="filter-row-label">Type</span>
-          <div class="filter-chips">${filterChips(categories, catFilter, 'setOfferFilter', '')}</div>
-        </div>
-        ${payers.length ? `<div class="filter-row">
-          <span class="filter-row-label">Person</span>
-          <div class="filter-chips">${filterChips(payers, payerFilter, 'setOfferPayerFilter', 'f-chip-payer')}</div>
-        </div>` : ''}
-        ${places.length > 1 ? `<div class="filter-row">
-          <span class="filter-row-label">Place</span>
-          <div class="filter-chips">${filterChips(places, placeFilter, 'setOfferPlaceFilter', 'f-chip-place')}</div>
-        </div>` : ''}
-      </div>
-      <select class="filter-sort-select" onchange="setOfferSort(this.value)">
-        <option value="amount-desc" ${sort==='amount-desc'?'selected':''}>Amount ↓</option>
-        <option value="amount-asc"  ${sort==='amount-asc' ?'selected':''}>Amount ↑</option>
-        <option value="date-desc"   ${sort==='date-desc'  ?'selected':''}>Date ↓</option>
-        <option value="date-asc"    ${sort==='date-asc'   ?'selected':''}>Date ↑</option>
-        <option value="category"    ${sort==='category'   ?'selected':''}>Category A→Z</option>
-        <option value="payer"       ${sort==='payer'      ?'selected':''}>Person A→Z</option>
-        <option value="place"       ${sort==='place'      ?'selected':''}>Place A→Z</option>
-      </select>
-    </div>
+    <span id="offer-results-count" class="cash-results-line">${resultsText}</span>
     ${sorted.length
       ? `${subsection('Approved', approvedList, 'is-approved')}
          ${subsection('Pending Approval', pendingList, 'is-pending')}
@@ -4138,6 +4084,42 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   q('obligation-clear-filters').addEventListener('click', clearObligationFilters);
 
+  const cashControls = {
+    'cash-type': 'cashFilter',
+    'cash-payer': 'cashPayerFilter',
+    'cash-place': 'cashPlaceFilter',
+    'cash-sort': 'cashSort'
+  };
+  Object.entries(cashControls).forEach(([id, stateKey]) => {
+    const control = q(id);
+    if (!control) return;
+    control.addEventListener('change', event => {
+      state[stateKey] = event.target.value;
+      renderCash();
+    });
+  });
+  const cashClear = q('cash-clear-filters');
+  if (cashClear) cashClear.addEventListener('click', clearCashFilters);
+
+  const offerControls = {
+    'offer-status': 'offerStatusFilter',
+    'offer-type': 'offerFilter',
+    'offer-payer': 'offerPayerFilter',
+    'offer-place': 'offerPlaceFilter',
+    'offer-sort': 'offerSort'
+  };
+  Object.entries(offerControls).forEach(([id, stateKey]) => {
+    const control = q(id);
+    if (!control) return;
+    control.addEventListener('change', event => {
+      state[stateKey] = event.target.value;
+      renderOffers();
+    });
+  });
+  const offerClear = q('offer-clear-filters');
+  if (offerClear) offerClear.addEventListener('click', clearOfferFilters);
+
+
   const reconControls = {
     'recon-search': 'reconSearch',
     'recon-bank': 'reconBank',
@@ -4317,7 +4299,40 @@ function renderPayerFilters() {
 // ================================================================
 // Filter Drawer
 // ================================================================
-const FILTER_TABS = ['payment', 'obligation', 'recon'];
+const FILTER_TABS = ['payment', 'obligation', 'recon', 'cash', 'offer'];
+
+function activeCashFilterCount() {
+  return [
+    state.cashFilter && state.cashFilter !== 'all',
+    state.cashPayerFilter && state.cashPayerFilter !== 'all',
+    state.cashPlaceFilter && state.cashPlaceFilter !== 'all'
+  ].filter(Boolean).length;
+}
+
+function clearCashFilters() {
+  state.cashFilter = 'all';
+  state.cashPayerFilter = 'all';
+  state.cashPlaceFilter = 'all';
+  renderCash();
+}
+
+function activeOfferFilterCount() {
+  return [
+    state.offerFilter && state.offerFilter !== 'all',
+    state.offerPayerFilter && state.offerPayerFilter !== 'all',
+    state.offerPlaceFilter && state.offerPlaceFilter !== 'all',
+    state.offerStatusFilter && state.offerStatusFilter !== 'all'
+  ].filter(Boolean).length;
+}
+
+function clearOfferFilters() {
+  state.offerFilter = 'all';
+  state.offerPayerFilter = 'all';
+  state.offerPlaceFilter = 'all';
+  state.offerStatusFilter = 'all';
+  renderOffers();
+}
+
 
 function openFilterDrawer(tab) {
   filterReturnFocus = document.activeElement;

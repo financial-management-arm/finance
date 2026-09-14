@@ -2999,6 +2999,7 @@ button:active,
 .offers-block .cash-entry { background: var(--color-surface-1); }
 .offers-block-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: 2px; }
 .offers-block-note { font-size: 11px; color: var(--color-text-subtle); margin-bottom: var(--space-3); letter-spacing: 0.01em; }
+.cash-results-line { display: block; font-size: 11px; color: var(--color-text-subtle); margin-bottom: var(--space-3); letter-spacing: 0.01em; }
 
 /* ── Offer edit fields ── */
 .cash-edit-offer-fields { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }

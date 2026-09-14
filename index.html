@@ -201,6 +201,11 @@
       <div class="page-header">
         <h1>Cash</h1>
         <div class="page-header-actions">
+          <button class="filter-trigger-btn" id="cash-filter-btn" type="button" onclick="openFilterDrawer('cash')" aria-label="Open filters">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+            Filters
+            <span class="filter-badge hidden" id="cash-filter-badge"></span>
+          </button>
           <button class="button button-primary" type="button" onclick="openCashAddModal()">+ Add cash</button>
         </div>
       </div>
@@ -214,6 +219,11 @@
       <div class="page-header">
         <h1>Loan Offers</h1>
         <div class="page-header-actions">
+          <button class="filter-trigger-btn" id="offer-filter-btn" type="button" onclick="openFilterDrawer('offer')" aria-label="Open filters">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+            Filters
+            <span class="filter-badge hidden" id="offer-filter-badge"></span>
+          </button>
           <button class="button button-primary" type="button" onclick="openOfferAddModal()">+ Add offer</button>
         </div>
       </div>
@@ -925,11 +935,87 @@
     </div>
   </div>
 
+  <!-- CASH FILTERS -->
+  <div class="filter-drawer-body hidden" id="drawer-cash-filters">
+    <div class="filter-section">
+      <div class="filter-section-label">Narrow down</div>
+      <div class="filter-grid-2">
+        <label class="filter-field">
+          <span>Type</span>
+          <select id="cash-type"><option value="all">All types</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Person</span>
+          <select id="cash-payer"><option value="all">All payers</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Place</span>
+          <select id="cash-place"><option value="all">All places</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Sort by</span>
+          <select id="cash-sort">
+            <option value="amount-desc">Amount ↓</option>
+            <option value="amount-asc">Amount ↑</option>
+            <option value="date-desc">Date ↓</option>
+            <option value="date-asc">Date ↑</option>
+            <option value="category">Category A→Z</option>
+            <option value="payer">Person A→Z</option>
+            <option value="place">Place A→Z</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOAN OFFER FILTERS -->
+  <div class="filter-drawer-body hidden" id="drawer-offer-filters">
+    <div class="filter-section">
+      <div class="filter-section-label">Narrow down</div>
+      <div class="filter-grid-2">
+        <label class="filter-field">
+          <span>Status</span>
+          <select id="offer-status">
+            <option value="all">All</option>
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Type</span>
+          <select id="offer-type"><option value="all">All types</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Person</span>
+          <select id="offer-payer"><option value="all">All payers</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Place</span>
+          <select id="offer-place"><option value="all">All places</option></select>
+        </label>
+        <label class="filter-field">
+          <span>Sort by</span>
+          <select id="offer-sort">
+            <option value="amount-desc">Amount ↓</option>
+            <option value="amount-asc">Amount ↑</option>
+            <option value="date-desc">Date ↓</option>
+            <option value="date-asc">Date ↑</option>
+            <option value="category">Category A→Z</option>
+            <option value="payer">Person A→Z</option>
+            <option value="place">Place A→Z</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+
   <div class="filter-drawer-footer">
     <span class="filter-results-count" id="filter-results-count"></span>
     <button class="filter-clear-btn" id="payment-clear-filters" type="button">Clear all</button>
     <button class="filter-clear-btn hidden" id="obligation-clear-filters" type="button">Clear all</button>
     <button class="filter-clear-btn hidden" id="recon-clear-filters" type="button">Clear all</button>
+    <button class="filter-clear-btn hidden" id="cash-clear-filters" type="button">Clear all</button>
+    <button class="filter-clear-btn hidden" id="offer-clear-filters" type="button">Clear all</button>
     <button class="filter-done-btn" type="button" onclick="closeFilterDrawer()">Done</button>
   </div>
 </aside>
@@ -941,7 +1027,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=86"></script>
+<script src="app.js?v=87"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>
