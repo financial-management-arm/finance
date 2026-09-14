@@ -32,7 +32,8 @@
       <li><a href="#" data-tab="dashboard" aria-label="Today"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg><span class="nav-label">Today</span></a></li>
       <li><a href="#" data-tab="loans" aria-label="Obligations"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4V7Zm3-3h10v3H7V4Zm1 8h8M8 16h5"/></svg><span class="nav-label">Obligations</span></a></li>
       <li><a href="#" data-tab="reconcile" aria-label="Reconcile balances"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11M4 7l3-3M4 7l3 3M20 17H9m11 0-3-3m3 3-3 3"/></svg><span class="nav-label">Reconcile</span></a></li>
-      <li><a href="#" data-tab="income" aria-label="Income and Cash"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income &amp; Cash</span></a></li>
+      <li><a href="#" data-tab="income" aria-label="Income"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5m0 0-5 5m5-5 5 5M5 20h14"/></svg><span class="nav-label">Income</span></a></li>
+      <li><a href="#" data-tab="cash" aria-label="Cash"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h14v10H7V4Zm-4 4h14v10H3V8Zm4 5h6"/></svg><span class="nav-label">Cash</span></a></li>
       <li><a href="#" data-tab="utilities" aria-label="Units and utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Units</span></a></li>
       <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V10h4v8H4Zm6 0V4h4v14h-4Zm6 0v-6h4v6h-4Z"/></svg><span class="nav-label">Reports</span></a></li>
       <li class="mobile-more"><button id="mobile-more-button" type="button" onclick="toggleMobileNav()" aria-expanded="false" aria-controls="mobile-menu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h1m5 0h1m5 0h1"/></svg><span>More</span></button></li>
@@ -40,6 +41,7 @@
     <div class="sidebar-footer"><span class="workspace-avatar">H</span><div><strong>Harutyunyan</strong><span>Personal workspace</span></div></div>
   </nav>
   <div id="mobile-menu" class="mobile-menu hidden" aria-label="More pages">
+    <button type="button" onclick="switchTab('cash')">Cash <span>Track cash holdings &amp; loan offers</span></button>
     <button type="button" onclick="switchTab('reconcile')">Reconcile balances <span>Check your remaining debt</span></button>
     <button type="button" onclick="switchTab('utilities')">Units &amp; utilities <span>Manage recurring expenses</span></button>
     <button type="button" onclick="switchTab('reports')">Reports <span>See the bigger picture</span></button>
@@ -196,7 +198,10 @@
     <!-- ─── INCOME ─── -->
     <section id="page-income" class="page">
       <div class="page-header">
-        <h1>Income &amp; Cash</h1>
+        <h1>Income</h1>
+        <div class="page-header-actions">
+          <button class="button button-primary" id="btn-open-income" type="button" onclick="openIncomeModal()">+ Add income</button>
+        </div>
         <div class="month-nav">
           <button class="btn-nav btn-prev">‹</button>
           <span class="month-label"></span>
@@ -205,14 +210,6 @@
         </div>
       </div>
       <div class="page-body">
-        <div class="income-command-bar">
-          <div class="income-subtab-bar">
-            <button class="income-subtab-btn is-active" data-subtab="income" type="button" onclick="setIncomeSubTab('income')">Income</button>
-            <button class="income-subtab-btn" data-subtab="cash" type="button" onclick="setIncomeSubTab('cash')">Cash</button>
-          </div>
-          <button class="button button-primary" id="btn-open-income" type="button" onclick="openIncomeModal()">+ Add income</button>
-        </div>
-        <div id="cash-content" class="hidden"></div>
         <div id="income-content" class="income-layout">
           <div class="income-kpis">
             <article><span>This month</span><strong id="income-month-total">—</strong></article>
@@ -264,6 +261,16 @@
           </div>
 
         </div>
+      </div>
+    </section>
+
+    <!-- ─── CASH ─── -->
+    <section id="page-cash" class="page">
+      <div class="page-header">
+        <h1>Cash</h1>
+      </div>
+      <div class="page-body">
+        <div id="cash-content"></div>
       </div>
     </section>
 
@@ -848,7 +855,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=81"></script>
+<script src="app.js?v=82"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>

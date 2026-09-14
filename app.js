@@ -67,7 +67,6 @@ const state = {
   offerPayerFilter: 'all',
   offerPlaceFilter: 'all',
   offerSort: 'amount-desc',
-  incomeSubTab: 'income',
   reportData: null,
   reportWindow: 6,
   reportLoading: false,
@@ -1283,7 +1282,7 @@ function switchTab(tab) {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  q('mobile-more-button').classList.toggle('active', ['reconcile', 'utilities', 'reports'].includes(tab));
+  q('mobile-more-button').classList.toggle('active', ['cash', 'reconcile', 'utilities', 'reports'].includes(tab));
   document.querySelectorAll('.page').forEach(p =>
     p.classList.toggle('active', p.id === 'page-' + tab)
   );
@@ -1299,6 +1298,7 @@ function renderCurrentTab() {
     case 'loans':      renderLoans();      break;
     case 'reconcile':  renderReconcile();  break;
     case 'income':     renderIncome();     break;
+    case 'cash':       renderCash();       break;
     case 'utilities':  renderUtilities();  break;
     case 'reports':    renderReports();    break;
   }
@@ -2408,11 +2408,6 @@ function savePaymentBalanceFromInput(id) {
 // ================================================================
 // Income
 // ================================================================
-function setIncomeSubTab(tab) {
-  state.incomeSubTab = tab;
-  renderIncome();
-}
-
 function openIncomeModal() {
   q('income-add-modal').classList.remove('hidden');
   q('f-date').value = q('f-date').value || new Date().toISOString().slice(0, 10);
@@ -2424,22 +2419,12 @@ function closeIncomeModal() {
 }
 
 function renderIncome() {
-  const subtab = state.incomeSubTab || 'income';
-  document.querySelectorAll('.income-subtab-btn').forEach(b => {
-    b.classList.toggle('is-active', b.dataset.subtab === subtab);
-  });
-  const incomeContent = document.getElementById('income-content');
-  const cashContent = document.getElementById('cash-content');
-  const monthNav = document.querySelector('#page-income .month-nav');
-  const addIncomeButton = q('btn-open-income');
-  if (incomeContent) incomeContent.classList.toggle('hidden', subtab !== 'income');
-  if (monthNav) monthNav.style.visibility = subtab === 'income' ? '' : 'hidden';
-  if (addIncomeButton) addIncomeButton.classList.toggle('hidden', subtab !== 'income');
-  if (cashContent) {
-    cashContent.classList.toggle('hidden', subtab !== 'cash');
-    if (subtab === 'cash') cashContent.innerHTML = renderCashTab();
-  }
-  if (subtab === 'income') renderIncomeTab();
+  renderIncomeTab();
+}
+
+function renderCash() {
+  const cashContent = q('cash-content');
+  if (cashContent) cashContent.innerHTML = renderCashTab();
 }
 
 function cashEntryIsOffer(e) {
@@ -2498,15 +2483,15 @@ function renderCashEntryCard(e) {
 }
 
 
-function setCashFilter(cat) { state.cashFilter = cat; renderIncome(); }
-function setCashPayerFilter(payer) { state.cashPayerFilter = payer; renderIncome(); }
-function setCashPlaceFilter(place) { state.cashPlaceFilter = place; renderIncome(); }
-function setCashSort(sort) { state.cashSort = sort; renderIncome(); }
+function setCashFilter(cat) { state.cashFilter = cat; renderCash(); }
+function setCashPayerFilter(payer) { state.cashPayerFilter = payer; renderCash(); }
+function setCashPlaceFilter(place) { state.cashPlaceFilter = place; renderCash(); }
+function setCashSort(sort) { state.cashSort = sort; renderCash(); }
 
-function setOfferFilter(cat) { state.offerFilter = cat; renderIncome(); }
-function setOfferPayerFilter(payer) { state.offerPayerFilter = payer; renderIncome(); }
-function setOfferPlaceFilter(place) { state.offerPlaceFilter = place; renderIncome(); }
-function setOfferSort(sort) { state.offerSort = sort; renderIncome(); }
+function setOfferFilter(cat) { state.offerFilter = cat; renderCash(); }
+function setOfferPayerFilter(payer) { state.offerPayerFilter = payer; renderCash(); }
+function setOfferPlaceFilter(place) { state.offerPlaceFilter = place; renderCash(); }
+function setOfferSort(sort) { state.offerSort = sort; renderCash(); }
 
 function renderCashHoldingsSection(allCash) {
   const categories   = [...new Set(allCash.map(e => e.category).filter(Boolean))].sort();
@@ -2751,12 +2736,12 @@ async function submitAddCash(event) {
   document.getElementById('cash-new-category').value = '';
   document.getElementById('cash-new-payer').value = '';
   document.getElementById('cash-new-date').value = '';
-  renderIncome();
+  renderCash();
   try {
     await callApi({ action: 'addCashEntry', place, amount, type, category, payer, lastAvailableDate });
   } catch (err) {
     state.cashEntries = state.cashEntries.filter(e => e.id !== entry.id);
-    renderIncome();
+    renderCash();
     showError('Could not save — please try again.');
   }
 }
@@ -2787,12 +2772,12 @@ async function saveCashEdit(event, id) {
   if (!place) return;
   const prev = state.cashEntries.find(e => e.id === id);
   state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount, type, category, payer, lastAvailableDate } : e);
-  renderIncome();
+  renderCash();
   try {
     await callApi({ action: 'updateCashEntry', id, place, amount, type, category, payer, lastAvailableDate });
   } catch (err) {
     if (prev) state.cashEntries = state.cashEntries.map(e => e.id === id ? prev : e);
-    renderIncome();
+    renderCash();
     showError('Could not save — please try again.');
   }
 }
@@ -2802,12 +2787,12 @@ async function confirmDeleteCash(id) {
   if (!entry) return;
   if (!confirm(`Delete "${entry.place}" (${amd(Number(entry.amount))})?`)) return;
   state.cashEntries = state.cashEntries.filter(e => e.id !== id);
-  renderIncome();
+  renderCash();
   try {
     await callApi({ action: 'deleteCashEntry', id });
   } catch (err) {
     state.cashEntries = [...state.cashEntries, entry];
-    renderIncome();
+    renderCash();
     showError('Could not delete — please try again.');
   }
 }
@@ -3755,7 +3740,7 @@ function renderBalancePanel() {
 
   const cashDetail = cashOnlyEntries.length
     ? cashOnlyEntries.map(e => `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`).join('')
-    : `<span class="bs-no-cash"><button class="bs-link-btn" onclick="setIncomeSubTab('cash');switchTab('income')">Add cash →</button></span>`;
+    : `<span class="bs-no-cash"><button class="bs-link-btn" onclick="switchTab('cash')">Add cash →</button></span>`;
   const creditDetail = creditLineObs.map(o =>
     `<span class="bs-cash-item">${escapeHtml(o.bank)}: ${amdCompact(Number(o.loanTotal))}</span>`
   ).join('');
@@ -3769,7 +3754,7 @@ function renderBalancePanel() {
         <svg class="rp-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16M6 13h2"/></svg>
         Balance Sheet
       </div>
-      <button class="rp-badge bs-manage-btn" onclick="setIncomeSubTab('cash');switchTab('income')">Manage →</button>
+      <button class="rp-badge bs-manage-btn" onclick="switchTab('cash')">Manage →</button>
     </div>
     <div class="report-panel-body rp-pad">
 
@@ -3812,7 +3797,7 @@ function renderBalancePanel() {
       <div class="bs-row bs-net-row">
         <span class="bs-label bs-liquidity-label">Total offers</span>
         <span class="bs-value bs-offer">${amdCompact(totalOffers)}</span>
-      </div>` : `<div class="bs-row"><span class="bs-no-cash"><button class="bs-link-btn" onclick="setIncomeSubTab('cash');switchTab('income')">Add loan offer →</button></span></div>`}
+      </div>` : `<div class="bs-row"><span class="bs-no-cash"><button class="bs-link-btn" onclick="switchTab('cash')">Add loan offer →</button></span></div>`}
 
     </div>
   </div>`;
