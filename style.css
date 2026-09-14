@@ -2662,13 +2662,9 @@ tbody tr:hover td { background: transparent; }
   flex-shrink: 0;
 }
 
-/* On mobile the document-style page can continue using normal flow. */
-@media (max-width: 768px) {
-  #page-reports .page-body {
-    overflow-y: visible;
-    overflow-x: visible;
-  }
-}
+/* Reports keeps the same internal scroll container on mobile as every
+   other tab -- the app's mobile shell (below) is fixed-height, not
+   document-scrolling, so this must stay overflow-y: auto here too. */
 
 
 /* ═══════════════════════════════════════════════════════════
