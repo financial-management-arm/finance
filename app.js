@@ -2451,6 +2451,10 @@ function cashEntryIsOffer(e) {
   return e.type === 'offer';
 }
 
+function cashEntryIsApproved(e) {
+  return e.approved !== false && e.approved !== 'false';
+}
+
 function categoryAccent(cat) {
   if (!cat) return 'var(--color-border)';
   const palette = ['var(--color-primary)', 'var(--color-warning)', 'var(--color-success)', '#8b5cf6'];
@@ -2461,11 +2465,13 @@ function categoryAccent(cat) {
 
 function renderCashEntryCard(e) {
   const isOffer = cashEntryIsOffer(e);
+  const approved = cashEntryIsApproved(e);
   const sid = escapeHtml(e.id);
   const accent = categoryAccent(e.category);
   const validDate = e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate);
-  const hasTags = e.category || e.payer || validDate;
+  const hasTags = e.category || e.payer || validDate || isOffer;
   const tags = hasTags ? `<div class="offer-tags">
+    ${isOffer ? `<span class="offer-tag ${approved ? 'offer-tag-approved' : 'offer-tag-pending'}">${approved ? 'Approved' : 'Pending approval'}</span>` : ''}
     ${e.category ? `<span class="offer-tag offer-tag-cat">${escapeHtml(e.category)}</span>` : ''}
     ${e.payer ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>` : ''}
     ${validDate ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
@@ -2491,6 +2497,7 @@ function renderCashEntryCard(e) {
       <div class="cash-edit-offer-fields">
         <input class="form-input" name="payer" type="text" list="offer-payers-list" value="${escapeHtml(e.payer || '')}" placeholder="For whom" maxlength="80">
         <input class="form-input" name="lastAvailableDate" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate || '') ? e.lastAvailableDate : ''}">
+        <label class="completed-switch cash-edit-approved"><input type="checkbox" name="approved" ${approved ? 'checked' : ''}><span class="switch-track" aria-hidden="true"></span><span>Already approved</span></label>
       </div>
       <input class="form-input" name="place"  value="${escapeHtml(e.place)}" placeholder="Bank / Place" required maxlength="100">
       <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
@@ -2512,6 +2519,7 @@ function setOfferFilter(cat) { state.offerFilter = cat; renderOffers(); }
 function setOfferPayerFilter(payer) { state.offerPayerFilter = payer; renderOffers(); }
 function setOfferPlaceFilter(place) { state.offerPlaceFilter = place; renderOffers(); }
 function setOfferSort(sort) { state.offerSort = sort; renderOffers(); }
+function setOfferStatusFilter(status) { state.offerStatusFilter = status; renderOffers(); }
 
 function renderCashHoldingsSection(allCash) {
   const categories   = [...new Set(allCash.map(e => e.category).filter(Boolean))].sort();
@@ -2585,15 +2593,18 @@ function renderOfferSection(allOffers) {
   const categories   = [...new Set(allOffers.map(e => e.category).filter(Boolean))].sort();
   const payers       = [...new Set(allOffers.map(e => e.payer).filter(Boolean))].sort();
   const places       = [...new Set(allOffers.map(e => e.place).filter(Boolean))].sort();
-  const catFilter    = state.offerFilter      || 'all';
-  const payerFilter  = state.offerPayerFilter || 'all';
-  const placeFilter  = state.offerPlaceFilter || 'all';
-  const sort         = state.offerSort        || 'amount-desc';
+  const catFilter    = state.offerFilter       || 'all';
+  const payerFilter  = state.offerPayerFilter  || 'all';
+  const placeFilter  = state.offerPlaceFilter  || 'all';
+  const statusFilter = state.offerStatusFilter || 'all';
+  const sort         = state.offerSort         || 'amount-desc';
 
   const filtered = allOffers.filter(e => {
-    if (catFilter   !== 'all' && (e.category || '') !== catFilter)   return false;
-    if (payerFilter !== 'all' && (e.payer    || '') !== payerFilter) return false;
-    if (placeFilter !== 'all' && (e.place    || '') !== placeFilter) return false;
+    if (catFilter    !== 'all' && (e.category || '') !== catFilter)   return false;
+    if (payerFilter  !== 'all' && (e.payer    || '') !== payerFilter) return false;
+    if (placeFilter  !== 'all' && (e.place    || '') !== placeFilter) return false;
+    if (statusFilter === 'approved' && !cashEntryIsApproved(e)) return false;
+    if (statusFilter === 'pending'  &&  cashEntryIsApproved(e)) return false;
     return true;
   });
 
@@ -2607,14 +2618,32 @@ function renderOfferSection(allOffers) {
     return (Number(b.amount) || 0) - (Number(a.amount) || 0);
   });
 
+  const approvedList = sorted.filter(cashEntryIsApproved);
+  const pendingList  = sorted.filter(e => !cashEntryIsApproved(e));
   const total = sorted.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all';
+  const isFiltered = catFilter !== 'all' || payerFilter !== 'all' || placeFilter !== 'all' || statusFilter !== 'all';
 
   function filterChips(items, active, onClickFn, extraClass) {
     return [
       `<button class="f-chip ${extraClass||''} ${active==='all'?'is-active':''}" onclick="${onClickFn}('all')">All</button>`,
       ...items.map(v => `<button class="f-chip ${extraClass||''} ${active===v?'is-active':''}" onclick="${onClickFn}('${escapeHtml(v)}')">${escapeHtml(v)}</button>`)
     ].join('');
+  }
+
+  function statusChips() {
+    const opts = [['all', 'All'], ['approved', 'Approved'], ['pending', 'Pending']];
+    return opts.map(([v, label]) => `<button class="f-chip ${statusFilter===v?'is-active':''}" onclick="setOfferStatusFilter('${v}')">${label}</button>`).join('');
+  }
+
+  function subsection(title, list, badgeClass) {
+    if (!list.length) return '';
+    const subtotal = list.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    return `<div class="cash-section-head" style="margin-top:var(--space-4)">
+      <span class="cash-section-title">${title}</span>
+      <span class="cash-section-badge ${badgeClass||''}">${list.length}</span>
+    </div>
+    <div class="cash-entries-list">${list.map(renderCashEntryCard).join('')}</div>
+    <div class="section-total">Subtotal: <strong>${amd(subtotal)}</strong></div>`;
   }
 
   return `<div class="offers-block">
@@ -2625,6 +2654,10 @@ function renderOfferSection(allOffers) {
     <p class="offers-block-note">Pre-approved credit — not yet drawn</p>
     <div class="filter-strip">
       <div class="filter-rows">
+        <div class="filter-row">
+          <span class="filter-row-label">Status</span>
+          <div class="filter-chips">${statusChips()}</div>
+        </div>
         <div class="filter-row">
           <span class="filter-row-label">Type</span>
           <div class="filter-chips">${filterChips(categories, catFilter, 'setOfferFilter', '')}</div>
@@ -2649,8 +2682,9 @@ function renderOfferSection(allOffers) {
       </select>
     </div>
     ${sorted.length
-      ? `<div class="cash-entries-list">${sorted.map(renderCashEntryCard).join('')}</div>
-         <div class="section-total">${isFiltered ? 'Filtered: ' : 'Total: '}<strong>${amd(total)}</strong></div>`
+      ? `${subsection('Approved', approvedList, 'is-approved')}
+         ${subsection('Pending Approval', pendingList, 'is-pending')}
+         <div class="section-total">${isFiltered ? 'Filtered total: ' : 'Total: '}<strong>${amd(total)}</strong></div>`
       : `<div class="cash-empty">No loan offers${isFiltered ? ' matching filter' : ''}.</div>`}
   </div>`;
 }
@@ -2731,19 +2765,21 @@ async function submitAddOffer(event) {
   const lastAvailableDate = document.getElementById('offer-new-date').value;
   const place    = document.getElementById('offer-new-place').value.trim();
   const amount   = Number(document.getElementById('offer-new-amount').value) || 0;
+  const approved = document.getElementById('offer-new-approved').checked ? 'true' : 'false';
   if (!place) return;
   const type = 'offer';
-  const entry = { id: 'cash-' + Date.now(), place, amount, type, category, payer, lastAvailableDate, updatedAt: new Date().toISOString() };
+  const entry = { id: 'cash-' + Date.now(), place, amount, type, category, payer, lastAvailableDate, updatedAt: new Date().toISOString(), approved };
   state.cashEntries = [...state.cashEntries, entry];
   document.getElementById('offer-new-place').value = '';
   document.getElementById('offer-new-amount').value = '';
   document.getElementById('offer-new-category').value = '';
   document.getElementById('offer-new-payer').value = '';
   document.getElementById('offer-new-date').value = '';
+  document.getElementById('offer-new-approved').checked = false;
   closeOfferAddModal();
   renderOffers();
   try {
-    await callApi({ action: 'addCashEntry', place, amount, type, category, payer, lastAvailableDate });
+    await callApi({ action: 'addCashEntry', place, amount, type, category, payer, lastAvailableDate, approved });
   } catch (err) {
     state.cashEntries = state.cashEntries.filter(e => e.id !== entry.id);
     renderOffers();
@@ -2788,14 +2824,15 @@ async function saveCashEdit(event, id) {
   const category = form.elements.category ? form.elements.category.value.trim() : '';
   const payer    = form.elements.payer             ? form.elements.payer.value.trim()             : '';
   const lastAvailableDate = form.elements.lastAvailableDate ? form.elements.lastAvailableDate.value : '';
+  const approved = form.elements.approved ? (form.elements.approved.checked ? 'true' : 'false') : 'true';
   const place  = form.elements.place.value.trim();
   const amount = Number(form.elements.amount.value) || 0;
   if (!place) return;
   const prev = state.cashEntries.find(e => e.id === id);
-  state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount, type, category, payer, lastAvailableDate } : e);
+  state.cashEntries = state.cashEntries.map(e => e.id === id ? { ...e, place, amount, type, category, payer, lastAvailableDate, approved } : e);
   renderCash(); renderOffers();
   try {
-    await callApi({ action: 'updateCashEntry', id, place, amount, type, category, payer, lastAvailableDate });
+    await callApi({ action: 'updateCashEntry', id, place, amount, type, category, payer, lastAvailableDate, approved });
   } catch (err) {
     if (prev) state.cashEntries = state.cashEntries.map(e => e.id === id ? prev : e);
     renderCash(); renderOffers();

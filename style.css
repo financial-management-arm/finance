@@ -2907,6 +2907,8 @@ button:active,
 .cash-section-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
 .cash-section-title { font-size: var(--text-13); font-weight: 700; letter-spacing: 0.01em; color: var(--color-text); margin: 0; }
 .cash-section-badge { font-size: 10px; font-weight: 700; padding: 1px 7px; background: var(--color-neutral-100); color: var(--color-text-subtle); border-radius: var(--radius-pill); border: 1px solid var(--color-border); }
+.cash-section-badge.is-approved { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success); border-color: color-mix(in srgb, var(--color-success) 28%, transparent); }
+.cash-section-badge.is-pending { background: color-mix(in srgb, var(--color-warning) 16%, transparent); color: var(--color-warning); border-color: color-mix(in srgb, var(--color-warning) 30%, transparent); }
 
 /* ── Cash entry card ── */
 .cash-entry { background: var(--color-surface-1); border: 1px solid var(--color-border); border-left-width: 3px; border-radius: var(--radius-card); overflow: hidden; transition: box-shadow var(--motion-snap), border-color var(--motion-snap); }
@@ -2956,6 +2958,8 @@ button:active,
 .offer-tag-cat { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent); }
 .offer-tag-payer { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent); }
 .offer-tag-date { background: var(--color-surface-2); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.offer-tag-approved { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success); border: 1px solid color-mix(in srgb, var(--color-success) 28%, transparent); }
+.offer-tag-pending { background: color-mix(in srgb, var(--color-warning) 14%, transparent); color: var(--color-warning); border: 1px solid color-mix(in srgb, var(--color-warning) 28%, transparent); }
 
 /* ── Filter strip ── */
 .filter-strip { background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
@@ -2982,6 +2986,7 @@ button:active,
 
 /* ── Offer edit fields ── */
 .cash-edit-offer-fields { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.cash-edit-approved { min-height: auto; padding: 2px 0; }
 /* Legacy ── hidden now, structure replaced by offers-block */
 .cash-offer-divider { display: none; }
 .cash-offer-note { display: none; }

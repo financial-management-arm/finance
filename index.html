@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=59">
+  <link rel="stylesheet" href="style.css?v=60">
 </head>
 <body class="month-pending">
 
@@ -348,6 +348,9 @@
           <div class="form-group">
             <label class="form-label" for="offer-new-amount">Amount (֏)</label>
             <input class="form-input" id="offer-new-amount" type="number" placeholder="0" min="0" step="1000" required>
+          </div>
+          <div class="form-group">
+            <label class="completed-switch"><input id="offer-new-approved" type="checkbox"><span class="switch-track" aria-hidden="true"></span><span>Already approved</span></label>
           </div>
           <div class="modal-actions">
             <button class="button button-ghost" type="button" onclick="closeOfferAddModal()">Cancel</button>
@@ -938,7 +941,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=83"></script>
+<script src="app.js?v=84"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>

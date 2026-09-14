@@ -17,7 +17,7 @@ var SCHEMAS = {
     'completed', 'completedAt', 'snapshotAt', 'updatedAt'
   ],
   Utilities: ['id', 'name', 'payer', 'provider', 'abonentNumber', 'amount', 'type', 'dueDay', 'active', 'personalExpense'],
-  Cash: ['id', 'place', 'amount', 'type', 'category', 'payer', 'lastAvailableDate', 'updatedAt']
+  Cash: ['id', 'place', 'amount', 'type', 'category', 'payer', 'lastAvailableDate', 'updatedAt', 'approved']
 };
 
 function doGet(e) {
@@ -128,9 +128,10 @@ function doGet(e) {
         var category = String(params.category || '').trim().slice(0, 80);
         var payer = String(params.payer || '').trim().slice(0, 80);
         var lastAvailableDate = /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '') ? params.lastAvailableDate : '';
+        var approved = params.approved === 'false' ? 'false' : 'true';
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
-        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, type: type, category: category, payer: payer, lastAvailableDate: lastAvailableDate, updatedAt: isoNow() };
+        var entry = { id: 'cash-' + Date.now(), place: place, amount: amount, type: type, category: category, payer: payer, lastAvailableDate: lastAvailableDate, updatedAt: isoNow(), approved: approved };
         appendObject(ss.getSheetByName('Cash'), entry);
         return { success: true, entry: entry };
       });
@@ -143,10 +144,11 @@ function doGet(e) {
         var category = String(params.category || '').trim().slice(0, 80);
         var payer = String(params.payer || '').trim().slice(0, 80);
         var lastAvailableDate = /^\d{4}-\d{2}-\d{2}$/.test(params.lastAvailableDate || '') ? params.lastAvailableDate : '';
+        var approved = params.approved === 'false' ? 'false' : 'true';
         if (!id) throw new Error('Missing id');
         if (!place) throw new Error('Place is required');
         if (!isFinite(amount) || amount < 0) throw new Error('Invalid amount');
-        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, type: type, category: category, payer: payer, lastAvailableDate: lastAvailableDate, updatedAt: isoNow() });
+        upsertObject(ss.getSheetByName('Cash'), 'id', id, { id: id, place: place, amount: amount, type: type, category: category, payer: payer, lastAvailableDate: lastAvailableDate, updatedAt: isoNow(), approved: approved });
         return { success: true };
       });
     } else if (action === 'deleteCashEntry') {
