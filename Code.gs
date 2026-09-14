@@ -35,10 +35,7 @@ function doGet(e) {
     if (!['all', 'setPayment', 'updateBalance'].includes(action)) ensureSchema(ss);
 
     if (action === 'all') {
-      var monthly;
-      withLock(function() {
-        monthly = ensureMonthlyLoanSnapshot(ss, month);
-      });
+      var monthly = ensureMonthlyLoanSnapshot(ss, month);
       result = {
         obligations: monthly.obligations,
         payments: rowsForMonth(sheetToJson(ss, 'Payments'), month, paymentRowMonth),
@@ -204,7 +201,7 @@ function getAllCache(month) {
 
 function putAllCache(month, result) {
   try {
-    CacheService.getScriptCache().put(allCacheKey(month), JSON.stringify(result), 60);
+    CacheService.getScriptCache().put(allCacheKey(month), JSON.stringify(result), 120);
   } catch (err) {
     // CacheService has a size limit; large datasets simply skip server cache.
   }
@@ -507,12 +504,12 @@ function ensureMonthlyLoanSnapshot(ss, month) {
   history.forEach(function(row) { existing[String(row.snapshotKey)] = true; });
 
   var now = isoNow();
-  var rows = [];
+  var pending = [];
   obligations.forEach(function(o) {
     if (!isLoan(o) || !isActive(o) || o.completedAt) return;
     var key = month + '__' + o.id;
     if (existing[key]) return;
-    rows.push({
+    pending.push({
       snapshotKey: key,
       month: month,
       obligationId: o.id,
@@ -530,8 +527,26 @@ function ensureMonthlyLoanSnapshot(ss, month) {
       updatedAt: now
     });
   });
-  appendObjects(historySheet, rows);
-  return { obligations: obligations, history: history.concat(rows) };
+
+  // Common case: nothing new to snapshot. Skip the lock entirely -- it's
+  // shared with every write action across the app, and taking it here on
+  // every cache-miss read (which happens far more often than writes) was
+  // causing severe, inconsistent load-time contention.
+  if (!pending.length) return { obligations: obligations, history: history };
+
+  var appended = [];
+  withLock(function() {
+    // Re-check against the sheet's live state in case a concurrent request
+    // already appended these same rows while we were reading/computing.
+    var freshExisting = {};
+    sheetToJson(ss, 'Loans').forEach(function(row) { freshExisting[String(row.snapshotKey)] = true; });
+    var rows = pending.filter(function(r) { return !freshExisting[r.snapshotKey]; });
+    if (rows.length) {
+      appendObjects(historySheet, rows);
+      appended = rows;
+    }
+  });
+  return { obligations: obligations, history: history.concat(appended) };
 }
 
 function removeFutureLoanSnapshots(ss, id, month) {
