@@ -12,6 +12,8 @@ const state = {
   reconSearch: '',
   reconBank: 'all',
   reconPayer: 'all',
+  reconSortField: 'bank',
+  reconSortDirection: 'asc',
   reconShowDone: false, // reconciled loans drop out of the list until toggled on
   income: [],
   loanHistory: [],
@@ -86,6 +88,11 @@ let pendingWrites = 0;
 let loadedMonth = '';
 let appliedFingerprint = '';
 let filterReturnFocus = null;
+const reconDrafts = new Map();
+const reconSaveTasks = new Set();
+const reconSessionSaved = new Set();
+let financialWriteQueue = Promise.resolve();
+let toastTimer;
 
 // ================================================================
 // Utilities
@@ -405,8 +412,12 @@ async function callApi(params, options = {}) {
   } catch { /* storage is optional */ }
   setSyncStatus('saving', 'Saving changes...');
   try {
-    const result = await requestApi(params, { ...options, retries: 0 });
-    setSyncStatus('ready', 'Changes saved');
+    const repeatable = ['setPayment', 'updateBalance'].includes(params.action);
+    const send = () => requestApi(params, { ...options, retries: repeatable ? 1 : 0, timeout: options.timeout ?? (repeatable ? 45000 : 30000) });
+    const task = repeatable ? financialWriteQueue.then(send) : send();
+    if (repeatable) financialWriteQueue = task.catch(() => {});
+    const result = await task;
+    setSyncStatus(pendingWrites > 1 ? 'saving' : 'ready', pendingWrites > 1 ? 'Saving changes...' : 'Changes saved');
     return result;
   } catch (err) {
     setSyncStatus('error', 'Save failed. Try again');
@@ -428,16 +439,19 @@ async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
       const res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      if (!res.ok) throw Object.assign(new Error(`Server returned ${res.status}`), { retryable: res.status >= 500 || res.status === 429 });
       const json = await res.json();
-      if (json.error) throw new Error(json.error);
+      if (json.error) throw Object.assign(new Error(json.error), { retryable: /lock|timed out|try again|too many times/i.test(json.error) });
+      if (['setPayment', 'updateBalance'].includes(params.action) && json.success !== true) {
+        throw Object.assign(new Error('The server did not confirm the save. Refresh to check its status.'), { retryable: false });
+      }
       if (params.action && !['all', 'getReportData', 'repairSchema'].includes(params.action)) {
         invalidateCachedMonth(validMonthParam(params.month) ? params.month : state.month);
       }
       return json;
     } catch (err) {
       clearTimeout(timer);
-      if (attempt < retries) {
+      if (attempt < retries && err.retryable !== false) {
         await new Promise(r => setTimeout(r, 1500));
         continue;
       }
@@ -512,13 +526,13 @@ async function setPaymentWithAmount(id, status, paidAmt) {
     not_done: 'Marked as did not pay.',
     no_need: 'Marked no need.'
   };
-  if (toasts[status]) showToast(toasts[status]);
 
   try {
     const result = await callApi({
       action: 'setPayment', key, paid, status, month: state.month,
       paidAmount: paidAmt !== null ? paidAmt : ''
     });
+    if (toasts[status]) showToast(toasts[status]);
     state.paymentMeta[key] = {
       key, paid,
       status: result.status || status,
@@ -540,7 +554,7 @@ async function setPaymentWithAmount(id, status, paidAmt) {
     if (previousMeta) state.paymentMeta[key] = previousMeta;
     else delete state.paymentMeta[key];
     patchPaymentEl(id);
-    showError('Payment was not saved. Please try again.');
+    showError(`Save could not be confirmed: ${err.message}. Refresh to check before retrying.`);
   }
 }
 
@@ -726,7 +740,7 @@ function reconBankOf(l) { return String(l.bank || 'Other'); }
 function filteredReconLoans() {
   let rows = activeLoans();
   // Reconciled loans drop out of the list — that is the whole point at 70 loans.
-  if (!state.reconShowDone) rows = rows.filter(l => balanceReadMonth(l) !== state.month);
+  if (!state.reconShowDone) rows = rows.filter(l => balanceReadMonth(l) !== state.month || reconSessionSaved.has(pkey(l.id, state.month)));
   if (state.reconBank !== 'all') rows = rows.filter(l => reconBankOf(l) === state.reconBank);
   if (state.reconPayer !== 'all') rows = rows.filter(l => String(l.payer || '') === state.reconPayer);
   if (state.reconSearch) {
@@ -736,7 +750,22 @@ function filteredReconLoans() {
         .some(v => String(v || '').toLocaleLowerCase().includes(needle))
     );
   }
-  return rows;
+  return rows.sort((a, b) => {
+    const av = obligationSortValue(a, state.reconSortField);
+    const bv = obligationSortValue(b, state.reconSortField);
+    const missingA = av === null || av === undefined || av === '';
+    const missingB = bv === null || bv === undefined || bv === '';
+    if (missingA !== missingB) return missingA ? 1 : -1;
+    const difference = typeof av === 'number' && typeof bv === 'number'
+      ? av - bv : String(av ?? '').localeCompare(String(bv ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+    return difference * (state.reconSortDirection === 'asc' ? 1 : -1);
+  });
+}
+
+function hideSavedRecon() {
+  reconSessionSaved.clear();
+  state.reconShowDone = false;
+  renderReconcile();
 }
 
 function activeReconFilterCount() {
@@ -760,7 +789,9 @@ function syncReconControls() {
   const map = {
     'recon-search': state.reconSearch,
     'recon-bank': state.reconBank,
-    'recon-payer': state.reconPayer
+    'recon-payer': state.reconPayer,
+    'recon-sort-field': state.reconSortField,
+    'recon-sort-direction': state.reconSortDirection
   };
   Object.entries(map).forEach(([id, value]) => {
     const el = q(id);
@@ -807,7 +838,7 @@ function renderReconcile() {
       <div class="recon-bar"><div class="recon-bar-fill" id="recon-bar-fill"></div></div>
       <p class="recon-hint">
         <span id="recon-results-count">${reconResultsText(all, loans)}</span>
-        — open one bank app at a time and type each remaining balance. Enter saves and jumps to the next loan.
+        <br>Type a balance, then click Save or press Enter. Saved rows stay in place until you choose Hide saved.
       </p>
     </div>`;
 
@@ -823,11 +854,14 @@ function renderReconcile() {
     return;
   }
 
-  const groups = {};
-  loans.forEach(l => { (groups[reconBankOf(l)] = groups[reconBankOf(l)] || []).push(l); });
+  const groups = Object.create(null);
+  loans.forEach(l => {
+    const group = state.reconSortField === 'bank' ? reconBankOf(l) : 'Filtered loans';
+    (groups[group] = groups[group] || []).push(l);
+  });
 
-  container.innerHTML = intro + Object.keys(groups).sort((a, b) => a.localeCompare(b)).map(bank => {
-    const inBank = all.filter(l => reconBankOf(l) === bank);
+  container.innerHTML = intro + Object.keys(groups).map(bank => {
+    const inBank = state.reconSortField === 'bank' ? all.filter(l => reconBankOf(l) === bank) : loans;
     const done = inBank.filter(l => balanceReadMonth(l) === state.month).length;
     return `<section class="recon-group" data-bank="${escapeHtml(bank)}">
       <header class="recon-group-head">
@@ -847,10 +881,13 @@ function reconRow(l) {
   const src = balanceReadMonth(l);
   const done = src === state.month;
   const contracts = contractParts(l.contractNumber);
-  return `<div class="recon-row ${done ? 'is-done' : ''}" data-recon-id="${id}">
+  const draft = reconDrafts.get(pkey(l.id, state.month));
+  const saving = reconSaveTasks.has(pkey(l.id, state.month));
+  return `<div class="recon-row ${done ? 'is-done' : ''} ${saving ? 'is-saving' : ''}" data-recon-id="${id}" ${saving ? 'aria-busy="true"' : ''}>
     <div class="recon-id">
       <div class="recon-name" style="color:${payerColor(l.payer)}">${escapeHtml(l.payer || '—')}</div>
       <div class="recon-sub">
+        <span>${escapeHtml(l.bank || '')}</span>
         ${contracts.length ? contracts.map(part => copyChip(part)).join('')
                            : '<span class="recon-nocontract">no contract</span>'}
         ${Number(l.loanTotal) > 0 ? `<span class="recon-initial">${amd(l.loanTotal)} initial</span>` : ''}
@@ -863,15 +900,20 @@ function reconRow(l) {
     </div>
     <div class="recon-entry">
       <input class="recon-input" id="recon-input-${id}" type="number" inputmode="numeric" min="0"
+             aria-label="Remaining balance for ${escapeHtml(l.payer || '')} at ${escapeHtml(l.bank || '')}"
+             value="${escapeHtml(draft?.value ?? (done && prev !== null ? String(prev) : ''))}" ${saving ? 'disabled' : ''}
              placeholder="${prev !== null ? prev : 'balance'}"
              onfocus="this.select()"
              oninput="reconcileDelta('${id}', this)"
-             onkeydown="reconcileKey(event, '${id}', this)"
-             onblur="reconcileSave('${id}', this)">
-      <span class="recon-delta" id="recon-delta-${id}"></span>
+             onkeydown="reconcileKey(event, '${id}', this)">
+      <span class="recon-delta ${draft?.status === 'error' ? 'is-up' : ''}" id="recon-delta-${id}" role="status">${saving ? 'Saving...' : draft?.status === 'error' ? 'Not confirmed. Retry or refresh.' : draft ? 'Not saved' : done ? 'Saved' : ''}</span>
     </div>
-    <button class="button button-ghost recon-keep" type="button"
-            onclick="reconcileKeep('${id}')" title="Balance unchanged">Same</button>
+    <div class="recon-actions">
+      <button class="button button-primary recon-save" id="recon-save-${id}" type="button" ${saving ? 'disabled' : ''}
+              onclick="reconcileSave('${id}', q('recon-input-${id}'))">${saving ? 'Saving...' : draft?.status === 'error' ? 'Retry' : 'Save'}</button>
+      <button class="button button-ghost recon-keep" type="button" ${saving ? 'disabled' : ''}
+              onclick="reconcileKeep('${id}')" title="Fill in the last saved balance">Use last</button>
+    </div>
   </div>`;
 }
 
@@ -885,6 +927,9 @@ function updateReconProgress() {
 }
 
 function reconcileDelta(id, input) {
+  reconDrafts.set(pkey(id, state.month), { value: input.value, status: 'draft' });
+  const save = q('recon-save-' + id);
+  if (save) { save.disabled = false; save.textContent = 'Save'; }
   const el = q('recon-delta-' + id);
   if (!el) return;
   const loan = state.obligations.find(o => String(o.id) === String(id));
@@ -894,17 +939,17 @@ function reconcileDelta(id, input) {
   const val = Number(raw);
   if (!isFinite(val)) { el.textContent = ''; el.className = 'recon-delta'; return; }
   const diff = val - prev;
-  if (diff === 0) { el.textContent = 'no change'; el.className = 'recon-delta is-flat'; return; }
-  el.textContent = `${diff < 0 ? '−' : '+'}${amd(Math.abs(diff))}`;
+  if (diff === 0) { el.textContent = 'Unchanged. Click Save to confirm.'; el.className = 'recon-delta is-flat'; return; }
+  el.textContent = `Not saved: ${diff < 0 ? '−' : '+'}${amd(Math.abs(diff))}`;
   el.className = 'recon-delta ' + (diff < 0 ? 'is-down' : 'is-up');
 }
 
 function reconcileKey(event, id, input) {
   if (event.key !== 'Enter') return;
   event.preventDefault();
-  reconcileSave(id, input);
   const inputs = Array.from(document.querySelectorAll('.recon-input'));
   const next = inputs[inputs.indexOf(input) + 1];
+  reconcileSave(id, input);
   if (next) { next.focus(); next.select(); } else input.blur();
 }
 
@@ -915,80 +960,89 @@ function reconcileKeep(id) {
   const input = q('recon-input-' + id);
   if (!input) return;
   input.value = cur;
-  reconcileSave(id, input);
+  reconcileDelta(id, input);
+  input.focus();
 }
 
 async function reconcileSave(id, input) {
+  if (!input) return;
+  const month = state.month;
+  const key = pkey(id, month);
+  if (reconSaveTasks.has(key)) return;
   const raw = String(input.value).trim();
-  if (raw === '') return;
+  if (raw === '') { showError('Enter a balance before saving.'); return; }
   const val = Number(raw);
   if (!isFinite(val) || val < 0) { showError('Enter a valid balance.'); return; }
 
   const loan = state.obligations.find(o => String(o.id) === String(id));
   if (!loan) return;
-  // Already saved with this exact value this month — nothing to do.
-  if (loanBalance(loan) === val && balanceSourceMonth(loan) === state.month) return;
-
-  const row = input.closest('.recon-row');
-  const bank = reconBankOf(loan);
-  const prevBalance = loan.currentBalance;
-  const prevMonth = loan.balanceUpdatedMonth;
-  const snap = state.loanHistory.find(s =>
-    String(s.obligationId) === String(id) && toMonthKey(s.month) === state.month
-  );
-  const prevSnap = snap ? { currentBalance: snap.currentBalance, balanceSourceMonth: snap.balanceSourceMonth } : null;
-
-  // Optimistic: stamp locally and mark the row done immediately.
-  loan.currentBalance = val;
-  loan.balanceUpdatedMonth = state.month;
-  if (snap) { snap.currentBalance = val; snap.balanceSourceMonth = state.month; }
-  if (row) {
-    row.classList.add('is-done', 'is-saving');
-    const prevEl = row.querySelector('.recon-prev');
-    if (prevEl) prevEl.textContent = amd(val);
-    const whenEl = row.querySelector('.recon-prev-when');
-    if (whenEl) whenEl.textContent = monthLabel(state.month);
-  }
-  const deltaEl = q('recon-delta-' + id);
-  if (deltaEl) { deltaEl.textContent = 'saved'; deltaEl.className = 'recon-delta is-saved'; }
-  updateReconGroupCount(bank);
-  updateReconResultsCount();
-  updateReconProgress();
+  reconDrafts.set(key, { value: raw, status: 'saving' });
+  reconSaveTasks.add(key);
+  updateReconSaveState(id, 'saving');
 
   try {
-    await callApi({ action: 'updateBalance', id, balance: val, month: state.month });
-    state.monthCache = {}; // balances changed — cached month snapshots are stale
-    invalidateCachedMonth(state.month);
-    if (row) {
-      row.classList.remove('is-saving');
-      if (!state.reconShowDone) reconRetireRow(row, bank);
+    await callApi({ action: 'updateBalance', id, balance: val, month });
+    reconDrafts.delete(key);
+    reconSessionSaved.add(key);
+    if (state.month === month) {
+      const currentLoan = state.obligations.find(o => String(o.id) === String(id));
+      if (currentLoan) { currentLoan.currentBalance = val; currentLoan.balanceUpdatedMonth = month; }
+      let snap = loanSnapshot(id, month);
+      if (!snap) {
+        snap = { obligationId: id, month };
+        state.loanHistory.push(snap);
+        state.loanSnapshotIndex[`${month}__${id}`] = snap;
+      }
+      snap.currentBalance = val;
+      snap.balanceSourceMonth = month;
+      updateReconSaveState(id, 'saved', val);
+      updateReconGroupCount(reconBankOf(loan));
+      updateReconResultsCount();
+      updateReconProgress();
     }
   } catch (err) {
-    loan.currentBalance = prevBalance;
-    loan.balanceUpdatedMonth = prevMonth;
-    if (snap && prevSnap) {
-      snap.currentBalance = prevSnap.currentBalance;
-      snap.balanceSourceMonth = prevSnap.balanceSourceMonth;
-    }
-    if (row) row.classList.remove('is-saving', 'is-done');
-    if (deltaEl) { deltaEl.textContent = 'not saved'; deltaEl.className = 'recon-delta is-up'; }
-    updateReconGroupCount(row);
-    updateReconProgress();
-    showError('Could not save balance — try again.');
+    reconDrafts.set(key, { value: raw, status: 'error' });
+    if (state.month === month) updateReconSaveState(id, 'error');
+    showError(`Balance save could not be confirmed: ${err.message}. Your entry is kept.`);
+  } finally {
+    reconSaveTasks.delete(key);
+  }
+}
+
+function updateReconSaveState(id, status, balance) {
+  const input = q('recon-input-' + id);
+  const row = input?.closest('.recon-row');
+  if (!row) return;
+  const saving = status === 'saving';
+  row.classList.toggle('is-saving', saving);
+  if (saving) row.setAttribute('aria-busy', 'true'); else row.removeAttribute('aria-busy');
+  input.disabled = saving;
+  row.querySelectorAll('.recon-actions button').forEach(button => { button.disabled = saving; });
+  const save = q('recon-save-' + id);
+  save.textContent = saving ? 'Saving...' : status === 'saved' ? 'Saved' : 'Retry';
+  save.disabled = saving || status === 'saved';
+  const delta = q('recon-delta-' + id);
+  delta.textContent = saving ? 'Waiting for confirmation...' : status === 'saved' ? 'Saved to worksheet' : 'Not confirmed. Retry or refresh.';
+  delta.className = 'recon-delta ' + (status === 'saved' ? 'is-saved' : status === 'error' ? 'is-up' : '');
+  if (status === 'saved') {
+    row.classList.add('is-done');
+    row.querySelector('.recon-prev').textContent = amd(balance);
+    row.querySelector('.recon-prev-when').textContent = monthLabel(state.month);
   }
 }
 
 function updateReconGroupCount(bank) {
-  const group = document.querySelector(`.recon-group[data-bank="${CSS.escape(bank)}"]`);
+  const groupName = state.reconSortField === 'bank' ? bank : 'Filtered loans';
+  const group = document.querySelector(`.recon-group[data-bank="${CSS.escape(groupName)}"]`);
   if (!group) return;
-  const inBank = activeLoans().filter(l => reconBankOf(l) === bank);
+  const inBank = state.reconSortField === 'bank' ? activeLoans().filter(l => reconBankOf(l) === bank) : filteredReconLoans();
   const done = inBank.filter(l => balanceReadMonth(l) === state.month).length;
   const count = group.querySelector('.recon-group-count');
   if (count) count.textContent = `${done}/${inBank.length}`;
 }
 
 function reconResultsText(all, loans) {
-  const hidden = state.reconShowDone ? 0 : all.filter(l => balanceReadMonth(l) === state.month).length;
+  const hidden = state.reconShowDone ? 0 : all.filter(l => balanceReadMonth(l) === state.month && !reconSessionSaved.has(pkey(l.id, state.month))).length;
   return `Showing ${loans.length} of ${all.length} loans${hidden ? ` · ${hidden} reconciled hidden` : ''}`;
 }
 
@@ -1150,6 +1204,7 @@ async function revalidateMonth(month, force = false) {
       writeCachedMonth(month, data);
       if (state.month !== month) return;
       const editing = loadedMonth === month && (
+        [...reconDrafts.keys()].some(key => key.endsWith('__' + month)) ||
         document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') ||
         document.querySelector('.modal-backdrop:not(.hidden), .pay-panel:not(.hidden)')
       );
@@ -1203,19 +1258,21 @@ function showLoading(on) {
 }
 
 function showError(msg) {
+  clearTimeout(toastTimer);
   const el = document.getElementById('error-toast');
   el.textContent = msg;
   el.classList.remove('hidden', 'is-success');
   el.classList.add('is-error');
-  setTimeout(() => el.classList.add('hidden'), 5000);
+  toastTimer = setTimeout(() => el.classList.add('hidden'), 9000);
 }
 
 function showToast(msg) {
+  clearTimeout(toastTimer);
   const el = q('error-toast');
   el.textContent = msg;
   el.classList.remove('hidden', 'is-error');
   el.classList.add('is-success');
-  setTimeout(() => el.classList.add('hidden'), 2200);
+  toastTimer = setTimeout(() => el.classList.add('hidden'), 2200);
 }
 
 function switchTab(tab) {
@@ -4030,7 +4087,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const reconControls = {
     'recon-search': 'reconSearch',
     'recon-bank': 'reconBank',
-    'recon-payer': 'reconPayer'
+    'recon-payer': 'reconPayer',
+    'recon-sort-field': 'reconSortField',
+    'recon-sort-direction': 'reconSortDirection'
   };
   Object.entries(reconControls).forEach(([id, stateKey]) => {
     const control = q(id);

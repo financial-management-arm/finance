@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=57">
+  <link rel="stylesheet" href="style.css?v=58">
 </head>
 <body class="month-pending">
 
@@ -162,6 +162,7 @@
             Filters
             <span class="filter-badge hidden" id="obligation-filter-badge"></span>
           </button>
+          <details class="export-menu"><summary>Export</summary><div><button type="button" onclick="exportFinanceView('obligations','csv',this)">CSV</button><button type="button" onclick="exportFinanceView('obligations','txt',this)">Text</button><button type="button" onclick="exportFinanceView('obligations','xlsx',this)">Excel (.xlsx)</button><button type="button" onclick="exportFinanceView('obligations','pdf',this)">PDF</button></div></details>
           <button class="button button-primary" type="button" onclick="openAddObligationModal()">+ Add</button>
         </div>
       </div>
@@ -174,6 +175,8 @@
         <h1>Reconcile balances</h1>
         <div class="page-header-actions">
           <span class="recon-progress" id="recon-progress">0 / 0 done</span>
+          <button class="button button-ghost" type="button" onclick="hideSavedRecon()">Hide saved</button>
+          <details class="export-menu"><summary>Export</summary><div><button type="button" onclick="exportFinanceView('reconcile','csv',this)">CSV</button><button type="button" onclick="exportFinanceView('reconcile','txt',this)">Text</button><button type="button" onclick="exportFinanceView('reconcile','xlsx',this)">Excel (.xlsx)</button><button type="button" onclick="exportFinanceView('reconcile','pdf',this)">PDF</button></div></details>
           <button class="filter-trigger-btn" id="recon-filter-btn" type="button" onclick="openFilterDrawer('recon')" aria-label="Open filters">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
             Filters
@@ -823,6 +826,8 @@
           <span>Payer</span>
           <select id="recon-payer"><option value="all">All payers</option></select>
         </label>
+        <label class="filter-field"><span>Sort by</span><select id="recon-sort-field"><option value="bank">Bank</option><option value="payer">Payer</option><option value="currentBalance">Remaining balance</option><option value="dueDay">Payment day</option><option value="amount">Monthly payment</option><option value="contractNumber">Loan code</option><option value="loanTotal">Initial loan amount</option></select></label>
+        <label class="filter-field"><span>Direction</span><select id="recon-sort-direction"><option value="asc">Ascending</option><option value="desc">Descending</option></select></label>
       </div>
     </div>
   </div>
@@ -843,6 +848,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=80"></script>
+<script src="app.js?v=81"></script>
+<script src="exports.js?v=1"></script>
 </body>
 </html>

@@ -32,7 +32,7 @@ function doGet(e) {
   var result;
 
   try {
-    if (action !== 'all') ensureSchema(ss);
+    if (!['all', 'setPayment', 'updateBalance'].includes(action)) ensureSchema(ss);
 
     if (action === 'all') {
       var monthly;
@@ -52,6 +52,7 @@ function doGet(e) {
       putAllCache(month, result);
     } else if (action === 'setPayment') {
       result = withLock(function() {
+        ensureSheetSchema(ss, 'Payments');
         return setPayment(ss, params);
       });
     } else if (action === 'addIncome') {
@@ -60,6 +61,8 @@ function doGet(e) {
       });
     } else if (action === 'updateBalance') {
       result = withLock(function() {
+        ensureSheetSchema(ss, 'Obligations');
+        ensureSheetSchema(ss, 'Loans');
         return updateBalance(ss, params, month);
       });
     } else if (action === 'updateLoan') {
@@ -650,26 +653,27 @@ function ensureMaintenanceTrigger() {
   }
 }
 
-function ensureSchema(ss) {
-  Object.keys(SCHEMAS).forEach(function(name) {
-    var headers = SCHEMAS[name];
-    var sheet = ss.getSheetByName(name);
-    if (!sheet) sheet = ss.insertSheet(name);
+function ensureSheetSchema(ss, name) {
+  var headers = SCHEMAS[name];
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) sheet = ss.insertSheet(name);
+  if (sheet.getLastRow() > 0) {
+    var firstCell = String(sheet.getRange(1, 1).getValue() || '');
+    if (looksLikeDataRow(name, firstCell)) sheet.insertRowBefore(1);
+  }
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  }
+  var currentHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0]
+    .map(function(value) { return String(value || '').trim(); });
+  if (currentHeaders.join('|') !== headers.join('|')) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+  if (sheet.getFrozenRows() !== 1) sheet.setFrozenRows(1);
+}
 
-    if (sheet.getLastRow() > 0) {
-      var firstCell = String(sheet.getRange(1, 1).getValue() || '');
-      if (looksLikeDataRow(name, firstCell)) sheet.insertRowBefore(1);
-    }
-    if (sheet.getMaxColumns() < headers.length) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
-    }
-    var currentHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0]
-      .map(function(value) { return String(value || '').trim(); });
-    if (currentHeaders.join('|') !== headers.join('|')) {
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    }
-    sheet.setFrozenRows(1);
-  });
+function ensureSchema(ss) {
+  Object.keys(SCHEMAS).forEach(function(name) { ensureSheetSchema(ss, name); });
 
   var obligations = ss.getSheetByName('Obligations');
   var contractCol = SCHEMAS.Obligations.indexOf('contractNumber') + 1;
