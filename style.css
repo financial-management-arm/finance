@@ -6663,3 +6663,20 @@ code.abonent-code {
   border-radius: 12px !important;
   box-shadow: 0 8px 16px -8px rgba(37, 99, 235, 0.9), inset 0 1px 0 rgba(255,255,255,0.22) !important;
 }
+.workspace-bar { display: none !important; }
+.sidebar-footer { display: flex; align-items: center; gap: 10px; }
+.sidebar-footer #sync-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--color-sidebar-text, #94a3b8);
+  cursor: pointer;
+  font-size: 10px;
+  min-height: 28px;
+  padding: 0 4px;
+}
+.sidebar-footer #sync-button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; }
+.sidebar-footer #sync-status { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1371,11 +1371,14 @@ async function revalidateMonth(month, force = false) {
 
 function setSyncStatus(status, label) {
   const button = q('sync-button');
-  if (!button) return;
-  button.dataset.status = status;
+  if (button) {
+    button.dataset.status = status;
+    button.disabled = status === 'saving';
+  }
   const statusLabel = q('sync-status');
   if (statusLabel) statusLabel.textContent = label;
-  button.disabled = status === 'saving';
+  const mobileLabel = q('sync-status-mobile');
+  if (mobileLabel) mobileLabel.textContent = label;
 }
 
 function toggleMobileNav(open) {
