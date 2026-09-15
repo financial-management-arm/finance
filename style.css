@@ -6194,3 +6194,222 @@ code.abonent-code {
 }
 .income-history-head h4 { font-size: 14px; font-weight: 700; }
 .income-history-head span { font-size: 12px; color: var(--color-text-muted); }
+
+/* ── Command header ─────────────────────────────────────── */
+.page > .page-header {
+  gap: 10px;
+  border: 0;
+  background: transparent;
+}
+.page.header-closed > .page-header {
+  min-height: 0;
+  padding: 10px 18px 8px;
+  background: transparent;
+}
+.page.header-open > .page-header {
+  margin: 8px 16px 4px;
+  padding: 16px 18px 14px;
+  border-radius: 22px;
+  background:
+    radial-gradient(420px 160px at 8% -20%, rgba(94, 234, 212, 0.18), transparent 58%),
+    radial-gradient(380px 140px at 100% 0%, rgba(59, 130, 246, 0.16), transparent 50%),
+    linear-gradient(165deg, #122033 0%, #0d1726 58%, #102a32 100%);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow:
+    0 18px 40px -22px rgba(8, 15, 28, 0.55),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  color: #e2e8f0;
+}
+.page.header-open > .page-header h1,
+.page.header-open > .page-header .page-kicker {
+  color: #f8fafc;
+}
+.page.header-open > .page-header .page-kicker {
+  color: rgba(226, 232, 240, 0.62);
+}
+
+.header-toggle {
+  appearance: none;
+}
+.page.header-closed > .page-header .header-toggle,
+.page.header-open > .page-header .header-toggle {
+  border: 1px solid rgba(255,255,255,0.12);
+  background:
+    radial-gradient(180px 80px at 0% 0%, rgba(94,234,212,.22), transparent 60%),
+    linear-gradient(120deg, #123044 0%, #163d4d 48%, #0f766e 140%);
+  color: #f8fafc;
+  box-shadow:
+    0 14px 28px -16px rgba(15, 118, 110, 0.55),
+    inset 0 1px 0 rgba(255,255,255,0.16);
+  backdrop-filter: blur(16px);
+}
+.page.header-closed > .page-header .header-toggle {
+  min-height: 56px;
+  padding: 8px 14px 8px 12px;
+  border-radius: 18px;
+}
+.page.header-open > .page-header .header-toggle {
+  min-height: 40px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.ht-orb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #5eead4;
+  box-shadow: 0 0 0 4px rgba(94,234,212,.16), 0 0 16px rgba(94,234,212,.7);
+  flex-shrink: 0;
+}
+.ht-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+}
+.ht-kicker {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(226,232,240,.7);
+}
+.header-toggle-title {
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -.02em;
+}
+.header-toggle-meta {
+  margin-left: auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(8, 18, 28, 0.35);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px;
+  font-weight: 650;
+  color: #ecfeff;
+}
+.header-toggle-chev {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  position: relative;
+  flex-shrink: 0;
+}
+.header-toggle-chev::before {
+  content: "";
+  position: absolute;
+  inset: 9px 8px 11px;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(45deg);
+}
+.page.header-open .header-toggle-chev::before {
+  inset: 11px 8px 9px;
+  transform: rotate(225deg);
+}
+.page.header-open > .page-header .ht-copy { display: flex; }
+.page.header-open > .page-header .header-toggle-title { display: none; }
+
+.page.header-open .month-nav {
+  background: rgba(8, 16, 28, 0.35);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  padding: 4px;
+}
+.page.header-open .month-label {
+  background: transparent;
+  color: #f8fafc;
+  font-weight: 700;
+}
+.page.header-open .btn-nav,
+.page.header-open .btn-today {
+  background: rgba(255,255,255,0.08);
+  border-color: transparent;
+  color: #e2e8f0;
+}
+.page.header-open .btn-today {
+  background: #2563eb;
+  color: #fff;
+}
+.page.header-open .filter-trigger-btn,
+.page.header-open .export-menu summary,
+.page.header-open .button-ghost {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.1);
+  color: #e2e8f0;
+}
+.page.header-open .filter-trigger-btn.has-filters {
+  background: rgba(94, 234, 212, 0.16);
+  border-color: rgba(94, 234, 212, 0.35);
+  color: #ccfbf1;
+}
+.page.header-open .button-primary,
+.page.header-open .btn-primary {
+  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+  border: 0;
+  color: #fff;
+  box-shadow: 0 8px 18px -10px rgba(37, 99, 235, 0.9);
+}
+
+/* Filter command drawer */
+.filter-backdrop {
+  background: rgba(6, 10, 22, 0.55) !important;
+  backdrop-filter: blur(10px) saturate(1.1) !important;
+}
+.filter-drawer {
+  width: min(400px, 96vw) !important;
+  background:
+    radial-gradient(420px 220px at 100% 0%, rgba(45, 212, 191, 0.16), transparent 55%),
+    radial-gradient(280px 180px at 0% 100%, rgba(59, 130, 246, 0.14), transparent 50%),
+    linear-gradient(180deg, #10182b 0%, #0b1220 100%) !important;
+  border-left: 1px solid rgba(94, 234, 212, 0.18) !important;
+  box-shadow: -24px 0 60px rgba(0,0,0,.45) !important;
+}
+.filter-drawer::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #22d3ee, #6366f1, #2dd4bf);
+}
+.filter-drawer-header {
+  padding: 20px 20px 16px !important;
+}
+.filter-drawer-title {
+  font-size: 16px !important;
+  letter-spacing: -.02em;
+}
+.filter-section {
+  margin: 10px 14px;
+  padding: 14px 14px 12px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+}
+.filter-section-label {
+  letter-spacing: .08em;
+  font-size: 10px !important;
+  text-transform: uppercase;
+}
+.filter-pills .pill.active {
+  background: linear-gradient(180deg, rgba(45,212,191,.28), rgba(45,212,191,.12)) !important;
+  border-color: rgba(45,212,191,.45) !important;
+  color: #ecfeff !important;
+}
+.filter-drawer-footer {
+  background: rgba(8, 12, 24, 0.72) !important;
+  border-top: 1px solid rgba(255,255,255,0.06) !important;
+  backdrop-filter: blur(12px);
+}
+.filter-done-btn,
+.filter-drawer-footer .button-primary {
+  background: linear-gradient(180deg, #34d399, #0f766e) !important;
+  border: 0 !important;
+  color: #042f2e !important;
+  font-weight: 800 !important;
+}
