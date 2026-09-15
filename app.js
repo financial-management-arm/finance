@@ -1293,8 +1293,29 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.classList.add('hidden'), 2200);
 }
 
-function switchTab(tab) {
-  toggleMobileNav(false);
+// ================================================================
+// URL routing -- each tab (and the Reports period sub-tab) gets its own
+// address, so a direct link or a page refresh lands back on the same view.
+// ================================================================
+const VALID_TABS = ['schedule', 'loans', 'reconcile', 'income', 'cash', 'offers', 'utilities', 'reports'];
+
+function parseRoute() {
+  const raw = (location.hash || '').replace(/^#\/?/, '');
+  const [tabPart, subPart] = raw.split('/');
+  const tab = VALID_TABS.includes(tabPart) ? tabPart : null;
+  return { tab, sub: subPart || '' };
+}
+
+function routeHash(tab, sub) {
+  return sub ? `#${tab}/${sub}` : `#${tab}`;
+}
+
+function updateUrlForTab(tab, sub = '') {
+  const hash = routeHash(tab, sub);
+  if (location.hash !== hash) history.replaceState(null, '', hash);
+}
+
+function activateTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.sidebar-nav a').forEach(a => {
     a.classList.toggle('active', a.dataset.tab === tab);
@@ -1305,6 +1326,12 @@ function switchTab(tab) {
   document.querySelectorAll('.page').forEach(p =>
     p.classList.toggle('active', p.id === 'page-' + tab)
   );
+}
+
+function switchTab(tab) {
+  toggleMobileNav(false);
+  activateTab(tab);
+  updateUrlForTab(tab, tab === 'reports' ? String(state.reportWindow) : '');
   renderCurrentTab();
 }
 
@@ -4182,6 +4209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#report-period-tabs .rp-tab').forEach(t =>
       t.classList.toggle('active', t === tab)
     );
+    if (state.tab === 'reports') updateUrlForTab('reports', String(win));
     state.reportData = null;
     state.reportLoading = false;
     state.reportError = false;
@@ -4241,6 +4269,39 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') closeLoanEditor();
+  });
+
+  // Restore the tab (and, for Reports, the period sub-tab) from the URL so a
+  // direct link or a page refresh lands back on the same view instead of
+  // always starting on Payments.
+  {
+    const { tab: initialTab, sub: initialSub } = parseRoute();
+    if (initialTab === 'reports' && [3, 6, 12].includes(Number(initialSub))) {
+      state.reportWindow = Number(initialSub);
+      document.querySelectorAll('#report-period-tabs .rp-tab').forEach(t =>
+        t.classList.toggle('active', Number(t.dataset.window) === state.reportWindow)
+      );
+    }
+    activateTab(initialTab || 'schedule');
+    updateUrlForTab(state.tab, state.tab === 'reports' ? String(state.reportWindow) : '');
+  }
+
+  window.addEventListener('hashchange', () => {
+    const { tab: nextTab, sub: nextSub } = parseRoute();
+    if (!nextTab) return;
+    const nextWin = nextTab === 'reports' && [3, 6, 12].includes(Number(nextSub)) ? Number(nextSub) : state.reportWindow;
+    if (nextTab === state.tab && nextWin === state.reportWindow) return;
+    if (nextTab === 'reports' && nextWin !== state.reportWindow) {
+      state.reportWindow = nextWin;
+      document.querySelectorAll('#report-period-tabs .rp-tab').forEach(t =>
+        t.classList.toggle('active', Number(t.dataset.window) === nextWin)
+      );
+      state.reportData = null;
+      state.reportLoading = false;
+      state.reportError = false;
+    }
+    activateTab(nextTab);
+    renderCurrentTab();
   });
 
   // Load data
