@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=78">
+  <link rel="stylesheet" href="style.css?v=79">
 </head>
 <body class="month-pending">
 
@@ -378,7 +378,7 @@
     <section id="page-reports" class="page">
       <div class="page-header">
         <div>
-          <div class="page-kicker">Financial analysis</div>
+          <div class="page-kicker">See the household in one glance</div>
           <h1>Reports</h1>
         </div>
         <div class="report-controls">
@@ -386,16 +386,18 @@
             <button class="rp-tab" data-window="3">3M</button>
             <button class="rp-tab active" data-window="6">6M</button>
             <button class="rp-tab" data-window="12">12M</button>
+            <button class="rp-tab" data-window="24">24M</button>
           </div>
           <button class="btn-ghost-sm" id="btn-sync-reports" type="button">↻ Sync</button>
+          <button class="btn-ghost-sm" type="button" onclick="window.print()">Print</button>
         </div>
       </div>
       <div class="page-body">
         <section class="today-overview-block">
           <div class="section-heading today-overview-heading">
             <div>
-              <div class="eyebrow">This month</div>
-              <h2>Overview</h2>
+              <div class="eyebrow">Live month</div>
+              <h2>This month’s pulse</h2>
             </div>
             <div class="month-nav">
               <button class="btn-nav btn-prev" aria-label="Previous month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 15-5-5 5-5"/></svg></button>
@@ -1106,7 +1108,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=111"></script>
+<script src="app.js?v=112"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>

@@ -4400,7 +4400,8 @@ function amdCompact(n) {
 }
 
 function shortMonLabel(m) {
-  const [y, mo] = m.split('-');
+  const [y, mo] = String(m || '').split('-');
+  if (!y || !mo) return String(m || '');
   return new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 }
 
@@ -4422,6 +4423,20 @@ function sortRows(arr, sortStr) {
     if (vb == null) vb = mult > 0 ? '￿' : '';
     return typeof va === 'string' ? va.localeCompare(vb) * mult : (va - vb) * mult;
   });
+}
+
+function reportNiceMax(value) {
+  const n = Math.max(0, Number(value) || 0);
+  if (n <= 10) return 10;
+  const pow = Math.pow(10, Math.floor(Math.log10(n)));
+  const scaled = n / pow;
+  const nice = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+  return nice * pow;
+}
+
+function reportAxisTicks(max, count = 4) {
+  const top = reportNiceMax(max);
+  return Array.from({ length: count + 1 }, (_, i) => Math.round((top / count) * i));
 }
 
 async function syncReports() {
@@ -4458,78 +4473,29 @@ async function syncReports() {
   return reportSyncTask;
 }
 
-function renderReports() {
-  const body = document.getElementById('report-body');
-  if (!body) return;
-  const balanceHtml = renderBalancePanel();
-  if (!state.reportData && !state.reportLoading) {
-    if (state.reportError) {
-      body.innerHTML = balanceHtml + `<div class="report-panel"><div class="report-empty">Could not load report data.<br>Tap <strong>↻ Sync</strong> to retry.</div></div>`;
-      return;
-    }
-    syncReports();
-    body.innerHTML = balanceHtml + reportsSkeleton();
-    return;
-  }
-  if (state.reportLoading || !state.reportData) { body.innerHTML = balanceHtml + reportsSkeleton(); return; }
-  const d = state.reportData;
-
-  // Build payer list from loaded obligations+utilities (no extra API call needed)
+function reportPayerOptions() {
   const payerSet = new Set();
-  state.obligations.forEach(o => { if (o.active === true || String(o.active).toUpperCase() === 'TRUE') payerSet.add(String(o.payer || '').trim()); });
-  state.utilities.forEach(u => { if (u.active === true || String(u.active).toUpperCase() === 'TRUE') payerSet.add(String(u.payer || '').trim()); });
+  state.obligations.forEach(o => {
+    if (o.active === true || String(o.active).toUpperCase() === 'TRUE') payerSet.add(String(o.payer || '').trim());
+  });
+  state.utilities.forEach(u => {
+    if (u.active === true || String(u.active).toUpperCase() === 'TRUE') payerSet.add(String(u.payer || '').trim());
+  });
   payerSet.delete('');
-  const payers = [...payerSet].sort();
-
-  const payerBar = payers.length > 1 ? `
-    <div class="report-filter-bar">
-      <span class="rfl-label">Payer</span>
-      <select class="report-payer-select rfl-select">
-        <option value="all"${state.reportPayer === 'all' ? ' selected' : ''}>All payers</option>
-        ${payers.map(p => `<option value="${escapeHtml(p)}"${state.reportPayer === p ? ' selected' : ''}>${escapeHtml(p)}</option>`).join('')}
-      </select>
-      ${state.reportPayer !== 'all' ? `<span class="rfl-active-pill">${escapeHtml(state.reportPayer)}</span>` : ''}
-    </div>` : '';
-
-  body.innerHTML = balanceHtml + `
-    ${payerBar}
-    ${renderReportSummary(d)}
-    ${renderCashFlowPanel(d)}
-    <div class="report-2col">
-      ${renderDebtPanel(d)}
-      ${renderLoanProjections(d)}
-    </div>
-    ${renderCategoryPanel()}
-    ${renderPayerPanel()}
-    ${renderHealthPanel(d)}
-  `;
+  return [...payerSet].sort();
 }
 
-function reportsSkeleton() {
-  const r = '<div class="skel skel-row"></div>';
-  const r6 = r.repeat(6), r4 = r.repeat(4);
-  const panel = (rows) => `<div class="report-panel">
-    <div class="report-panel-header"><div class="skel skel-title"></div></div>
-    <div class="report-panel-body rp-pad">${rows}</div>
-  </div>`;
-  return `${panel(r6)}<div class="report-2col">${panel(r4)}${panel(r4)}</div>${panel(r6)}`;
-}
-
-function renderCashFlowPanel(d) {
+function reportEnrichedCashFlow(d) {
   const raw = d.cashFlow || [];
-  if (!raw.length) return `<div class="report-panel"><div class="report-empty">No income data yet — add income records to generate cash flow analysis.</div></div>`;
+  const payMap = new Map(Object.entries(state.paymentMeta || {}));
+  const hasLocal = payMap.size > 0;
+  const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
 
-  // Build payment lookup map once (state.payments starts as {} before fetchAll, guard for that)
-  const payArr = Array.isArray(state.payments) ? state.payments : [];
-  const payMap = new Map();
-  payArr.forEach(p => payMap.set(String(p.key), p));
-
-  const activeUtils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
-
-  function monthPaid(month) {
+  function monthPaid(month, fallback) {
+    if (!hasLocal) return Number(fallback) || 0;
     const items = [
       ...activeObs().filter(o => isObligationDueThisMonth(o, month)),
-      ...activeUtils
+      ...utils
     ];
     let total = 0;
     items.forEach(item => {
@@ -4544,54 +4510,333 @@ function renderCashFlowPanel(d) {
     return total;
   }
 
-  // Use client-side paid amounts (obligation.amount fallback when paidAmount not entered)
-  const enriched = raw.map(r => {
-    const paid = monthPaid(r.month);
-    const net = r.income - paid;
+  return raw.map(r => {
+    const paid = monthPaid(r.month, r.paid);
+    const net = (r.income || 0) - paid;
     const cov = r.income > 0 ? Math.round((paid / r.income) * 100) : 0;
     return { ...r, paid, net, cov };
   });
-  const sorted = sortRows(enriched, state.reportCfSort);
+}
 
+function reportSnapshot() {
+  const loans = activeLoans();
+  const totalDebt = loans.reduce((s, l) => s + (Number(loanBalance(l) ?? l.currentBalance) || 0), 0);
+  const cash = state.cashEntries.filter(e => !cashEntryIsOffer(e)).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const monthlyObl = activeObs().reduce((s, o) => s + monthlyEquivalent(o), 0);
+  const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
+  const monthlyUtil = utils.reduce((s, u) => s + monthlyUtilAmount(u), 0);
+  const monthlyLoad = monthlyObl + monthlyUtil;
+  const creditLineObs = activeObs().filter(isCreditLine);
+  const availableCredit = creditLineObs.reduce((s, o) => s + (Number(o.loanTotal) || 0), 0);
+  return { loans, totalDebt, cash, monthlyLoad, availableCredit, liquid: cash + availableCredit, net: cash - totalDebt };
+}
+
+function renderReports() {
+  const body = document.getElementById('report-body');
+  if (!body) return;
+  if (!state.reportData && !state.reportLoading) {
+    if (state.reportError) {
+      body.innerHTML = `${renderBalancePanel()}<div class="report-panel"><div class="report-empty">Could not load the period analysis.<br>Tap <strong>↻ Sync</strong> to retry.</div></div>`;
+      return;
+    }
+    syncReports();
+    body.innerHTML = reportsSkeleton();
+    return;
+  }
+  if (state.reportLoading || !state.reportData) {
+    body.innerHTML = reportsSkeleton();
+    return;
+  }
+
+  const d = state.reportData;
+  const payers = reportPayerOptions();
+  const payerBar = payers.length > 1 ? `
+    <div class="report-filter-bar rx-toolbar">
+      <span class="rfl-label">View as</span>
+      <select class="report-payer-select rfl-select" aria-label="Filter reports by payer">
+        <option value="all"${state.reportPayer === 'all' ? ' selected' : ''}>Whole household</option>
+        ${payers.map(p => `<option value="${escapeHtml(p)}"${state.reportPayer === p ? ' selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+      </select>
+      ${state.reportPayer !== 'all' ? `<span class="rfl-active-pill">${escapeHtml(state.reportPayer)}</span>` : ''}
+      <span class="rx-toolbar-note">${escapeHtml(shortMonLabel((d.months || [])[0] || ''))} – ${escapeHtml(shortMonLabel((d.months || []).slice(-1)[0] || todayMonth()))}</span>
+    </div>` : '';
+
+  body.innerHTML = `
+    ${payerBar}
+    ${renderReportCommand(d)}
+    ${renderInsightStrip(d)}
+    ${renderBalancePanel()}
+    ${renderCashFlowPanel(d)}
+    <div class="report-2col">
+      ${renderDebtPanel(d)}
+      ${renderLoanProjections(d)}
+    </div>
+    <div class="report-2col">
+      ${renderCategoryPanel()}
+      ${renderPayerPanel()}
+    </div>
+    ${renderHealthPanel(d)}
+  `;
+}
+
+function reportsSkeleton() {
+  const card = extra => `<div class="report-panel rx-skel-card ${extra || ''}"><div class="skel skel-title"></div><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></div>`;
+  return `<div class="rx-kpi-grid">${card()}${card()}${card()}${card()}</div>${card('rx-skel-wide')}<div class="report-2col">${card()}${card()}</div>`;
+}
+
+function renderReportCommand(d) {
+  const snap = reportSnapshot();
+  const cf = reportEnrichedCashFlow(d);
+  const avgIncome = cf.length ? Math.round(cf.reduce((s, r) => s + (r.income || 0), 0) / cf.length) : 0;
+  const avgPaid = cf.length ? Math.round(cf.reduce((s, r) => s + (r.paid || 0), 0) / cf.length) : 0;
+  const healthData = d.paymentHealth || [];
+  const avgHealth = healthData.length
+    ? Math.round(healthData.reduce((s, r) => s + (r.rate || 0), 0) / healthData.length * 10) / 10 : 0;
+  const debt = d.debt || [];
+  const firstDebt = debt.find(r => Number(r.totalBalance) > 0);
+  const lastDebt = [...debt].reverse().find(r => r.totalBalance != null);
+  const debtDelta = firstDebt && lastDebt ? Number(lastDebt.totalBalance) - Number(firstDebt.totalBalance) : 0;
+  const cover = snap.monthlyLoad > 0 ? Math.round((avgIncome / snap.monthlyLoad) * 100) : 0;
+  const runway = snap.monthlyLoad > 0 ? snap.cash / snap.monthlyLoad : null;
+  const healthCls = avgHealth >= 80 ? 'is-good' : avgHealth >= 60 ? 'is-warn' : 'is-bad';
+  const coverCls = cover >= 120 ? 'is-good' : cover >= 100 ? 'is-warn' : 'is-bad';
+  const debtCls = debtDelta < 0 ? 'is-good' : debtDelta > 0 ? 'is-bad' : '';
+  const netCls = snap.net >= 0 ? 'is-good' : 'is-bad';
+
+  return `<div class="rx-kpi-grid">
+    <article class="rx-kpi ${netCls}">
+      <span class="rx-kpi-label">Net position</span>
+      <strong>${snap.net >= 0 ? '+' : '−'}${amdCompact(Math.abs(snap.net))}</strong>
+      <span class="rx-kpi-sub">${amdCompact(snap.cash)} cash − ${amdCompact(snap.totalDebt)} debt</span>
+    </article>
+    <article class="rx-kpi ${coverCls}">
+      <span class="rx-kpi-label">Income cover</span>
+      <strong>${cover}%</strong>
+      <span class="rx-kpi-sub">${amdCompact(avgIncome)} avg in vs ${amdCompact(snap.monthlyLoad)} monthly load</span>
+    </article>
+    <article class="rx-kpi ${debtCls}">
+      <span class="rx-kpi-label">Debt over ${state.reportWindow}M</span>
+      <strong>${debtDelta === 0 ? 'Flat' : `${debtDelta < 0 ? '▼' : '▲'} ${amdCompact(Math.abs(debtDelta))}`}</strong>
+      <span class="rx-kpi-sub">Now ${amdCompact(snap.totalDebt)} · ${snap.loans.length} loans</span>
+    </article>
+    <article class="rx-kpi ${healthCls}">
+      <span class="rx-kpi-label">Payment health</span>
+      <strong>${avgHealth}%</strong>
+      <span class="rx-kpi-sub">${runway == null ? `${amdCompact(avgPaid)} paid / month` : `${runway >= 24 ? '24+ mo' : runway.toFixed(1) + ' mo'} cash runway`}</span>
+    </article>
+  </div>`;
+}
+
+function renderInsightStrip(d) {
+  const snap = reportSnapshot();
+  const cf = reportEnrichedCashFlow(d);
+  const health = d.paymentHealth || [];
+  const items = [];
+
+  const tightMonths = cf.filter(r => r.income > 0 && r.net < 0);
+  if (tightMonths.length) {
+    items.push({
+      tone: 'warn',
+      title: `${tightMonths.length} month${tightMonths.length === 1 ? '' : 's'} ran negative`,
+      body: `Paid more than came in during ${tightMonths.map(r => shortMonLabel(r.month)).join(', ')}.`
+    });
+  } else if (cf.some(r => r.income > 0)) {
+    items.push({
+      tone: 'good',
+      title: 'Cash flow stayed non-negative',
+      body: 'Every month in this window covered what was marked paid.'
+    });
+  }
+
+  const missed = health.reduce((s, r) => s + (Number(r.missed) || 0), 0);
+  if (missed) {
+    items.push({
+      tone: 'bad',
+      title: `${missed} missed payment${missed === 1 ? '' : 's'}`,
+      body: 'Open Payment Health below to see which bills were marked not done.'
+    });
+  }
+
+  const soon = (d.loanProjections || [])
+    .filter(l => l.payoffDate)
+    .map(l => {
+      const [ty, tm] = todayMonth().split('-').map(Number);
+      const [py, pm] = l.payoffDate.split('-').map(Number);
+      return { ...l, moLeft: (py * 12 + pm) - (ty * 12 + tm) };
+    })
+    .filter(l => l.moLeft >= 0)
+    .sort((a, b) => a.moLeft - b.moLeft)[0];
+  if (soon) {
+    items.push({
+      tone: soon.moLeft <= 6 ? 'good' : 'info',
+      title: `${soon.bank || 'A loan'} finishes ${soon.moLeft === 0 ? 'this month' : `in ${soon.moLeft} mo`}`,
+      body: `${amdCompact(soon.balance)} left at ${amdCompact(soon.monthly)} / month.`
+    });
+  }
+
+  const stale = snap.loans.filter(loan => {
+    const balance = loanBalance(loan);
+    return balance !== null && balanceSourceMonth(loan) !== todayMonth();
+  }).length;
+  if (stale) {
+    items.push({
+      tone: 'warn',
+      title: `${stale} loan balance${stale === 1 ? '' : 's'} not updated this month`,
+      body: 'Reconcile those balances so debt trend and payoff dates stay honest.'
+    });
+  }
+
+  if (snap.monthlyLoad > 0 && snap.cash > 0) {
+    const months = snap.cash / snap.monthlyLoad;
+    items.push({
+      tone: months < 2 ? 'bad' : months < 6 ? 'warn' : 'info',
+      title: months < 1 ? 'Less than a month of cash on hand' : `${months >= 24 ? '24+' : months.toFixed(1)} months of cash runway`,
+      body: `${amdCompact(snap.cash)} cash against ${amdCompact(snap.monthlyLoad)} recurring load.`
+    });
+  }
+
+  if (!items.length) return '';
+  return `<div class="rx-insight-strip">${items.slice(0, 4).map(item => `
+    <article class="rx-insight is-${item.tone}">
+      <strong>${escapeHtml(item.title)}</strong>
+      <span>${escapeHtml(item.body)}</span>
+    </article>`).join('')}</div>`;
+}
+
+function renderCashFlowChart(rows) {
+  if (!rows.length) return '';
+  const w = 640, h = 188, padL = 42, padR = 12, padT = 16, padB = 28;
+  const innerW = w - padL - padR;
+  const innerH = h - padT - padB;
+  const maxVal = reportNiceMax(Math.max(...rows.map(r => Math.max(r.income || 0, r.paid || 0, 0)), 1));
+  const groupW = innerW / rows.length;
+  const barW = Math.max(6, Math.min(16, groupW * 0.28));
+  const ticks = reportAxisTicks(maxVal);
+  const y = v => padT + innerH - (maxVal ? (v / maxVal) * innerH : 0);
+  const netPts = rows.map((r, i) => {
+    const x = padL + groupW * i + groupW / 2;
+    return `${x},${y(Math.max(0, r.income || 0))}`;
+  }).join(' ');
+
+  const bars = rows.map((r, i) => {
+    const cx = padL + groupW * i + groupW / 2;
+    const incH = maxVal ? ((r.income || 0) / maxVal) * innerH : 0;
+    const paidH = maxVal ? ((r.paid || 0) / maxVal) * innerH : 0;
+    const net = r.net || 0;
+    return `<g>
+      <rect class="rx-bar rx-bar-income" x="${cx - barW - 2}" y="${y(r.income || 0)}" width="${barW}" height="${incH}" rx="3">
+        <title>${shortMonLabel(r.month)} income ${amd(r.income || 0)}</title>
+      </rect>
+      <rect class="rx-bar rx-bar-paid" x="${cx + 2}" y="${y(r.paid || 0)}" width="${barW}" height="${paidH}" rx="3">
+        <title>${shortMonLabel(r.month)} paid ${amd(r.paid || 0)}</title>
+      </rect>
+      <circle class="rx-net-dot ${net >= 0 ? 'is-pos' : 'is-neg'}" cx="${cx}" cy="${y(Math.max(0, r.income || 0))}" r="3"></circle>
+      <text class="rx-x" x="${cx}" y="${h - 8}" text-anchor="middle">${escapeHtml(shortMonLabel(r.month))}</text>
+    </g>`;
+  }).join('');
+
+  const grid = ticks.map(t => `<g>
+    <line class="rx-grid" x1="${padL}" x2="${w - padR}" y1="${y(t)}" y2="${y(t)}"></line>
+    <text class="rx-y" x="${padL - 6}" y="${y(t) + 3}" text-anchor="end">${t ? amdCompact(t) : '0'}</text>
+  </g>`).join('');
+
+  return `<svg class="rx-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Income versus paid by month">
+    ${grid}
+    <polyline class="rx-net-line" points="${netPts}" fill="none"></polyline>
+    ${bars}
+  </svg>
+  <div class="rx-legend">
+    <span><i class="rx-swatch is-income"></i>Income</span>
+    <span><i class="rx-swatch is-paid"></i>Paid</span>
+    <span><i class="rx-swatch is-net"></i>Income peak</span>
+  </div>`;
+}
+
+function renderDebtChart(rows) {
+  const usable = rows.filter(r => r.totalBalance != null);
+  if (usable.length < 2) return '';
+  const w = 560, h = 168, padL = 42, padR = 12, padT = 14, padB = 26;
+  const innerW = w - padL - padR;
+  const innerH = h - padT - padB;
+  const maxVal = reportNiceMax(Math.max(...usable.map(r => Number(r.totalBalance) || 0), 1));
+  const step = usable.length === 1 ? innerW : innerW / (usable.length - 1);
+  const pts = usable.map((r, i) => {
+    const x = padL + step * i;
+    const y = padT + innerH - ((Number(r.totalBalance) || 0) / maxVal) * innerH;
+    return { x, y, r };
+  });
+  const line = pts.map(p => `${p.x},${p.y}`).join(' ');
+  const area = `${padL},${padT + innerH} ${line} ${pts[pts.length - 1].x},${padT + innerH}`;
+  const ticks = reportAxisTicks(maxVal, 3);
+  const grid = ticks.map(t => {
+    const y = padT + innerH - (maxVal ? (t / maxVal) * innerH : 0);
+    return `<line class="rx-grid" x1="${padL}" x2="${w - padR}" y1="${y}" y2="${y}"></line>
+      <text class="rx-y" x="${padL - 6}" y="${y + 3}" text-anchor="end">${t ? amdCompact(t) : '0'}</text>`;
+  }).join('');
+  const labels = pts.map(p => `<text class="rx-x" x="${p.x}" y="${h - 8}" text-anchor="middle">${escapeHtml(shortMonLabel(p.r.month))}</text>`).join('');
+  const dots = pts.map(p => `<circle class="rx-debt-dot" cx="${p.x}" cy="${p.y}" r="3.5"><title>${shortMonLabel(p.r.month)} ${amd(p.r.totalBalance)}</title></circle>`).join('');
+  return `<svg class="rx-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Total remaining debt by month">
+    <defs><linearGradient id="rxDebtFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+    </linearGradient></defs>
+    ${grid}
+    <polygon points="${area}" fill="url(#rxDebtFill)"></polygon>
+    <polyline class="rx-debt-line" points="${line}" fill="none"></polyline>
+    ${dots}${labels}
+  </svg>`;
+}
+
+function renderCashFlowPanel(d) {
+  const raw = d.cashFlow || [];
+  if (!raw.length) return `<div class="report-panel"><div class="report-empty">No income data yet — add income records to generate cash flow analysis.</div></div>`;
+
+  const enriched = reportEnrichedCashFlow(d);
+  const sorted = sortRows(enriched, state.reportCfSort);
   let totIncome = 0, totPaid = 0;
   enriched.forEach(r => { totIncome += r.income; totPaid += r.paid; });
+  const totNet = totIncome - totPaid, totPos = totNet >= 0;
+  const totCov = totIncome > 0 ? Math.round((totPaid / totIncome) * 100) : 0;
+  const totCovCol = totCov < 60 ? 'var(--color-success)' : totCov < 80 ? 'var(--color-warning)' : 'var(--color-danger)';
+  const s = state.reportCfSort;
 
   const bodyRows = sorted.map(r => {
     const net = r.net, pos = net >= 0;
-    const covCol = r.cov < 60 ? 'var(--success)' : r.cov < 80 ? 'var(--warning)' : 'var(--danger)';
+    const covCol = r.cov < 60 ? 'var(--color-success)' : r.cov < 80 ? 'var(--color-warning)' : 'var(--color-danger)';
     return `<tr>
       <td class="cf-month">${shortMonLabel(r.month)}</td>
       <td class="cf-num">${r.income ? amdCompact(r.income) : '<span class="cf-zero">—</span>'}</td>
       <td class="cf-num">${r.paid ? amdCompact(r.paid) : '<span class="cf-zero">—</span>'}</td>
       <td class="cf-num ${pos ? 'cf-pos' : 'cf-neg'}">${pos ? '+' : '−'}${amdCompact(Math.abs(net))}</td>
       <td class="cf-cov">
-        <div class="cf-bar-wrap"><div class="cf-bar" style="width:${Math.min(r.cov,100)}%;background:${covCol}"></div></div>
+        <div class="cf-bar-wrap"><div class="cf-bar" style="width:${Math.min(r.cov, 100)}%;background:${covCol}"></div></div>
         <span class="cf-pct">${r.cov}%</span>
       </td>
     </tr>`;
   }).join('');
 
-  const totNet = totIncome - totPaid, totPos = totNet >= 0;
-  const totCov = totIncome > 0 ? Math.round((totPaid / totIncome) * 100) : 0;
-  const totCovCol = totCov < 60 ? 'var(--success)' : totCov < 80 ? 'var(--warning)' : 'var(--danger)';
-  const s = state.reportCfSort;
-
-  return `<div class="report-panel">
+  return `<div class="report-panel rx-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M3 15h14M3 10h14M3 5h10"/></svg>
-        Cash Flow Statement
+        Cash flow
       </div>
-      <div class="rp-badge">${raw.length} months</div>
+      <div class="rp-header-right">
+        <div class="rp-badge">${raw.length} months</div>
+        <div class="rp-badge ${totPos ? 'is-good' : 'is-bad'}">${totPos ? '+' : '−'}${amdCompact(Math.abs(totNet))} net</div>
+      </div>
+    </div>
+    <div class="report-panel-body rp-pad rx-chart-wrap">
+      ${renderCashFlowChart(enriched)}
     </div>
     <div class="report-panel-body">
       <table class="report-table">
         <thead><tr>
-          ${sortTh('Month','month','cf',s)}
-          ${sortTh('Income','income','cf',s,'cf-num')}
-          ${sortTh('Paid out','paid','cf',s,'cf-num')}
-          ${sortTh('Net','net','cf',s,'cf-num')}
-          ${sortTh('Coverage','cov','cf',s,'cf-cov-head')}
+          ${sortTh('Month', 'month', 'cf', s)}
+          ${sortTh('Income', 'income', 'cf', s, 'cf-num')}
+          ${sortTh('Paid out', 'paid', 'cf', s, 'cf-num')}
+          ${sortTh('Net', 'net', 'cf', s, 'cf-num')}
+          ${sortTh('Of income', 'cov', 'cf', s, 'cf-cov-head')}
         </tr></thead>
         <tbody>${bodyRows}</tbody>
         <tfoot><tr>
@@ -4600,7 +4845,7 @@ function renderCashFlowPanel(d) {
           <td class="cf-num rp-total">${amdCompact(totPaid)}</td>
           <td class="cf-num rp-total ${totPos ? 'cf-pos' : 'cf-neg'}">${totPos ? '+' : '−'}${amdCompact(Math.abs(totNet))}</td>
           <td class="cf-cov rp-total">
-            <div class="cf-bar-wrap"><div class="cf-bar" style="width:${Math.min(totCov,100)}%;background:${totCovCol}"></div></div>
+            <div class="cf-bar-wrap"><div class="cf-bar" style="width:${Math.min(totCov, 100)}%;background:${totCovCol}"></div></div>
             <span class="cf-pct">${totCov}%</span>
           </td>
         </tr></tfoot>
@@ -4619,7 +4864,7 @@ function renderDebtPanel(d) {
     if (r.delta !== null && r.delta !== undefined) {
       if (r.delta < 0) deltaHtml = `<span class="debt-good">▼ ${amdCompact(Math.abs(r.delta))}</span>`;
       else if (r.delta > 0) deltaHtml = `<span class="debt-bad">▲ ${amdCompact(r.delta)}</span>`;
-      else deltaHtml = `<span class="debt-neutral">= unchanged</span>`;
+      else deltaHtml = `<span class="debt-neutral">Unchanged</span>`;
     }
     return `<tr>
       <td class="cf-month">${shortMonLabel(r.month)}</td>
@@ -4627,19 +4872,20 @@ function renderDebtPanel(d) {
       <td>${deltaHtml}</td>
     </tr>`;
   }).join('');
-  return `<div class="report-panel rp-flex">
+  return `<div class="report-panel rp-flex rx-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M3 17V7l7-4 7 4v10M8 17v-5h4v5"/></svg>
-        Debt Trend
+        Debt trend
       </div>
     </div>
+    <div class="report-panel-body rp-pad rx-chart-wrap">${renderDebtChart(raw)}</div>
     <div class="report-panel-body">
       <table class="report-table">
         <thead><tr>
-          ${sortTh('Month','month','debt',s)}
-          ${sortTh('Total balance','totalBalance','debt',s,'cf-num')}
-          ${sortTh('Change','delta','debt',s)}
+          ${sortTh('Month', 'month', 'debt', s)}
+          ${sortTh('Balance', 'totalBalance', 'debt', s, 'cf-num')}
+          ${sortTh('Change', 'delta', 'debt', s)}
         </tr></thead>
         <tbody>${bodyRows}</tbody>
       </table>
@@ -4659,34 +4905,43 @@ function renderLoanProjections(d) {
       return va.localeCompare(vb) * lsMult;
     }
     if (lsCol === 'balance') return ((a.balance || 0) - (b.balance || 0)) * lsMult;
-    if (lsCol === 'bank')  return (a.bank  || '').localeCompare(b.bank  || '') * lsMult;
+    if (lsCol === 'bank') return (a.bank || '').localeCompare(b.bank || '') * lsMult;
     if (lsCol === 'payer') return (a.payer || '').localeCompare(b.payer || '') * lsMult;
     return 0;
   });
 
   const lsOpts = [
-    ['payoff-asc','Payoff ↑'], ['payoff-desc','Payoff ↓'],
-    ['balance-desc','Balance ↓'], ['balance-asc','Balance ↑'],
-    ['bank-asc','Name A–Z'], ['payer-asc','Payer A–Z'],
+    ['payoff-asc', 'Payoff ↑'], ['payoff-desc', 'Payoff ↓'],
+    ['balance-desc', 'Balance ↓'], ['balance-asc', 'Balance ↑'],
+    ['bank-asc', 'Name A–Z'], ['payer-asc', 'Payer A–Z']
   ].map(([v, l]) => `<option value="${v}"${state.reportLoanSort === v ? ' selected' : ''}>${l}</option>`).join('');
+
+  const dated = loans.filter(l => l.payoffDate).map(l => {
+    const [ty, tm] = todayMonth().split('-').map(Number);
+    const [py, pm] = l.payoffDate.split('-').map(Number);
+    return { ...l, moLeft: (py * 12 + pm) - (ty * 12 + tm) };
+  });
+  const maxMo = Math.max(6, ...dated.map(l => l.moLeft), 1);
 
   const items = loans.map(loan => {
     let payoffHtml;
+    let moLeft = null;
     if (loan.payoffDate) {
       const [y, mo] = loan.payoffDate.split('-');
       const label = new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      const [ty, tm] = todayMonth().split('-').map(Number);
-      const [py, pm] = loan.payoffDate.split('-').map(Number);
-      const moLeft = (py * 12 + pm) - (ty * 12 + tm);
+      const found = dated.find(x => x.id === loan.id);
+      moLeft = found ? found.moLeft : 0;
       const urgCls = moLeft <= 6 ? 'payoff-urgent' : moLeft <= 18 ? 'payoff-soon' : 'payoff-ok';
       payoffHtml = `<div class="payoff-date ${urgCls}">${escapeHtml(label)}</div><div class="payoff-months">${moLeft} mo left</div>`;
     } else {
-      payoffHtml = `<div class="payoff-variable">Variable</div>`;
+      payoffHtml = `<div class="payoff-variable">No fixed payoff</div>`;
     }
+    const pct = moLeft == null ? 0 : Math.max(4, Math.min(100, Math.round((1 - moLeft / maxMo) * 100)));
     return `<div class="loan-proj-row">
       <div class="loan-proj-info">
         <div class="loan-proj-name">${escapeHtml(loan.bank || loan.id)}</div>
-        <div class="loan-proj-payer">${escapeHtml(loan.payer)}</div>
+        <div class="loan-proj-payer">${escapeHtml(loan.payer)}${loan.monthly ? ` · ${amdCompact(loan.monthly)}/mo` : ''}</div>
+        ${moLeft != null ? `<div class="rx-mini-track"><span style="width:${pct}%"></span></div>` : ''}
       </div>
       <div class="loan-proj-right">
         <div class="loan-proj-balance">${amdCompact(loan.balance)}</div>
@@ -4694,11 +4949,12 @@ function renderLoanProjections(d) {
       </div>
     </div>`;
   }).join('');
-  return `<div class="report-panel rp-flex">
+
+  return `<div class="report-panel rp-flex rx-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2Zm0 4v4l3 3"/></svg>
-        Loan Payoffs
+        Payoff runway
       </div>
       <div class="rp-header-right">
         <span class="rp-badge">${raw.length} active</span>
@@ -4714,9 +4970,9 @@ function renderHealthPanel(d) {
   if (!raw.length) return '';
   const rows = sortRows(raw, state.reportHealthSort);
   const hsOpts = [
-    ['month-asc','Month ↑'], ['month-desc','Month ↓'],
-    ['rate-desc','Health ↓'], ['rate-asc','Health ↑'],
-    ['missed-desc','Missed ↓'],
+    ['month-asc', 'Month ↑'], ['month-desc', 'Month ↓'],
+    ['rate-desc', 'Health ↓'], ['rate-asc', 'Health ↑'],
+    ['missed-desc', 'Missed ↓']
   ].map(([v, l]) => `<option value="${v}"${state.reportHealthSort === v ? ' selected' : ''}>${l}</option>`).join('');
   const barsHtml = rows.map(r => {
     const rate = r.rate || 0;
@@ -4737,21 +4993,23 @@ function renderHealthPanel(d) {
         <span class="missed-payer">${escapeHtml(m.payer)}</span>
         <span class="missed-badge">missed</span>
       </div>`).join('')
-    : '<div class="report-empty-ok">✓ No missed payments in this period</div>';
-  return `<div class="report-panel">
+    : '<div class="report-empty-ok">No payments marked missed in this window.</div>';
+  const avg = Math.round(raw.reduce((s, r) => s + (r.rate || 0), 0) / raw.length);
+  return `<div class="report-panel rx-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm-1.5-5 5-5-1.5-1.5-3.5 3.5-1.5-1.5L7 11l1.5 2Z"/></svg>
-        Payment Health
+        Payment health
       </div>
       <div class="rp-header-right">
+        <span class="rp-badge">${avg}% avg</span>
         <select class="panel-sort-select health-sort-select">${hsOpts}</select>
       </div>
     </div>
     <div class="report-panel-body health-layout">
       <div class="health-bars">${barsHtml}</div>
       <div class="health-missed">
-        <div class="health-missed-title">Missed payments</div>
+        <div class="health-missed-title">Missed in this window</div>
         ${missedHtml}
       </div>
     </div>
@@ -4760,20 +5018,22 @@ function renderHealthPanel(d) {
 
 function renderBalancePanel() {
   const loans = activeLoans();
-  const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
+  const totalDebt = loans.reduce((s, l) => s + (Number(loanBalance(l) ?? l.currentBalance) || 0), 0);
   const cashOnlyEntries = state.cashEntries.filter(e => !cashEntryIsOffer(e));
   const offerEntries = state.cashEntries.filter(e => cashEntryIsOffer(e));
   const approvedOffers = offerEntries.filter(cashEntryIsApproved);
-  const pendingOffers  = offerEntries.filter(e => !cashEntryIsApproved(e));
+  const pendingOffers = offerEntries.filter(e => !cashEntryIsApproved(e));
   const cash = cashOnlyEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const netPos = cash - totalDebt;
   const netIsPos = netPos >= 0;
-
   const creditLineObs = activeObs().filter(isCreditLine);
   const availableCredit = creditLineObs.reduce((s, o) => s + (Number(o.loanTotal) || 0), 0);
   const liquidFunds = cash + availableCredit;
   const approvedOfferTotal = approvedOffers.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-  const pendingOfferTotal  = pendingOffers.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const pendingOfferTotal = pendingOffers.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const stack = Math.max(cash + totalDebt, 1);
+  const cashPct = Math.round((cash / stack) * 100);
+  const debtPct = Math.round((totalDebt / stack) * 100);
 
   const cashDetail = cashOnlyEntries.length
     ? cashOnlyEntries.map(e => `<span class="bs-cash-item">${escapeHtml(e.place)}: ${amdCompact(Number(e.amount))}</span>`).join('')
@@ -4782,60 +5042,51 @@ function renderBalancePanel() {
     `<span class="bs-cash-item">${escapeHtml(o.bank)}: ${amdCompact(Number(o.loanTotal))}</span>`
   ).join('');
 
-  return `<div class="report-panel bs-panel">
+  return `<div class="report-panel bs-panel rx-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16M6 13h2"/></svg>
-        Financial Position
+        Financial position
       </div>
-      <button class="rp-badge bs-manage-btn" onclick="switchTab('cash')">Manage →</button>
+      <button class="rp-badge bs-manage-btn" onclick="switchTab('cash')">Manage cash →</button>
     </div>
     <div class="report-panel-body rp-pad">
-
       <div class="bs-headline">
         <div class="bs-headline-col">
-          <span class="bs-headline-label">Net Position</span>
+          <span class="bs-headline-label">Net position</span>
           <span class="bs-headline-value ${netIsPos ? 'bs-net-pos' : 'bs-net-neg'}">${netIsPos ? '+' : '−'}${amdCompact(Math.abs(netPos))}</span>
           <span class="bs-headline-sub">${amdCompact(cash)} cash − ${amdCompact(totalDebt)} debt</span>
         </div>
         <div class="bs-headline-col bs-headline-col-secondary">
-          <span class="bs-headline-label">Liquid Funds</span>
+          <span class="bs-headline-label">Liquid funds</span>
           <span class="bs-headline-value bs-headline-value-sm">${amdCompact(liquidFunds)}</span>
-          <span class="bs-headline-sub">cash + available credit</span>
+          <span class="bs-headline-sub">cash + undrawn credit lines</span>
+        </div>
+        <div class="rx-stack" aria-hidden="true">
+          <span class="rx-stack-cash" style="width:${cashPct}%"></span>
+          <span class="rx-stack-debt" style="width:${debtPct}%"></span>
         </div>
       </div>
-
       <div class="bs-section-divider"></div>
-
       <div class="bs-cols">
         <div class="bs-col">
           <div class="bs-col-label bs-col-label-asset">Assets</div>
-          <div class="bs-row">
-            <span class="bs-label">Cash on hand</span>
-            <span class="bs-value">${amdCompact(cash)}</span>
-          </div>
+          <div class="bs-row"><span class="bs-label">Cash on hand</span><span class="bs-value">${amdCompact(cash)}</span></div>
           <div class="bs-cash-breakdown">${cashDetail}</div>
           ${availableCredit > 0 ? `
-          <div class="bs-row">
-            <span class="bs-label">Available credit lines</span>
-            <span class="bs-value bs-credit">${amdCompact(availableCredit)}</span>
-          </div>
+          <div class="bs-row"><span class="bs-label">Available credit lines</span><span class="bs-value bs-credit">${amdCompact(availableCredit)}</span></div>
           <div class="bs-cash-breakdown">${creditDetail}</div>
           <div class="bs-row-note">Existing lines, not yet drawn</div>` : ''}
         </div>
         <div class="bs-col">
           <div class="bs-col-label bs-col-label-liability">Liabilities</div>
-          <div class="bs-row">
-            <span class="bs-label">Total debt</span>
-            <span class="bs-value bs-debt">${amdCompact(totalDebt)}</span>
-          </div>
+          <div class="bs-row"><span class="bs-label">Total debt</span><span class="bs-value bs-debt">${amdCompact(totalDebt)}</span></div>
           <div class="bs-row-note">${loans.length} active loan${loans.length !== 1 ? 's' : ''}</div>
         </div>
       </div>
-
       <div class="bs-section-divider"></div>
       <div class="bs-offers-head">
-        <span class="bs-section-label" style="padding:0">Loan Offers</span>
+        <span class="bs-section-label" style="padding:0">Loan offers</span>
         <span class="bs-offers-note">not counted in position above</span>
       </div>
       ${offerEntries.length ? `
@@ -4843,45 +5094,6 @@ function renderBalancePanel() {
         ${approvedOffers.length ? `<button class="bs-offer-chip is-approved" onclick="switchTab('offers')">Approved <strong>${amdCompact(approvedOfferTotal)}</strong></button>` : ''}
         ${pendingOffers.length ? `<button class="bs-offer-chip is-pending" onclick="switchTab('offers')">Pending <strong>${amdCompact(pendingOfferTotal)}</strong></button>` : ''}
       </div>` : `<button class="bs-link-btn" onclick="switchTab('offers')">Add loan offer →</button>`}
-
-    </div>
-  </div>`;
-}
-
-function renderReportSummary(d) {
-  const loans = activeLoans();
-  const totalDebt = loans.reduce((s, l) => s + (Number(l.currentBalance) || 0), 0);
-  const monthlyObl = activeObs().reduce((s, o) => s + monthlyEquivalent(o), 0);
-  const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
-  const monthlyUtil = utils.reduce((s, u) => s + monthlyUtilAmount(u), 0);
-  const monthlyTotal = monthlyObl + monthlyUtil;
-  const cfData = d.cashFlow || [];
-  const avgIncome = cfData.length ? Math.round(cfData.reduce((s, r) => s + (r.income || 0), 0) / cfData.length) : 0;
-  const healthData = d.paymentHealth || [];
-  const avgHealth = healthData.length
-    ? Math.round(healthData.reduce((s, r) => s + (r.rate || 0), 0) / healthData.length * 10) / 10 : 0;
-  const healthCls = avgHealth >= 80 ? 'rk-value-ok' : avgHealth >= 60 ? 'rk-value-warn' : 'rk-value-bad';
-
-  return `<div class="report-kpi-row">
-    <div class="report-kpi">
-      <div class="rk-label">Monthly Obligations</div>
-      <div class="rk-value">${amdCompact(monthlyTotal)}</div>
-      <div class="rk-sub">${activeObs().length + utils.length} active items</div>
-    </div>
-    <div class="report-kpi">
-      <div class="rk-label">Avg Monthly Income</div>
-      <div class="rk-value">${amdCompact(avgIncome)}</div>
-      <div class="rk-sub">over ${cfData.length} months</div>
-    </div>
-    <div class="report-kpi">
-      <div class="rk-label">Total Debt</div>
-      <div class="rk-value">${amdCompact(totalDebt)}</div>
-      <div class="rk-sub">${loans.length} active loan${loans.length !== 1 ? 's' : ''}</div>
-    </div>
-    <div class="report-kpi">
-      <div class="rk-label">Avg Payment Health</div>
-      <div class="rk-value ${healthCls}">${avgHealth}%</div>
-      <div class="rk-sub">over ${healthData.length} months</div>
     </div>
   </div>`;
 }
@@ -4893,14 +5105,14 @@ function renderCategoryPanel() {
 
   const byCategory = {};
   const catMeta = {
-    loan:     { label: 'Loans',     color: 'var(--primary)' },
-    personal: { label: 'Personal',  color: 'var(--warning)' },
-    credit:   { label: 'Credit',    color: 'var(--danger)'  },
-    utility:  { label: 'Utilities', color: 'var(--success)' },
+    loan: { label: 'Loans', color: '#6366f1' },
+    personal: { label: 'Personal', color: '#d97706' },
+    credit: { label: 'Credit', color: '#dc4c5d' },
+    utility: { label: 'Utilities', color: '#16a36a' }
   };
   active.forEach(o => {
     const cat = String(o.category || 'other').toLowerCase().trim();
-    if (!byCategory[cat]) byCategory[cat] = { ...( catMeta[cat] || { label: cat.charAt(0).toUpperCase() + cat.slice(1), color: 'var(--muted)' }), count: 0, total: 0 };
+    if (!byCategory[cat]) byCategory[cat] = { ...(catMeta[cat] || { label: cat.charAt(0).toUpperCase() + cat.slice(1), color: '#64748b' }), count: 0, total: 0 };
     byCategory[cat].count++;
     byCategory[cat].total += monthlyEquivalent(o);
   });
@@ -4923,11 +5135,11 @@ function renderCategoryPanel() {
     </div>`;
   }).join('');
 
-  return `<div class="report-panel">
+  return `<div class="report-panel rx-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M3 5h14M3 9h10M3 13h6"/></svg>
-        Expense Breakdown
+        Monthly load by type
       </div>
       <div class="rp-badge">${amdCompact(grandTotal)}/mo</div>
     </div>
@@ -4938,7 +5150,7 @@ function renderCategoryPanel() {
 function renderPayerPanel() {
   const all = activeObs();
   const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
-  const colors = ['var(--primary)', '#7c3aed', '#0891b2', '#dc2626', '#d97706'];
+  const colors = ['#4f7cff', '#7c3aed', '#0891b2', '#dc2626', '#d97706'];
   const byPayer = {};
   all.forEach(o => {
     const p = String(o.payer || '').trim(); if (!p) return;
@@ -4965,11 +5177,11 @@ function renderPayerPanel() {
     </div>`;
   }).join('');
 
-  return `<div class="report-panel">
+  return `<div class="report-panel rx-panel">
     <div class="report-panel-header">
       <div class="rp-title">
         <svg class="rp-icon" viewBox="0 0 20 20"><path d="M13 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 18a5 5 0 0 1 10 0"/></svg>
-        Per-Payer Breakdown
+        Monthly load by payer
       </div>
       <div class="rp-badge">${payerArr.length} payers</div>
     </div>
@@ -5291,7 +5503,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // always starting on Payments.
   {
     const { tab: initialTab, sub: initialSub } = parseRoute();
-    if (initialTab === 'reports' && [3, 6, 12].includes(Number(initialSub))) {
+    if (initialTab === 'reports' && [3, 6, 12, 24].includes(Number(initialSub))) {
       state.reportWindow = Number(initialSub);
       document.querySelectorAll('#report-period-tabs .rp-tab').forEach(t =>
         t.classList.toggle('active', Number(t.dataset.window) === state.reportWindow)
@@ -5305,7 +5517,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ensureUiUnlocked();
     const { tab: nextTab, sub: nextSub } = parseRoute();
     if (!nextTab) return;
-    const nextWin = nextTab === 'reports' && [3, 6, 12].includes(Number(nextSub)) ? Number(nextSub) : state.reportWindow;
+    const nextWin = nextTab === 'reports' && [3, 6, 12, 24].includes(Number(nextSub)) ? Number(nextSub) : state.reportWindow;
     if (nextTab === state.tab && nextWin === state.reportWindow) return;
     if (nextTab === 'reports' && nextWin !== state.reportWindow) {
       state.reportWindow = nextWin;
