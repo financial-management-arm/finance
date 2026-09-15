@@ -1363,13 +1363,18 @@ function setSyncStatus(status, label) {
   const button = q('sync-button');
   if (!button) return;
   button.dataset.status = status;
-  q('sync-status').textContent = label;
+  const statusLabel = q('sync-status');
+  if (statusLabel) statusLabel.textContent = label;
   button.disabled = status === 'saving';
 }
 
-function toggleMobileNav(open = q('mobile-menu').classList.contains('hidden')) {
-  q('mobile-menu').classList.toggle('hidden', !open);
-  q('mobile-more-button').setAttribute('aria-expanded', String(open));
+function toggleMobileNav(open) {
+  const menu = q('mobile-menu');
+  const button = q('mobile-more-button');
+  if (!menu) return;
+  const shouldOpen = open ?? menu.classList.contains('hidden');
+  menu.classList.toggle('hidden', !shouldOpen);
+  if (button) button.setAttribute('aria-expanded', String(shouldOpen));
 }
 
 async function addIncome(entry) {
@@ -1436,7 +1441,7 @@ function activateTab(tab) {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  q('mobile-more-button').classList.toggle('active', ['cash', 'offers', 'reconcile', 'utilities', 'partners', 'reports'].includes(tab));
+  q('mobile-more-button')?.classList.toggle('active', ['cash', 'offers', 'reconcile', 'utilities', 'partners', 'reports'].includes(tab));
   document.querySelectorAll('.page').forEach(p =>
     p.classList.toggle('active', p.id === 'page-' + tab)
   );
@@ -4925,7 +4930,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
   q('payment-quick-search').addEventListener('input', event => {
     state.search = event.target.value.trim();
     q('schedule-search').value = state.search;

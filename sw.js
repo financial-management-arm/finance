@@ -1,10 +1,10 @@
-const CACHE = 'finances-arm-v74';
+const CACHE = 'finances-arm-v75';
 
 const ASSETS = [
   './',
   './index.html',
   './style.css?v=77',
-  './app.js?v=104',
+  './app.js?v=105',
   './exports.js?v=1',
   './config.js?v=21',
   './manifest.json',
@@ -35,6 +35,8 @@ self.addEventListener('fetch', event => {
   const request = event.request;
 
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  const url = new URL(request.url);
+  const isCoreAsset = ['/', '/finance/', '/finance/index.html', '/finance/app.js', '/finance/style.css', '/finance/config.js', '/finance/exports.js'].includes(url.pathname);
   const network = async () => {
     const response = await fetch(request);
     if (response.ok) {
@@ -44,11 +46,15 @@ self.addEventListener('fetch', event => {
     return response;
   };
   if (request.mode === 'navigate') {
-    const update = network().catch(() => null);
-    event.waitUntil(update);
     event.respondWith((async () => {
+      const fresh = await network().catch(() => null);
       const cached = await caches.match(request) || await caches.match('./index.html');
-      return cached || await update || new Response('Offline. Reconnect to open Finances.', { status: 503 });
+      return fresh || cached || new Response('Offline. Reconnect to open Finances.', { status: 503 });
+    })());
+  } else if (isCoreAsset) {
+    event.respondWith((async () => {
+      const fresh = await network().catch(() => null);
+      return fresh || await caches.match(request);
     })());
   } else {
     event.respondWith(caches.match(request).then(cached => cached || network()));
