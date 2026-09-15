@@ -5075,3 +5075,193 @@ button.filter-done-btn {
   gap: 16px;
   width: 100%;
 }
+
+
+/* neon done fx — futuristic pay/complete celebration */
+.neon-fx-active {
+  z-index: 5;
+  overflow: hidden !important;
+  isolation: isolate;
+}
+.neon-fx-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+}
+.neon-fx-frame {
+  position: absolute;
+  inset: 4px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#0b1020, #0b1020) padding-box,
+    linear-gradient(120deg, #22d3ee, #a855f7, #f472b6, #22c55e, #22d3ee) border-box;
+  box-shadow:
+    0 0 12px rgba(34, 211, 238, 0.85),
+    0 0 28px rgba(168, 85, 247, 0.55),
+    0 0 48px rgba(244, 114, 182, 0.35),
+    inset 0 0 24px rgba(34, 211, 238, 0.15);
+  animation: neonFramePulse 0.9s ease-in-out infinite alternate;
+  opacity: 0.95;
+}
+.neon-fx-frame--outer {
+  inset: 0;
+  border-radius: inherit;
+  border-width: 1px;
+  opacity: 0.7;
+  filter: blur(0.2px);
+  animation-duration: 0.6s;
+}
+.neon-fx-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168, 85, 247, 0.08) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0;
+  animation: neonGridIn 0.5s ease forwards;
+  mix-blend-mode: screen;
+}
+.neon-fx-scan {
+  position: absolute;
+  left: 0; right: 0;
+  height: 42%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(34, 211, 238, 0.0),
+    rgba(34, 211, 238, 0.35),
+    rgba(244, 114, 182, 0.25),
+    transparent
+  );
+  animation: neonScan 0.85s cubic-bezier(.22,1,.36,1) forwards;
+  mix-blend-mode: screen;
+}
+.neon-fx-sparks {
+  position: absolute;
+  inset: 0;
+}
+.neon-fx-sparks i {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 10px #22d3ee, 0 0 18px #a855f7;
+  opacity: 0;
+  animation: neonSpark 0.9s ease-out forwards;
+}
+.neon-fx-sparks i:nth-child(1) { left: 12%; top: 18%; animation-delay: .05s; background: #22d3ee; }
+.neon-fx-sparks i:nth-child(2) { left: 78%; top: 22%; animation-delay: .12s; background: #a855f7; }
+.neon-fx-sparks i:nth-child(3) { left: 22%; top: 72%; animation-delay: .18s; background: #f472b6; }
+.neon-fx-sparks i:nth-child(4) { left: 86%; top: 68%; animation-delay: .08s; background: #22c55e; }
+.neon-fx-sparks i:nth-child(5) { left: 48%; top: 12%; animation-delay: .22s; background: #eab308; }
+.neon-fx-sparks i:nth-child(6) { left: 55%; top: 80%; animation-delay: .15s; background: #22d3ee; }
+.neon-fx-sparks i:nth-child(7) { left: 8%; top: 48%; animation-delay: .28s; background: #c084fc; }
+.neon-fx-sparks i:nth-child(8) { left: 92%; top: 46%; animation-delay: .2s; background: #fb7185; }
+
+.neon-fx-stamp {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+.neon-fx-stamp span {
+  font: 900 28px/1 Inter, system-ui, sans-serif;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: #ecfeff;
+  text-shadow:
+    0 0 8px #22d3ee,
+    0 0 18px #a855f7,
+    0 0 32px #f472b6,
+    0 0 48px rgba(34, 211, 238, 0.8);
+  padding: 10px 18px;
+  border: 2px solid rgba(34, 211, 238, 0.85);
+  border-radius: 10px;
+  background: rgba(6, 12, 28, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(168, 85, 247, 0.45),
+    0 0 24px rgba(34, 211, 238, 0.45),
+    inset 0 0 18px rgba(168, 85, 247, 0.25);
+  transform: scale(0.4) rotate(-8deg);
+  opacity: 0;
+  animation: neonStampIn 0.55s cubic-bezier(.2,1.4,.3,1) 0.12s forwards;
+}
+
+.neon-fx-pulse {
+  animation: neonCardGlow 0.9s ease-in-out;
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.55),
+    0 0 24px rgba(168, 85, 247, 0.45),
+    0 0 48px rgba(34, 211, 238, 0.25) !important;
+}
+
+.neon-fx-exit {
+  animation: neonCardExit 0.55s cubic-bezier(.4,0,.2,1) forwards !important;
+  pointer-events: none !important;
+}
+
+@keyframes neonFramePulse {
+  from { filter: brightness(1) saturate(1.1); }
+  to { filter: brightness(1.25) saturate(1.35); }
+}
+@keyframes neonGridIn {
+  from { opacity: 0; transform: scale(1.04); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes neonScan {
+  from { top: -40%; opacity: 0; }
+  20% { opacity: 1; }
+  to { top: 110%; opacity: 0.2; }
+}
+@keyframes neonSpark {
+  0% { opacity: 0; transform: scale(0.2) translate(0, 0); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1) translate(var(--dx, 12px), var(--dy, -18px)); }
+}
+.neon-fx-sparks i:nth-child(odd) { --dx: 18px; --dy: -22px; }
+.neon-fx-sparks i:nth-child(even) { --dx: -16px; --dy: 14px; }
+
+@keyframes neonStampIn {
+  0% { opacity: 0; transform: scale(0.35) rotate(-14deg); }
+  60% { opacity: 1; transform: scale(1.12) rotate(-4deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-6deg); }
+}
+@keyframes neonCardGlow {
+  0% { filter: brightness(1); }
+  40% { filter: brightness(1.15) saturate(1.2); }
+  100% { filter: brightness(1.05); }
+}
+@keyframes neonCardExit {
+  0% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+  55% { opacity: 0.85; transform: scale(1.03) translateY(-6px); filter: blur(0); }
+  100% {
+    opacity: 0;
+    transform: scale(0.86) translateY(-18px);
+    filter: blur(6px);
+    max-height: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-fx-frame,
+  .neon-fx-scan,
+  .neon-fx-sparks i,
+  .neon-fx-stamp span,
+  .neon-fx-pulse,
+  .neon-fx-exit {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .neon-fx-exit { opacity: 0; }
+}

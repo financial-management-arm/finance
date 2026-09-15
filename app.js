@@ -520,6 +520,78 @@ async function setPaymentStatus(id, status) {
   return setPaymentWithAmount(id, status, null);
 }
 
+
+/** Futuristic neon "done" frame — then optional card vanish */
+function playNeonDoneFx(el, { label = 'DONE', vanish = true } = {}) {
+  return new Promise(resolve => {
+    if (!el || !el.isConnected) {
+      resolve();
+      return;
+    }
+    // Avoid stacking
+    el.querySelectorAll('.neon-fx-overlay').forEach(n => n.remove());
+    el.classList.add('neon-fx-active', 'neon-fx-pulse');
+    el.style.pointerEvents = 'none';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'neon-fx-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = `
+      <div class="neon-fx-frame"></div>
+      <div class="neon-fx-frame neon-fx-frame--outer"></div>
+      <div class="neon-fx-grid"></div>
+      <div class="neon-fx-scan"></div>
+      <div class="neon-fx-sparks">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="neon-fx-stamp"><span>${escapeHtml(label)}</span></div>
+    `;
+    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    el.appendChild(overlay);
+
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const hold = reduce ? 200 : 950;
+    const exitMs = reduce ? 180 : 560;
+
+    setTimeout(() => {
+      if (!el.isConnected) {
+        resolve();
+        return;
+      }
+      if (vanish) {
+        el.classList.add('neon-fx-exit');
+        setTimeout(() => {
+          if (el.isConnected) el.remove();
+          resolve();
+        }, exitMs);
+      } else {
+        el.classList.remove('neon-fx-pulse', 'neon-fx-active');
+        el.style.pointerEvents = '';
+        overlay.remove();
+        resolve();
+      }
+    }, hold);
+  });
+}
+
+function neonLabelForStatus(status) {
+  return ({
+    paid: 'PAID',
+    partial: 'PARTIAL',
+    not_done: 'SKIPPED',
+    no_need: 'NO NEED'
+  })[status] || 'DONE';
+}
+
+function shouldVanishPaymentCard(status) {
+  // Default Payments view hides resolved items
+  if (state.search) return false;
+  if (state.statusFilter === 'unresolved') {
+    return ['paid', 'not_done', 'no_need'].includes(status);
+  }
+  return false;
+}
+
 async function setPaymentWithAmount(id, status, paidAmt) {
   const paymentMonth = state.month;
   const key = pkey(id, state.month);
@@ -528,6 +600,9 @@ async function setPaymentWithAmount(id, status, paidAmt) {
   const previousMeta = state.paymentMeta[key] ? { ...state.paymentMeta[key] } : null;
   const paid = status === 'paid';
   const resolved = paid || status === 'partial';
+  const cardEl = document.querySelector(`[data-payment-id="${CSS.escape(String(id))}"]`);
+  const celebrate = ['paid', 'partial', 'not_done', 'no_need'].includes(status);
+  const vanish = celebrate && shouldVanishPaymentCard(status);
 
   state.payments[key] = paid;
   state.paymentMeta[key] = {
@@ -536,7 +611,6 @@ async function setPaymentWithAmount(id, status, paidAmt) {
     completedAt: resolved ? new Date().toISOString() : '',
     updatedAt: new Date().toISOString()
   };
-  patchPaymentEl(id);
 
   const toasts = {
     paid: 'Payment completed.',
@@ -545,11 +619,11 @@ async function setPaymentWithAmount(id, status, paidAmt) {
     no_need: 'Marked no need.'
   };
 
-  try {
-    const result = await callApi({
-      action: 'setPayment', key, paid, status, month: state.month,
-      paidAmount: paidAmt !== null ? paidAmt : ''
-    });
+  // Save immediately in parallel with neon FX (do not wait for animation)
+  const savePromise = callApi({
+    action: 'setPayment', key, paid, status, month: state.month,
+    paidAmount: paidAmt !== null ? paidAmt : ''
+  }).then(result => {
     if (toasts[status]) showToast(toasts[status]);
     state.paymentMeta[key] = {
       key, paid,
@@ -567,12 +641,31 @@ async function setPaymentWithAmount(id, status, paidAmt) {
       state.monthCache[paymentMonth] = data;
       writeCachedMonth(paymentMonth, data);
     }
-  } catch (err) {
+    return result;
+  }).catch(err => {
     state.payments[key] = previousPaid;
     if (previousMeta) state.paymentMeta[key] = previousMeta;
     else delete state.paymentMeta[key];
-    patchPaymentEl(id);
     showError(`Save could not be confirmed: ${err.message}. Refresh to check before retrying.`);
+    throw err;
+  });
+
+  try {
+    if (celebrate && cardEl) {
+      if (!vanish) patchPaymentEl(id);
+      await playNeonDoneFx(cardEl, {
+        label: neonLabelForStatus(status),
+        vanish
+      });
+      if (vanish && state.month === paymentMonth) renderSchedule();
+      else if (!vanish) patchPaymentEl(id);
+    } else {
+      patchPaymentEl(id);
+    }
+    await savePromise;
+  } catch (err) {
+    // Revert UI if save failed (FX may have removed the card)
+    renderCurrentTab();
   }
 }
 
@@ -1194,6 +1287,7 @@ async function completeLoan(id, button) {
   if (!confirm('Mark this loan complete? It will not roll into the next month.')) return;
   button.disabled = true;
   button.textContent = 'Completing...';
+  const card = button.closest('.loan-card, .obligation-card, article');
   try {
     await callApi({ action: 'completeLoan', id, month: state.month });
     const loan = state.obligations.find(o => String(o.id) === String(id));
@@ -1201,6 +1295,9 @@ async function completeLoan(id, button) {
       loan.active = false;
       loan.currentBalance = 0;
       loan.completedAt = new Date().toISOString();
+    }
+    if (card) {
+      await playNeonDoneFx(card, { label: 'COMPLETE', vanish: true });
     }
     renderCurrentTab();
     showToast('Loan completed. It will not transfer to next month.');
