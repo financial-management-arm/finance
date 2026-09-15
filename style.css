@@ -4937,3 +4937,141 @@ button.filter-done-btn {
 .payment-glass-card .payment-card-time {
   color: #34d399 !important;
 }
+
+
+/* equal payment card heights — match Unibank loan card */
+.payments-board {
+  align-items: stretch !important;
+}
+
+.payments-board > .payment-loan-card,
+.payments-board > .payment-basic-card,
+.payments-board > .util-pay-card,
+.payment-loan-card.payment-glass-card,
+.payment-basic-card.payment-glass-card,
+.util-pay-card.payment-glass-card {
+  height: 100% !important;
+  min-height: 300px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box;
+}
+
+/* Loan card: keep head/progress natural; push actions to bottom */
+.payment-loan-card .payment-card-head,
+.payment-loan-card .payment-status-badge,
+.payment-loan-card .payment-progress,
+.payment-loan-card .partial-info {
+  flex-shrink: 0;
+}
+.payment-loan-card .payment-progress {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 72px;
+}
+.payment-loan-card .payment-status-actions,
+.payment-loan-card .payment-actions-row,
+.payment-loan-card .payment-basic-actions {
+  margin-top: auto !important;
+  flex-shrink: 0;
+}
+
+/* Basic (non-loan) cards: grid → flex column, empty middle OK */
+.payment-basic-card {
+  grid-template-columns: unset !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+}
+.payment-basic-card > div:first-child {
+  flex-shrink: 0;
+}
+.payment-basic-card .payment-basic-meta {
+  flex-shrink: 0;
+  text-align: right;
+  margin-left: auto;
+  align-self: flex-start;
+}
+/* spacer grows so buttons sit at bottom like Unibank */
+.payment-basic-card .payment-card-mid-spacer,
+.payment-basic-card .partial-info {
+  flex: 1 1 auto;
+  min-height: 48px;
+}
+.payment-basic-card .payment-basic-actions,
+.payment-basic-card .payment-actions-row {
+  margin-top: auto !important;
+  flex-shrink: 0;
+  justify-content: flex-start !important;
+}
+
+/* Utility cards */
+.util-pay-card .util-pay-body {
+  flex-shrink: 0;
+}
+.util-pay-card .payment-card-mid-spacer,
+.util-pay-card .partial-info {
+  flex: 1 1 auto;
+  min-height: 48px;
+}
+.util-pay-card .payment-basic-actions,
+.util-pay-card .payment-actions-row {
+  margin-top: auto !important;
+  flex-shrink: 0;
+  justify-content: flex-start !important;
+}
+
+/* Pay panel stays after actions when open */
+.payment-loan-card .pay-panel,
+.payment-basic-card .pay-panel,
+.util-pay-card .pay-panel {
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
+/* Desktop: two equal columns already; stretch rows */
+@media (min-width: 901px) {
+  .payments-board > .payment-loan-card,
+  .payments-board > .payment-basic-card,
+  .payments-board > .util-pay-card {
+    min-height: 310px !important;
+  }
+}
+
+/* Mobile: still equal but slightly shorter */
+@media (max-width: 900px) {
+  .payments-board > .payment-loan-card,
+  .payments-board > .payment-basic-card,
+  .payments-board > .util-pay-card {
+    min-height: 280px !important;
+  }
+}
+
+
+/* payment-basic-head row */
+.payment-basic-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  flex-shrink: 0;
+}
+.payment-basic-head .payment-basic-meta {
+  margin-left: 0;
+  text-align: right;
+  flex-shrink: 0;
+}
+.payment-card-mid-spacer {
+  flex: 1 1 auto;
+  min-height: 56px;
+  width: 100%;
+}
+.util-pay-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+}

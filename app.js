@@ -1669,6 +1669,7 @@ function utilityPaymentCard(o, index) {
       </div>
     </div>
     ${buildPartialInfo(o.id, o) || '<div class="partial-info" style="display:none"></div>'}
+    <div class="payment-card-mid-spacer" aria-hidden="true"></div>
     ${paymentActionsRow(o, true)}
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
@@ -1737,6 +1738,7 @@ function loanPaymentCard(o, index) {
       ${paid && completedAt ? `<time class="payment-card-time">Paid ${formatTimestamp(completedAt)}</time>` : ''}
     </div>
     ${buildPartialInfo(o.id, o) || '<div class="partial-info" style="display:none"></div>'}
+    <div class="payment-card-mid-spacer" aria-hidden="true"></div>
     ${paymentActionsRow(o)}
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
@@ -1771,23 +1773,26 @@ function standardPaymentCard(o, index) {
   return `<article class="payment-basic-card payment-glass-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_', '-')} ${urgency}"
                   data-payment-id="${escapeHtml(o.id)}"
                   style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
-    <div>
-      <div class="payment-bank-row">
-        ${bankAvatarHtml(o.bank)}
-        <div class="payment-bank-text">
-          <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
-          <h2>${escapeHtml(o.bank)}</h2>
+    <div class="payment-basic-head">
+      <div>
+        <div class="payment-bank-row">
+          ${bankAvatarHtml(o.bank)}
+          <div class="payment-bank-text">
+            <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
+            <h2>${escapeHtml(o.bank)}</h2>
+          </div>
         </div>
+        <span class="badge ${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
+        ${paymentStatusBadge(status)}
       </div>
-      <span class="badge ${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
-      ${paymentStatusBadge(status)}
-    </div>
-    <div class="payment-basic-meta">
-      <strong>${Number(o.amount) > 0 ? amd(displayDueAmount(o.id, o.amount)) : '—'}</strong>
-      <span>${Number(o.dueDay) > 0 ? `Due day ${o.dueDay}` : 'No due day'}</span>
-      ${resolved && completedAt ? `<time class="payment-card-time">${paid ? 'Paid' : 'Recorded'} ${formatTimestamp(completedAt)}</time>` : ''}
+      <div class="payment-basic-meta">
+        <strong>${Number(o.amount) > 0 ? amd(displayDueAmount(o.id, o.amount)) : '—'}</strong>
+        <span>${Number(o.dueDay) > 0 ? `Due day ${o.dueDay}` : 'No due day'}</span>
+        ${resolved && completedAt ? `<time class="payment-card-time">${paid ? 'Paid' : 'Recorded'} ${formatTimestamp(completedAt)}</time>` : ''}
+      </div>
     </div>
     ${buildPartialInfo(o.id, o) || '<div class="partial-info" style="display:none"></div>'}
+    <div class="payment-card-mid-spacer" aria-hidden="true"></div>
     ${paymentActionsRow(o)}
     <div class="pay-panel hidden" id="pay-panel-${escapeHtml(o.id)}">
       <label class="pay-panel-label">Amount paid ֏</label>
