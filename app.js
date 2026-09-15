@@ -1502,6 +1502,63 @@ function updateMonthLabels() {
   document.querySelectorAll('.month-label').forEach(el => {
     el.textContent = monthLabel(state.month);
   });
+  refreshHeaderToggles();
+}
+
+const HEADER_STATE_KEY = 'finance-arm:headers';
+
+function readHeaderStates() {
+  try { return JSON.parse(localStorage.getItem(HEADER_STATE_KEY) || '{}') || {}; }
+  catch (err) { return {}; }
+}
+
+function isPageHeaderOpen(pageId) {
+  return readHeaderStates()[pageId] === 'open';
+}
+
+function setPageHeaderOpen(pageId, open) {
+  const all = readHeaderStates();
+  if (open) all[pageId] = 'open';
+  else delete all[pageId];
+  try { localStorage.setItem(HEADER_STATE_KEY, JSON.stringify(all)); } catch (err) { /* ignore */ }
+}
+
+function pageHeaderTitle(page) {
+  return page.querySelector('.page-header h1')?.textContent?.trim() || 'Menu';
+}
+
+function refreshHeaderToggles() {
+  document.querySelectorAll('.page > .page-header').forEach(header => {
+    const page = header.parentElement;
+    const btn = header.querySelector('.header-toggle');
+    if (!btn || !page) return;
+    const open = isPageHeaderOpen(page.id);
+    page.classList.toggle('header-open', open);
+    page.classList.toggle('header-closed', !open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const month = page.querySelector('.month-label')?.textContent || '';
+    btn.innerHTML = `<span class="header-toggle-title">${escapeHtml(pageHeaderTitle(page))}</span>
+      <span class="header-toggle-meta">${escapeHtml(month)}</span>
+      <span class="header-toggle-chev" aria-hidden="true">${open ? '▴' : '▾'}</span>`;
+  });
+}
+
+function togglePageHeader(pageId) {
+  setPageHeaderOpen(pageId, !isPageHeaderOpen(pageId));
+  refreshHeaderToggles();
+}
+
+function initCollapsibleHeaders() {
+  document.querySelectorAll('.page > .page-header').forEach(header => {
+    const page = header.parentElement;
+    if (!page || header.querySelector('.header-toggle')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'header-toggle';
+    btn.addEventListener('click', () => togglePageHeader(page.id));
+    header.insertBefore(btn, header.firstChild);
+  });
+  refreshHeaderToggles();
 }
 
 function q(id) { return document.getElementById(id); }
@@ -3846,21 +3903,29 @@ function renderIncomeTab() {
   const sorted = [...filtered].sort(incomeSorters[state.incomeSort] || incomeSorters['date-desc']);
   q('income-results-count').textContent = `Showing ${sorted.length} of ${state.income.length} entries`;
 
-  const sourceTotals = Object.entries(streamLabel).map(([value, label]) => {
-    const amount = monthRows
-      .filter(i => i.stream === value)
-      .reduce((sum, i) => sum + Number(i.amount), 0);
-    return amount ? `<button class="income-source-chip ${state.incomeSourceFilter === value ? 'is-active' : ''}"
-      type="button" onclick="setIncomeSourceFilter('${value}')">
-      <span>${label}</span><strong>${amd(amount)}</strong>
-    </button>` : '';
-  }).join('');
-  q('income-source-summary').innerHTML = sourceTotals || '<span class="muted">No income sources recorded this month.</span>';
+  const sourceGroups = Object.entries(streamLabel).map(([value, label]) => {
+    const allRows = state.income.filter(i => i.stream === value);
+    const thisMonth = allRows.filter(i => String(i.date).startsWith(state.month));
+    const monthAmt = thisMonth.reduce((s, i) => s + Number(i.amount || 0), 0);
+    const allAmt = allRows.reduce((s, i) => s + Number(i.amount || 0), 0);
+    const share = tot > 0 ? Math.round((monthAmt / tot) * 100) : 0;
+    return { value, label, monthAmt, allAmt, monthCount: thisMonth.length, allCount: allRows.length, share };
+  }).filter(g => g.allCount > 0 || g.monthAmt > 0);
+  q('income-source-summary').innerHTML = sourceGroups.length
+    ? `<div class="income-group-grid">${sourceGroups.map(g => `
+        <button class="income-group-card ${state.incomeSourceFilter === g.value ? 'is-active' : ''}"
+                type="button" onclick="setIncomeSourceFilter('${g.value}')">
+          <span class="ig-kicker">${escapeHtml(g.label)}</span>
+          <strong class="ig-month">${amd(g.monthAmt)}</strong>
+          <span class="ig-count">${g.monthCount} this month · ${g.share}% of month</span>
+          <span class="ig-all">All-time ${amd(g.allAmt)} · ${g.allCount} entries</span>
+        </button>`).join('')}</div>`
+    : '<span class="muted">No income sources recorded this month.</span>';
   const streamOpts = Object.entries(streamLabel)
     .map(([v, l]) => `<option value="${v}">{L}</option>`.replace('{L}', l))
     .join('');
 
-  q('income-tbody').innerHTML = sorted.map(i => {
+  function incomeCardHtml(i) {
     const opts = Object.entries(streamLabel)
       .map(([v, l]) => `<option value="${v}"${i.stream === v ? ' selected' : ''}>${l}</option>`).join('');
     const source = streamLabel[i.stream] || i.stream || 'Income';
@@ -3898,7 +3963,28 @@ function renderIncomeTab() {
         </form>
       </div>
     </article>`;
+  }
+
+  const grouped = Object.entries(streamLabel).map(([value, label]) => {
+    const rows = sorted.filter(i => i.stream === value);
+    if (!rows.length) return '';
+    const subtotal = rows.reduce((s, i) => s + Number(i.amount || 0), 0);
+    return `<section class="income-history-group">
+      <div class="income-history-head">
+        <h4>${escapeHtml(label)}</h4>
+        <span>${rows.length} entries · ${amd(subtotal)}</span>
+      </div>
+      <div class="unit-glass-grid income-card-grid">${rows.map(incomeCardHtml).join('')}</div>
+    </section>`;
   }).join('');
+  const orphan = sorted.filter(i => !streamLabel[i.stream]);
+  const orphanHtml = orphan.length
+    ? `<section class="income-history-group">
+        <div class="income-history-head"><h4>Other</h4><span>${orphan.length} entries</span></div>
+        <div class="unit-glass-grid income-card-grid">${orphan.map(incomeCardHtml).join('')}</div>
+      </section>`
+    : '';
+  q('income-tbody').innerHTML = grouped + orphanHtml || '<div class="empty-state">No income entries match these filters.</div>';
 }
 
 function setIncomeSourceFilter(source) {
@@ -5265,6 +5351,7 @@ function renderPayerPanel() {
 // Boot
 // ================================================================
 document.addEventListener('DOMContentLoaded', () => {
+  initCollapsibleHeaders();
   ensureUiUnlocked();
   window.addEventListener('focus', ensureUiUnlocked);
   window.addEventListener('pageshow', ensureUiUnlocked);
