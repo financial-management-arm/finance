@@ -833,6 +833,7 @@ function fillReconSelect(id, allLabel, values, stateKey) {
     .concat(values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`))
     .join('');
   sel.value = state[stateKey];
+  if (isBankFilterSelect(id)) syncBankPicker(id, allLabel);
 }
 
 function renderReconcile() {
@@ -1696,13 +1697,18 @@ function loanPaymentCard(o, index) {
   const staleBalance = balKnown && sourceMonth !== state.month;
   const revealDelay = Math.min((index || 0) * 30, 200);
 
-  return `<article class="payment-loan-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_', '-')} ${staleBalance ? 'is-stale' : ''}"
+  return `<article class="payment-loan-card payment-glass-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_', '-')} ${staleBalance ? 'is-stale' : ''}"
                   data-payment-id="${escapeHtml(o.id)}"
                   style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
     <div class="payment-card-head">
       <div class="payment-card-title">
-        <h2>${escapeHtml(o.bank || 'Loan')}</h2>
-        <div>${escapeHtml(o.payer || '')}</div>
+        <div class="payment-bank-row">
+          ${bankAvatarHtml(o.bank || 'Loan')}
+          <div class="payment-bank-text">
+            <h2>${escapeHtml(o.bank || 'Loan')}</h2>
+            <div class="payment-payer-line">${escapeHtml(o.payer || '')}</div>
+          </div>
+        </div>
         <div class="loan-contract-inline">${contracts.length ? contracts.map(part => copyChip(part)).join('') : '<span class="contract-empty">No contract</span>'}</div>
       </div>
       <div class="payment-card-amount">
@@ -1757,12 +1763,17 @@ function standardPaymentCard(o, index) {
     : '';
   const revealDelay = Math.min((index || 0) * 30, 200);
 
-  return `<article class="payment-basic-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_', '-')} ${urgency}"
+  return `<article class="payment-basic-card payment-glass-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_', '-')} ${urgency}"
                   data-payment-id="${escapeHtml(o.id)}"
                   style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
     <div>
-      <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
-      <h2>${escapeHtml(o.bank)}</h2>
+      <div class="payment-bank-row">
+        ${bankAvatarHtml(o.bank)}
+        <div class="payment-bank-text">
+          <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
+          <h2>${escapeHtml(o.bank)}</h2>
+        </div>
+      </div>
       <span class="badge ${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
       ${paymentStatusBadge(status)}
     </div>
@@ -2121,7 +2132,54 @@ function setObligationSelectOptions(id, values, allLabel, selectedValue) {
   select.innerHTML = `<option value="all">${allLabel}</option>` +
     options.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
   select.value = validValue;
+  if (isBankFilterSelect(id)) syncBankPicker(id, allLabel);
   return validValue;
+}
+
+const BANK_FILTER_SELECTS = new Set([
+  'payment-bank', 'obligation-bank', 'recon-bank', 'cash-place', 'offer-place'
+]);
+
+function isBankFilterSelect(id) {
+  return BANK_FILTER_SELECTS.has(id);
+}
+
+function syncBankPicker(selectId, allLabel) {
+  const select = q(selectId);
+  if (!select) return;
+  select.classList.add('filter-bank-select-hidden');
+  let list = q(selectId + '-list');
+  if (!list) {
+    list = document.createElement('div');
+    list.id = selectId + '-list';
+    list.className = 'filter-bank-list';
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', allLabel || 'Banks');
+    const field = select.closest('.filter-field') || select.parentElement;
+    if (field) field.appendChild(list);
+    else select.insertAdjacentElement('afterend', list);
+  }
+  const options = [...select.options];
+  list.innerHTML = options.map(opt => {
+    const val = opt.value;
+    const active = val === select.value ? ' is-active' : '';
+    const logo = val === 'all'
+      ? `<div class="offer-avatar offer-avatar--sm offer-avatar--all" aria-hidden="true">All</div>`
+      : bankAvatarHtml(val, 'offer-avatar--sm');
+    return `<button type="button" class="filter-bank-option${active}" role="option" aria-selected="${val === select.value}" data-value="${escapeHtml(val)}" onclick="pickBankFilter('${selectId}', this.getAttribute('data-value'))">
+      ${logo}
+      <span class="filter-bank-option-label">${escapeHtml(opt.textContent)}</span>
+      <span class="filter-bank-option-check" aria-hidden="true"></span>
+    </button>`;
+  }).join('');
+}
+
+function pickBankFilter(selectId, value) {
+  const select = q(selectId);
+  if (!select) return;
+  select.value = value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  syncBankPicker(selectId);
 }
 
 function activeObligationFilterCount() {
@@ -2202,7 +2260,7 @@ function loanCard(o) {
   const sourceMonth = balanceSourceMonth(o);
   const staleBalance = balKnown && sourceMonth !== state.month;
 
-  return `<article class="loan-card ${!balKnown ? 'is-unverified' : ''} ${paidOff ? 'is-paid-off' : ''}"
+  return `<article class="loan-card loan-glass-card ${!balKnown ? 'is-unverified' : ''} ${paidOff ? 'is-paid-off' : ''}"
                    style="--bank-color:${bankColor}">
     <div class="loan-card-top">
       <div class="loan-identity">
@@ -2289,7 +2347,7 @@ function nonLoanCard(o) {
   const catDisplay = cat.charAt(0).toUpperCase() + cat.slice(1);
   const freq = o.frequency || 'monthly';
   const badge = freqLabel(freq) ? `<span class="freq-badge freq-${freq}">${freqLabel(freq)}</span>` : '';
-  return `<article class="obligation-card" style="--bank-color:${bankColor}">
+  return `<article class="obligation-card loan-glass-card" style="--bank-color:${bankColor}">
     <div class="loan-card-top">
       <div class="loan-identity">
         ${bankAvatarHtml(o.bank, 'bank-avatar')}
@@ -4618,6 +4676,11 @@ function openFilterDrawer(tab) {
   document.body.classList.add('filter-drawer-open');
   if (drawer) drawer.inert = false;
   if (appEl) appEl.inert = true;
+
+  // Rebuild bank logo pickers for selects currently shown
+  document.querySelectorAll('.filter-drawer-body:not(.hidden) select').forEach(sel => {
+    if (isBankFilterSelect(sel.id)) syncBankPicker(sel.id);
+  });
 
   try {
     const closeBtn = drawer && drawer.querySelector('.filter-drawer-close');

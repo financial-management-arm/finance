@@ -4503,3 +4503,257 @@ button:disabled { cursor: wait; opacity: .6; }
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+
+/* elite filter drawer v2 */
+.filter-backdrop {
+  background: rgba(6, 10, 24, 0.55) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+.filter-drawer {
+  width: min(380px, 96vw) !important;
+  background: linear-gradient(165deg, rgba(18, 22, 48, 0.98), rgba(10, 14, 28, 0.99)) !important;
+  color: #e2e8f0 !important;
+  border-left: 1px solid rgba(99, 102, 241, 0.28) !important;
+  box-shadow: -20px 0 60px rgba(0,0,0,0.45), 0 0 40px rgba(99,102,241,0.12) !important;
+}
+.filter-drawer-header {
+  border-bottom-color: rgba(255,255,255,0.08) !important;
+  background: transparent !important;
+}
+.filter-drawer-title { color: #f8fafc !important; font-weight: 700 !important; }
+.filter-drawer-title svg { stroke: #a5b4fc !important; }
+.filter-drawer-close { color: #94a3b8 !important; }
+.filter-drawer-close:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,0.08) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+.filter-section {
+  border-bottom-color: rgba(255,255,255,0.06) !important;
+}
+.filter-section-label { color: #94a3b8 !important; }
+.filter-input,
+.filter-field select,
+.filter-range input[type="number"] {
+  background: rgba(15, 20, 36, 0.9) !important;
+  border-color: rgba(99, 102, 241, 0.28) !important;
+  color: #f1f5f9 !important;
+}
+.filter-input:focus,
+.filter-field select:focus,
+.filter-range input[type="number"]:focus {
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.22);
+}
+.filter-input-icon { stroke: #64748b !important; }
+.filter-field span,
+.filter-range legend { color: #94a3b8 !important; }
+.filter-pills .pill {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: #cbd5e1 !important;
+}
+.filter-pills .pill.active,
+.filter-pills .pill:hover {
+  color: #c7d2fe !important;
+  background: rgba(99,102,241,0.22) !important;
+  border-color: rgba(99,102,241,0.4) !important;
+}
+.filter-toggle-row { color: #e2e8f0 !important; }
+.filter-drawer-footer {
+  border-top-color: rgba(255,255,255,0.08) !important;
+  background: rgba(8, 10, 22, 0.9) !important;
+}
+.filter-results-count { color: #94a3b8 !important; }
+.filter-clear-btn {
+  color: #fca5a5 !important;
+  border-color: rgba(248,113,113,0.45) !important;
+  background: rgba(248,113,113,0.08) !important;
+}
+.filter-done-btn,
+.filter-drawer-footer .filter-done-btn,
+button.filter-done-btn {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  border: none !important;
+  color: #fff !important;
+  box-shadow: 0 6px 18px rgba(99,102,241,0.35);
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+}
+
+/* Bank logo filter list */
+.filter-bank-select-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+.filter-field:has(.filter-bank-list) {
+  position: relative;
+  grid-column: 1 / -1;
+}
+.filter-bank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(8, 12, 28, 0.55);
+  border: 1px solid rgba(99,102,241,0.2);
+  scrollbar-width: thin;
+}
+.filter-bank-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  font: 500 13px Inter, system-ui, sans-serif;
+}
+.filter-bank-option:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.08);
+}
+.filter-bank-option.is-active {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+.filter-bank-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filter-bank-option-check {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(148,163,184,0.45);
+  flex-shrink: 0;
+}
+.filter-bank-option.is-active .filter-bank-option-check {
+  border-color: #818cf8;
+  background: #6366f1;
+  box-shadow: inset 0 0 0 3px rgba(15,20,36,0.9);
+}
+.offer-avatar--all {
+  background: linear-gradient(135deg, #475569, #64748b) !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  letter-spacing: .02em;
+}
+
+/* Payment glass cards */
+.payment-loan-card.payment-glass-card,
+.payment-basic-card.payment-glass-card {
+  border-radius: 18px !important;
+  border: 1px solid rgba(99, 102, 241, 0.28) !important;
+  background: linear-gradient(145deg, rgba(22, 28, 55, 0.95), rgba(12, 16, 32, 0.98)) !important;
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.1),
+    0 14px 32px -12px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  color: #e2e8f0;
+}
+.payment-glass-card .payment-card-title h2,
+.payment-glass-card h2 {
+  color: #f8fafc !important;
+}
+.payment-glass-card .payment-card-amount strong {
+  background: linear-gradient(90deg, #60a5fa, #a78bfa, #22d3ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.payment-glass-card .payment-card-amount span,
+.payment-glass-card .payment-progress-labels,
+.payment-glass-card .contract-empty {
+  color: #94a3b8 !important;
+}
+.payment-bank-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.payment-bank-text { min-width: 0; }
+.payment-payer-line {
+  margin-top: 2px !important;
+  font-size: 12px;
+  color: var(--payer-color, #a5b4fc);
+}
+.payment-glass-card .payment-progress-bar {
+  background: rgba(255,255,255,0.08) !important;
+}
+.payment-glass-card .payment-progress-fill {
+  background: linear-gradient(90deg, #6366f1, #22d3ee) !important;
+}
+.payment-glass-card .copy-chip {
+  background: rgba(99,102,241,0.18);
+  border-color: rgba(99,102,241,0.3);
+  color: #c7d2fe;
+}
+.payment-glass-card .button-ghost {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.12);
+  color: #cbd5e1;
+}
+.payment-glass-card .button-primary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+}
+
+/* Obligations / loan glass cards */
+.loan-card.loan-glass-card,
+.obligation-card.loan-glass-card {
+  border-radius: 18px !important;
+  border: 1px solid rgba(99, 102, 241, 0.28) !important;
+  background: linear-gradient(145deg, rgba(22, 28, 55, 0.95), rgba(12, 16, 32, 0.98)) !important;
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.1),
+    0 14px 32px -12px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  color: #e2e8f0;
+}
+.loan-glass-card .loan-bank { color: #f8fafc !important; }
+.loan-glass-card .loan-meta { color: #94a3b8 !important; }
+.loan-glass-card .button-ghost,
+.loan-glass-card .btn-delete-ghost {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.12);
+  color: #cbd5e1;
+}
+.loan-glass-card .button-secondary,
+.loan-glass-card .loan-complete {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  color: #fff;
+}
+.loan-glass-card .ob-amount {
+  color: #f1f5f9;
+  background: linear-gradient(90deg, #34d399, #22d3ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@media (hover: hover) and (min-width: 901px) {
+  .payment-glass-card:hover,
+  .loan-glass-card:hover {
+    transform: none;
+  }
+}
