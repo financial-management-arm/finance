@@ -2578,6 +2578,62 @@ function renderOfferGlassCard(e) {
   </div>`;
 }
 
+function renderCashGlassCard(e) {
+  const sid = escapeHtml(e.id);
+  const place = e.place || 'Place';
+  const tone = bankAvatarTone(place);
+  const initial = bankInitialFromName(place);
+  const validDate = e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate);
+  const hasTags = e.category || e.payer || validDate;
+  const tags = hasTags ? `<div class="offer-tags">
+    <span class="offer-tag offer-tag-cash">Cash holding</span>
+    ${e.category ? `<span class="offer-tag offer-tag-cat">${escapeHtml(e.category)}</span>` : ''}
+    ${e.payer ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>` : ''}
+    ${validDate ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
+  </div>` : `<div class="offer-tags"><span class="offer-tag offer-tag-cash">Cash holding</span></div>`;
+
+  return `<div class="offer-glass-card cash-glass-card" id="cash-entry-${sid}">
+    <div class="offer-glass-glow cash-glass-glow" aria-hidden="true"></div>
+    <div class="cash-entry-view offer-glass-view">
+      <div class="offer-glass-main">
+        <div class="offer-glass-top">
+          <div class="offer-glass-title">
+            <div class="offer-avatar offer-avatar--${tone}" aria-hidden="true">${escapeHtml(initial)}</div>
+            <div class="offer-glass-text">
+              <div class="offer-bank-name">${escapeHtml(place)}</div>
+              <div class="offer-bank-meta">${e.category ? escapeHtml(e.category) : 'Available balance'}</div>
+            </div>
+          </div>
+          <div class="offer-glass-amount cash-glass-amount">${amd(Number(e.amount))}</div>
+        </div>
+        ${tags}
+      </div>
+      <div class="cash-entry-actions offer-glass-actions">
+        <button class="btn-icon-edit" type="button" onclick="openCashEdit('${sid}')" title="Edit" aria-label="Edit entry">✎</button>
+        <button class="btn-icon-delete" type="button" onclick="confirmDeleteCash('${sid}')" title="Delete" aria-label="Delete entry">✕</button>
+      </div>
+    </div>
+    <form class="cash-entry-edit hidden" id="cash-edit-${sid}" onsubmit="saveCashEdit(event,'${sid}')">
+      <select class="form-input" name="type">
+        <option value="cash" selected>Cash Holding</option>
+        <option value="offer">Loan Offer</option>
+      </select>
+      <input class="form-input" name="category" type="text" list="all-categories-list" value="${escapeHtml(e.category || '')}" placeholder="Category (optional)" maxlength="80">
+      <div class="cash-edit-offer-fields">
+        <input class="form-input" name="payer" type="text" list="offer-payers-list" value="${escapeHtml(e.payer || '')}" placeholder="For whom" maxlength="80">
+        <input class="form-input" name="lastAvailableDate" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate || '') ? e.lastAvailableDate : ''}">
+        <label class="completed-switch cash-edit-approved"><input type="checkbox" name="approved" checked><span class="switch-track" aria-hidden="true"></span><span>Already approved</span></label>
+      </div>
+      <input class="form-input" name="place"  value="${escapeHtml(e.place)}" placeholder="Bank / Place" required maxlength="100">
+      <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
+      <div class="cash-edit-btns">
+        <button class="button button-ghost btn-sm"   type="button" onclick="closeCashEdit('${sid}')">Cancel</button>
+        <button class="button button-primary btn-sm" type="submit">Save</button>
+      </div>
+    </form>
+  </div>`;
+}
+
 function renderCashEntryCard(e) {
   const isOffer = cashEntryIsOffer(e);
   const approved = cashEntryIsApproved(e);
@@ -2672,7 +2728,7 @@ function renderCashHoldingsSection(allCash) {
   return `
     <span id="cash-results-count" class="cash-results-line">${resultsText}</span>
     ${sorted.length
-      ? `<div class="cash-entries-list">${sorted.map(renderCashEntryCard).join('')}</div>
+      ? `<div class="offer-glass-grid cash-glass-grid">${sorted.map(renderCashGlassCard).join('')}</div>
          <div class="section-total">${isFiltered ? 'Filtered: ' : 'Total: '}<strong>${amd(total)}</strong></div>`
       : `<div class="cash-empty">No cash entries${isFiltered ? ' matching filter' : ''}.</div>`}`;
 }
@@ -2755,18 +2811,20 @@ function renderOfferSection(allOffers) {
 function renderCashTab() {
   const cashEntries = state.cashEntries.filter(e => !cashEntryIsOffer(e));
   const cashTotal   = cashEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const placesN = new Set(cashEntries.map(e => e.place).filter(Boolean)).size;
 
   const summary = `
-    <div class="actives-summary-2">
+    <div class="actives-summary-2 cash-summary-elite">
       <div class="actives-stat">
         <span class="actives-stat-label">Cash Holdings</span>
-        <span class="actives-stat-value">${amd(cashTotal)}</span>
-        <span class="actives-stat-sub">${cashEntries.length} entr${cashEntries.length === 1 ? 'y' : 'ies'}</span>
+        <span class="actives-stat-value is-success">${amd(cashTotal)}</span>
+        <span class="actives-stat-sub">${cashEntries.length} entr${cashEntries.length === 1 ? 'y' : 'ies'} · available now</span>
       </div>
       <div class="actives-stat-sep"></div>
       <div class="actives-stat">
         <span class="actives-stat-label">Places</span>
-        <span class="actives-stat-value">${new Set(cashEntries.map(e => e.place).filter(Boolean)).size}</span>
+        <span class="actives-stat-value">${placesN}</span>
+        <span class="actives-stat-sub">Banks & cash locations</span>
       </div>
     </div>`;
 
@@ -2775,6 +2833,7 @@ function renderCashTab() {
       <span class="cash-section-title">Cash Holdings</span>
       <span class="cash-section-badge">${cashEntries.length}</span>
     </div>
+    <p class="offers-block-note cash-block-note">Money on hand — tap a card to edit balances</p>
     ${renderCashHoldingsSection(cashEntries)}`;
 }
 

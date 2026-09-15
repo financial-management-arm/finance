@@ -4214,3 +4214,45 @@ button:disabled { cursor: wait; opacity: .6; }
   .offer-glass-top { flex-direction: column; align-items: stretch; }
   .offer-glass-amount { text-align: left; }
 }
+
+
+/* ── Elite Cash Cards (v2 glass) ── */
+.cash-glass-card {
+  border-color: rgba(16, 185, 129, 0.28);
+  background: linear-gradient(145deg, rgba(6, 40, 32, 0.92), rgba(10, 22, 28, 0.96));
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.12),
+    0 16px 36px -12px rgba(0, 0, 0, 0.35),
+    0 0 36px -14px rgba(16, 185, 129, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.cash-glass-card::before {
+  background: linear-gradient(135deg, rgba(16,185,129,0.65), rgba(34,211,238,0.3), rgba(99,102,241,0.35));
+}
+.cash-glass-card:hover {
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.28),
+    0 22px 48px -12px rgba(0, 0, 0, 0.45),
+    0 0 48px -10px rgba(16, 185, 129, 0.35);
+}
+.cash-glass-glow {
+  background: #10b981 !important;
+  opacity: 0.26;
+}
+.cash-glass-amount {
+  background: linear-gradient(90deg, #34d399, #22d3ee, #a78bfa) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+.offer-tag-cash {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.cash-summary-elite .actives-stat-value {
+  font-variant-numeric: tabular-nums;
+}
+.cash-block-note {
+  margin-bottom: var(--space-3);
+}
