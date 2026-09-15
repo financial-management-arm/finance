@@ -1640,15 +1640,20 @@ function utilityPaymentCard(o, index) {
   const revealDelay = Math.min((index || 0) * 30, 200);
   const showAbonent = o.abonentNumber && o.abonentNumber.toLowerCase() !== 'transfer';
 
-  return `<article class="util-pay-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_','-')} ${urgency}"
+  return `<article class="util-pay-card payment-glass-card row-reveal ${paid ? 'is-paid' : ''} is-${status.replace('_','-')} ${urgency}"
                   data-payment-id="${escapeHtml(o.id)}"
                   style="--payer-color:${payerColor(o.payer)};animation-delay:${revealDelay}ms">
     <div class="util-pay-body">
       <div class="util-pay-info">
-        <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
-        <div class="util-pay-name">${escapeHtml(o.bank)}
-          <span class="badge utility" style="vertical-align:middle">utility</span>
-          ${paymentStatusBadge(status)}
+        <div class="payment-bank-row">
+          ${bankAvatarHtml(o.provider || o.bank || 'U')}
+          <div class="payment-bank-text">
+            <div class="payment-basic-payer" style="color:var(--payer-color)">${escapeHtml(o.payer)}</div>
+            <div class="util-pay-name">${escapeHtml(o.bank)}
+              <span class="badge utility" style="vertical-align:middle">utility</span>
+              ${paymentStatusBadge(status)}
+            </div>
+          </div>
         </div>
         <div class="util-pay-sub">
           ${o.provider ? `<span>${escapeHtml(o.provider)}</span>` : ''}
@@ -2609,7 +2614,11 @@ const BANK_LOGO_RULES = [
   { keys: ['mellat'], file: 'bank-logos/mellat.svg' },
   { keys: ['uni'], file: 'bank-logos/unibank.png' },
   { keys: ['vtb', 'втб'], file: 'bank-logos/vtb.png' },
-  { keys: ['hsbc'], file: 'bank-logos/hsbc.svg' }
+  { keys: ['hsbc'], file: 'bank-logos/hsbc.svg' },
+  { keys: ['ucom'], file: 'bank-logos/ucom.svg' },
+  { keys: ['arpinet'], file: 'bank-logos/arpinet.svg' },
+  { keys: ['team'], file: 'bank-logos/team.svg' },
+  { keys: ['vivo'], file: 'bank-logos/vivo.svg' }
 ];
 
 function bankAvatarTone(name) {
@@ -2646,7 +2655,8 @@ function bankAvatarHtml(name, extraClass = '') {
   const src = bankLogoSrc(place);
   const cls = `offer-avatar${src ? ' offer-avatar--logo' : ' offer-avatar--' + tone}${extraClass ? ' ' + extraClass : ''}`;
   if (src) {
-    return `<div class="${cls}" title="${escapeHtml(place)}"><img class="bank-logo-img" src="${src}" alt="" loading="lazy" onerror="this.onerror=null;this.remove();this.parentElement.classList.remove('offer-avatar--logo');this.parentElement.classList.add('offer-avatar--${tone}');this.parentElement.textContent='${escapeHtml(initial)}';"></div>`;
+    const safeInit = escapeHtml(initial).replace(/'/g, '');
+    return `<div class="${cls}" title="${escapeHtml(place)}"><img class="bank-logo-img" src="${src}" alt="${safeInit}" loading="lazy" onerror="this.onerror=null;const p=this.parentElement;p.classList.remove('offer-avatar--logo');p.classList.add('offer-avatar--${tone}');p.textContent='${safeInit}';"></div>`;
   }
   return `<div class="${cls}" title="${escapeHtml(place)}" aria-hidden="true">${escapeHtml(initial)}</div>`;
 }
