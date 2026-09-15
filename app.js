@@ -2496,14 +2496,16 @@ function renderCashEntryCard(e) {
   </div>` : '';
   return `<div class="cash-entry" id="cash-entry-${sid}" style="border-left-color:${accent}">
     <div class="cash-entry-view">
-      <div class="cash-entry-info">
-        <span class="cash-place" title="${escapeHtml(e.place)}">${escapeHtml(e.place)}</span>
+      <div class="cash-entry-main">
+        <div class="cash-entry-top">
+          <span class="cash-place">${escapeHtml(e.place)}</span>
+          <span class="cash-entry-amount">${amd(Number(e.amount))}</span>
+        </div>
         ${tags}
       </div>
-      <span class="cash-entry-amount">${amd(Number(e.amount))}</span>
       <div class="cash-entry-actions">
-        <button class="button button-ghost btn-sm" type="button" onclick="openCashEdit('${sid}')">Edit</button>
-        <button class="button btn-delete-ghost btn-sm" type="button" onclick="confirmDeleteCash('${sid}')">Delete</button>
+        <button class="btn-icon-edit" type="button" onclick="openCashEdit('${sid}')" title="Edit" aria-label="Edit entry">✎</button>
+        <button class="btn-icon-delete" type="button" onclick="confirmDeleteCash('${sid}')" title="Delete" aria-label="Delete entry">✕</button>
       </div>
     </div>
     <form class="cash-entry-edit hidden" id="cash-edit-${sid}" onsubmit="saveCashEdit(event,'${sid}')">
