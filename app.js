@@ -1450,6 +1450,13 @@ function ensureUiUnlocked() {
     if (appEl) appEl.inert = false;
     const drawer = q('filter-drawer');
     if (drawer) drawer.inert = true;
+    // An open "Add / Edit" modal has a full-viewport backdrop (z-index:500) that
+    // sits above the sidebar. If the user navigates to another tab instead of
+    // explicitly closing it (very natural), every further click -- including
+    // on the sidebar nav itself -- lands on that backdrop and does nothing,
+    // looking exactly like the site is "locked". Always close any leftover
+    // modal when navigating.
+    document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(m => m.classList.add('hidden'));
   } catch (_) { /* ignore */ }
 }
 
@@ -4697,6 +4704,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Tab nav
   document.querySelectorAll('.sidebar-nav a').forEach(a => {
     a.addEventListener('click', e => { e.preventDefault(); switchTab(a.dataset.tab); });
+  });
+
+  // Clicking the dimmed backdrop of an open Add/Edit modal closes it, same as
+  // the Cancel / × button -- so an accidental click outside the dialog can't
+  // leave it stuck open and blocking the page.
+  document.addEventListener('click', e => {
+    if (e.target.classList && e.target.classList.contains('modal-backdrop')) {
+      e.target.classList.add('hidden');
+    }
   });
 
   q('urgent-strip').addEventListener('click', event => {
