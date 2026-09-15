@@ -1328,7 +1328,8 @@ async function revalidateMonth(month, force = false) {
   const requestKey = `${month}:${dataRevision}`;
   if (monthRequests.has(requestKey)) return monthRequests.get(requestKey);
   const revision = dataRevision;
-  setSyncStatus('loading', loadedMonth === month ? 'Updating...' : 'Loading this month...');
+  const hasUsableMonth = loadedMonth === month;
+  if (!hasUsableMonth) setSyncStatus('loading', 'Loading this month...');
   const task = (async () => {
     try {
       const data = await callApi({ action: 'all', month });
@@ -4129,7 +4130,7 @@ function renderUtilities() {
 function renderUnitCards(utils) {
   const units = utils.filter(u => isUtilPersonal(u) || isRealEstateUtility(u));
   if (!units.length) return '';
-  return `<div class="unit-card-grid">${units.map(unitCard).join('')}</div>`;
+  return `<div class="offer-glass-grid cash-glass-grid unit-glass-grid">${units.map(unitCard).join('')}</div>`;
 }
 
 function unitCard(u) {
@@ -4140,23 +4141,32 @@ function unitCard(u) {
   const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
   const amount = Number(u.amount) || 0;
   const status = depositCovered ? 'Using deposit' : paid ? 'Done this month' : payable ? 'Payment needed' : 'No upcoming payment';
-  const statusClass = depositCovered || !payable ? 'is-muted' : paid ? 'is-done' : 'is-due';
-  return `<article class="unit-card ${statusClass}">
-    <div class="unit-card-top">
-      <div>
-        <div class="unit-name">${escapeHtml(u.name || 'Unit')}</div>
-        <div class="unit-sub">${escapeHtml(u.payer || 'No payer')}${u.provider ? ` · ${escapeHtml(u.provider)}` : ''}</div>
+  const statusClass = depositCovered || !payable ? ' is-muted' : paid ? ' is-done' : ' is-due';
+  return `<article class="offer-glass-card cash-glass-card unit-glass-card${statusClass}">
+    <div class="offer-glass-glow cash-glass-glow" aria-hidden="true"></div>
+    <div class="cash-entry-view offer-glass-view">
+      <div class="offer-glass-main">
+        <div class="offer-glass-top">
+          <div class="offer-glass-title">
+            ${bankAvatarHtml(u.provider || u.name || 'Utility')}
+            <div class="offer-glass-text">
+              <div class="offer-bank-name">${escapeHtml(u.name || 'Unit')}</div>
+              <div class="offer-bank-meta">${escapeHtml(u.payer || 'No payer')}${u.provider ? ` · ${escapeHtml(u.provider)}` : ''}</div>
+            </div>
+          </div>
+          ${amount > 0 ? `<div class="offer-glass-amount cash-glass-amount">${amd(amount)}</div>` : ''}
+        </div>
+        <div class="offer-tags">
+          <span class="offer-tag offer-tag-cash">${escapeHtml(status)}</span>
+          ${Number(u.dueDay) > 0 ? `<span class="offer-tag offer-tag-cat">Day ${Number(u.dueDay)}</span>` : '<span class="offer-tag offer-tag-cat">No due day</span>'}
+          ${amount > 0 ? '' : '<span class="offer-tag offer-tag-payer">No amount</span>'}
+          ${rawAbonent ? `<button class="util-copy-btn util-copy-chip" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>` : ''}
+        </div>
       </div>
-      <span class="unit-status">${status}</span>
-    </div>
-    <div class="unit-card-meta">
-      ${Number(u.dueDay) > 0 ? `<span>Day ${Number(u.dueDay)}</span>` : '<span>No due day</span>'}
-      ${amount > 0 ? `<span>${amd(amount)}</span>` : '<span>No amount</span>'}
-      ${rawAbonent ? `<button class="unit-copy" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>` : ''}
-    </div>
-    <div class="unit-actions">
-      ${payable ? `<button class="button ${paid ? 'button-secondary' : 'button-primary'} btn-sm" type="button" onclick="toggleUtilityPaid('${escapeHtml(u.id)}')">${paid ? 'Undo' : 'Mark done'}</button>` : ''}
-      <button class="button button-ghost btn-sm" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')">Edit</button>
+      <div class="cash-entry-actions offer-glass-actions">
+        ${payable ? `<button class="button ${paid ? 'button-secondary' : 'button-primary'} btn-sm" type="button" onclick="toggleUtilityPaid('${escapeHtml(u.id)}')">${paid ? 'Undo' : 'Mark done'}</button>` : ''}
+        <button class="button button-ghost btn-sm" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')">Edit</button>
+      </div>
     </div>
   </article>`;
 }
