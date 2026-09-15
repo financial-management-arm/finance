@@ -176,7 +176,7 @@ function filteredObs() {
     if (state.paymentType === 'loan' && !loan) return false;
     if (state.paymentType === 'other' && loan) return false;
     if (state.paymentCategory !== 'all' && String(o.category || '') !== state.paymentCategory) return false;
-    if (state.paymentBank !== 'all' && String(o.bank || '') !== state.paymentBank) return false;
+    if (state.paymentBank !== 'all' && normalizeBankName(o.bank) !== normalizeBankName(state.paymentBank) && String(o.bank || '') !== state.paymentBank) return false;
     if (state.paymentFrequency !== 'all' &&
         String(o.frequency || 'monthly') !== state.paymentFrequency) return false;
     if (state.paymentBalanceStatus !== 'all') {
@@ -921,9 +921,12 @@ function syncReconFilterOptions(all) {
 function fillReconSelect(id, allLabel, values, stateKey) {
   const sel = q(id);
   if (!sel) return;
-  if (!values.includes(state[stateKey])) state[stateKey] = 'all';
+  let vals = values.map(v => normalizeBankName(v)).filter(Boolean);
+  if (isBankFilterSelect(id)) vals = [...vals, ...CANONICAL_BANKS.map(b => b.name)];
+  vals = [...new Set(vals)].sort((a, b) => a.localeCompare(b));
+  if (!vals.includes(state[stateKey]) && state[stateKey] !== 'all') state[stateKey] = 'all';
   sel.innerHTML = [`<option value="all">${allLabel}</option>`]
-    .concat(values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`))
+    .concat(vals.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`))
     .join('');
   sel.value = state[stateKey];
   if (isBankFilterSelect(id)) syncBankPicker(id, allLabel);
@@ -1216,6 +1219,7 @@ function openAddObligationModal() {
   q('add-ob-startdate').required = false;
   q('add-ob-modal').classList.remove('hidden');
   q('add-ob-bank').focus();
+  wireBankPickers(q('add-ob-modal') || document);
 }
 
 function closeAddObligationModal() {
@@ -1240,7 +1244,7 @@ async function submitAddObligation(event) {
     await callApi({
       action: 'addObligation',
       payer: v('payer').trim(),
-      bank: v('bank').trim(),
+      bank: normalizeBankName(v('bank')),
       category: v('category'),
       amount: Number(v('amount')) || 0,
       dueDay: Number(v('dueDay')) || 0,
@@ -1462,11 +1466,11 @@ function renderCurrentTab() {
   if (loadedMonth !== state.month) return;
   switch (state.tab) {
     case 'schedule':   renderSchedule();   break;
-    case 'loans':      renderLoans();      break;
+    case 'loans':      renderLoans(); wireBankPickers(document); break;
     case 'reconcile':  renderReconcile();  break;
     case 'income':     renderIncome();     break;
-    case 'cash':       renderCash();       break;
-    case 'offers':     renderOffers();     break;
+    case 'cash':       renderCash(); wireBankPickers(document); break;
+    case 'offers':     renderOffers(); wireBankPickers(document); break;
     case 'utilities':  renderUtilities();  break;
     case 'reports':    renderDashboard();  renderReports();  break;
   }
@@ -2129,7 +2133,7 @@ function filterObligations(rows) {
     if (state.obligationType === 'other' && isLoan) return false;
     if (state.obligationPayer !== 'all' && String(o.payer || '') !== state.obligationPayer) return false;
     if (state.obligationCategory !== 'all' && String(o.category || '') !== state.obligationCategory) return false;
-    if (state.obligationBank !== 'all' && String(o.bank || '') !== state.obligationBank) return false;
+    if (state.obligationBank !== 'all' && normalizeBankName(o.bank) !== normalizeBankName(state.obligationBank) && String(o.bank || '') !== state.obligationBank) return false;
     if (state.obligationFrequency !== 'all' &&
         String(o.frequency || 'monthly') !== state.obligationFrequency) return false;
 
@@ -2233,7 +2237,12 @@ function syncObligationFilterOptions(rows) {
 function setObligationSelectOptions(id, values, allLabel, selectedValue) {
   const select = q(id);
   if (!select) return selectedValue;
-  const options = [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))]
+  let source = values.map(value => String(value || '').trim()).filter(Boolean).map(normalizeBankName);
+  // Bank/place filters always include full catalog so every bank is selectable
+  if (isBankFilterSelect(id)) {
+    source = source.concat(CANONICAL_BANKS.map(b => b.name));
+  }
+  const options = [...new Set(source)]
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
   const validValue = selectedValue === 'all' || options.includes(selectedValue) ? selectedValue : 'all';
   select.innerHTML = `<option value="all">${allLabel}</option>` +
@@ -2420,7 +2429,7 @@ function loanCard(o) {
       </div>` : ''}
     <form class="inline-loan-edit hidden" id="inline-edit-${escapeHtml(o.id)}"
           onsubmit="submitInlineLoanEdit(event, '${escapeHtml(o.id)}')">
-      <label>Bank / Payee<input name="bank" value="${escapeHtml(o.bank)}" required></label>
+      <label class="bank-picker-label-wrap">Bank / Payee${bankPickerHtml({ nameAttr: "bank", value: o.bank, required: true, placeholder: "Select bank…" })}</label>
       <label>Monthly payment<input name="amount" type="number" min="0" value="${Number(o.amount) || 0}" required></label>
       <label>Due day<input name="dueDay" type="number" min="0" max="31" value="${Number(o.dueDay) || 0}" required></label>
       <label>Category<select name="category"><option value="loan"${o.category==='loan'?' selected':''}>Loan</option><option value="business"${o.category==='business'?' selected':''}>Business</option><option value="personal"${o.category==='personal'?' selected':''}>Personal</option></select></label>
@@ -2477,7 +2486,7 @@ function nonLoanCard(o) {
     </div>
     <form class="inline-loan-edit hidden" id="inline-edit-${escapeHtml(o.id)}"
           onsubmit="submitInlineObligationEdit(event, '${escapeHtml(o.id)}')">
-      <label>Bank / Payee<input name="bank" value="${escapeHtml(o.bank)}" required></label>
+      <label class="bank-picker-label-wrap">Bank / Payee${bankPickerHtml({ nameAttr: "bank", value: o.bank, required: true, placeholder: "Select bank…" })}</label>
       <label>Monthly payment<input name="amount" type="number" min="0" value="${Number(o.amount) || 0}" required></label>
       <label>Due day<input name="dueDay" type="number" min="0" max="31" value="${Number(o.dueDay) || 0}" required></label>
       <label>Category<select name="category"><option value="business"${o.category==='business'?' selected':''}>Business</option><option value="personal"${o.category==='personal'?' selected':''}>Personal</option><option value="loan"${o.category==='loan'?' selected':''}>Loan</option></select></label>
@@ -2519,7 +2528,10 @@ function toggleInlineLoanEdit(id) {
   const panel = q('inline-edit-' + id);
   if (!panel) return;
   panel.classList.toggle('hidden');
-  if (!panel.classList.contains('hidden')) panel.querySelector('input')?.focus();
+  if (!panel.classList.contains('hidden')) {
+    wireBankPickers(panel);
+    panel.querySelector('.bank-picker-trigger, input')?.focus();
+  }
 }
 
 function submitInlineLoanEdit(event, id) {
@@ -2528,7 +2540,7 @@ function submitInlineLoanEdit(event, id) {
   const value = name => form.elements[name].value;
   const optionalNumber = name => value(name) === '' ? '' : Number(value(name));
   updateLoan(id, {
-    bank: value('bank').trim(),
+    bank: normalizeBankName(value('bank')),
     amount: Number(value('amount')),
     dueDay: Number(value('dueDay')),
     category: value('category'),
@@ -2545,7 +2557,7 @@ function submitInlineObligationEdit(event, id) {
   const form = event.currentTarget;
   const value = name => form.elements[name].value;
   updateLoan(id, {
-    bank: value('bank').trim(),
+    bank: normalizeBankName(value('bank')),
     amount: Number(value('amount')),
     dueDay: Number(value('dueDay')),
     category: value('category'),
@@ -2593,7 +2605,7 @@ function openLoanEditor(id) {
   const loan = state.obligations.find(o => String(o.id) === String(id));
   if (!loan) return;
   q('edit-id').value = loan.id;
-  q('edit-bank').value = loan.bank || '';
+  normalizeBankName(q('edit-bank').value) = loan.bank || '';
   q('edit-category').value = String(loan.category || 'personal').toLowerCase();
   q('edit-frequency').value = String(loan.frequency || 'monthly').toLowerCase().trim() || 'monthly';
   q('edit-amount').value = Number(loan.amount) || 0;
@@ -2605,6 +2617,7 @@ function openLoanEditor(id) {
   q('loan-edit-title').textContent = `Edit ${loan.bank || 'loan'}`;
   q('loan-edit-modal').classList.remove('hidden');
   q('edit-bank').focus();
+  wireBankPickers(q('loan-edit-modal') || document);
 }
 
 function closeLoanEditor() {
@@ -2615,7 +2628,7 @@ function submitLoanEdit(event) {
   event.preventDefault();
   const optionalNumber = id => q(id).value === '' ? '' : Number(q(id).value);
   updateLoan(q('edit-id').value, {
-    bank: q('edit-bank').value.trim(),
+    bank: normalizeBankName(q('edit-bank').value),
     // Sent explicitly: the backend defaults frequency to 'monthly' when it is
     // absent, so omitting it silently reset quarterly/one-time obligations.
     category: q('edit-category').value,
@@ -2697,31 +2710,38 @@ function categoryAccent(cat) {
   return palette[h % palette.length];
 }
 
-/* Elite offer card — bank logos + avatar fallbacks */
-const BANK_LOGO_RULES = [
-  { keys: ['acba'], file: 'bank-logos/acba.png' },
-  { keys: ['ameria'], file: 'bank-logos/ameriabank.png' },
-  { keys: ['amio', 'armbusiness'], file: 'bank-logos/amiobank.png' },
-  { keys: ['ararat'], file: 'bank-logos/araratbank.png' },
-  { keys: ['ardshin', 'ashib'], file: 'bank-logos/ardshinbank.png' },
-  { keys: ['armeconom', 'aeb'], file: 'bank-logos/armeconombank.png' },
-  { keys: ['armswiss'], file: 'bank-logos/armswissbank.svg' },
-  { keys: ['artsakh'], file: 'bank-logos/artsakhbank.svg' },
-  { keys: ['byblos'], file: 'bank-logos/byblos.svg' },
-  { keys: ['converse'], file: 'bank-logos/converse.png' },
-  { keys: ['evoca'], file: 'bank-logos/evocabank.png' },
-  { keys: ['fast'], file: 'bank-logos/fastbank.svg' },
-  { keys: ['idbank', 'id bank', 'айди'], file: 'bank-logos/idbank.png' },
-  { keys: ['ineco'], file: 'bank-logos/inecobank.png' },
-  { keys: ['mellat'], file: 'bank-logos/mellat.svg' },
-  { keys: ['uni'], file: 'bank-logos/unibank.png' },
-  { keys: ['vtb', 'втб'], file: 'bank-logos/vtb.png' },
-  { keys: ['hsbc'], file: 'bank-logos/hsbc.svg' },
-  { keys: ['ucom'], file: 'bank-logos/ucom.svg' },
-  { keys: ['arpinet'], file: 'bank-logos/arpinet.svg' },
-  { keys: ['team'], file: 'bank-logos/team.svg' },
-  { keys: ['vivo'], file: 'bank-logos/vivo.svg' }
+/* ================================================================
+   Canonical bank catalog — one source of truth for logos + names
+   Used in Cash / Offers / Obligations / Payments / Reconcile
+   ================================================================ */
+const CANONICAL_BANKS = [
+  { id: 'acba', name: 'ACBA Bank', logo: 'bank-logos/acba.png', keys: ['acba'], aliases: ['ACBA BANK CJSC', 'ACBA Bank CJSC', 'ACBA BANK'] },
+  { id: 'ameria', name: 'Ameriabank', logo: 'bank-logos/ameriabank.png', keys: ['ameria'], aliases: ['Ameriabank CJSC', 'AMERIABANK'] },
+  { id: 'amio', name: 'AMIO Bank', logo: 'bank-logos/amiobank.png', keys: ['amio', 'armbusiness'], aliases: ['AMIO BANK', 'Armbusinessbank', 'ArmBusinessBank'] },
+  { id: 'ararat', name: 'AraratBank', logo: 'bank-logos/araratbank.png', keys: ['ararat'], aliases: ['ARARATBANK', 'Ararat Bank'] },
+  { id: 'ardshin', name: 'Ardshinbank', logo: 'bank-logos/ardshinbank.png', keys: ['ardshin', 'ashib'], aliases: ['Ardshininbank', 'Ardshinbank CJSC', 'ARDSHINBANK'] },
+  { id: 'aeb', name: 'Armeconombank', logo: 'bank-logos/armeconombank.png', keys: ['armeconom', 'aeb'], aliases: ['AEB', 'ArmEconomBank'] },
+  { id: 'armswiss', name: 'ArmSwissBank', logo: 'bank-logos/armswissbank.svg', keys: ['armswiss'], aliases: ['ArmSwiss Bank'] },
+  { id: 'artsakh', name: 'Artsakhbank', logo: 'bank-logos/artsakhbank.svg', keys: ['artsakh'], aliases: ['Artsakh Bank'] },
+  { id: 'byblos', name: 'Byblos Bank Armenia', logo: 'bank-logos/byblos.svg', keys: ['byblos'], aliases: ['Byblos Bank'] },
+  { id: 'converse', name: 'Converse Bank', logo: 'bank-logos/converse.png', keys: ['converse'], aliases: ['Converse Bank CJSC', 'CONVERSE BANK'] },
+  { id: 'evoca', name: 'Evocabank', logo: 'bank-logos/evocabank.png', keys: ['evoca'], aliases: ['Evoca Bank', 'EVOCABANK'] },
+  { id: 'fast', name: 'Fast Bank', logo: 'bank-logos/fastbank.svg', keys: ['fastbank', 'fast bank'], aliases: ['FastBank', 'FAST BANK'] },
+  { id: 'idbank', name: 'IDBank', logo: 'bank-logos/idbank.png', keys: ['idbank', 'id bank', 'айди'], aliases: ['Id Bank CJSC', 'ID BANK CJSC', 'ID Bank', 'ID BANK'] },
+  { id: 'ineco', name: 'Inecobank', logo: 'bank-logos/inecobank.png', keys: ['ineco'], aliases: ['Inecobank CJSC', 'INECOBANK'] },
+  { id: 'mellat', name: 'Mellat Bank', logo: 'bank-logos/mellat.svg', keys: ['mellat'], aliases: ['Mellat Bank Armenia'] },
+  { id: 'unibank', name: 'Unibank', logo: 'bank-logos/unibank.png', keys: ['unibank', 'uni bank'], aliases: ['Unibank CJSC', 'UNIBANK', 'UniBank'] },
+  { id: 'vtb', name: 'VTB Bank Armenia', logo: 'bank-logos/vtb.png', keys: ['vtb', 'втб'], aliases: ['VTB Armenia', 'VTB Bank (Armenia)', 'VTB'] },
+  { id: 'hsbc', name: 'HSBC Bank Armenia', logo: 'bank-logos/hsbc.svg', keys: ['hsbc'], aliases: ['HSBC Armenia', 'HSBC'] },
+  // Common non-bank providers (still catalogued for logos / consistency)
+  { id: 'ucom', name: 'Ucom', logo: 'bank-logos/ucom.svg', keys: ['ucom'], aliases: ['Ucom CJSC', 'UCOM'] },
+  { id: 'arpinet', name: 'Arpinet', logo: 'bank-logos/arpinet.svg', keys: ['arpinet'], aliases: ['Arpinet LLC'] },
+  { id: 'team', name: 'Team Telecom', logo: 'bank-logos/team.svg', keys: ['team telecom', 'team'], aliases: ['Team'] },
+  { id: 'vivo', name: 'Viva-MTS', logo: 'bank-logos/vivo.svg', keys: ['vivo', 'viva', 'mts'], aliases: ['Viva', 'VivaCell', 'Viva-MTS'] }
 ];
+
+// Back-compat for older logo matching
+const BANK_LOGO_RULES = CANONICAL_BANKS.map(b => ({ keys: b.keys, file: b.logo }));
 
 function bankAvatarTone(name) {
   const tones = ['indigo', 'cyan', 'coral', 'emerald', 'blue', 'purple'];
@@ -2736,7 +2756,66 @@ function bankInitialFromName(name) {
   return s ? s.charAt(0).toUpperCase() : '?';
 }
 
+function bankNormKey(s) {
+  return String(s || '').toLowerCase().replace(/[\s.\-_/'"«»]+/g, '');
+}
+
+function matchCanonicalBank(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const key = bankNormKey(s);
+  // exact canonical name
+  for (const b of CANONICAL_BANKS) {
+    if (bankNormKey(b.name) === key) return b;
+    if ((b.aliases || []).some(a => bankNormKey(a) === key)) return b;
+  }
+  // keyword / includes (prefer longer keys)
+  let best = null;
+  let bestLen = 0;
+  for (const b of CANONICAL_BANKS) {
+    for (const k of b.keys) {
+      const kk = bankNormKey(k);
+      if (!kk) continue;
+      if ((key.includes(kk) || bankNormKey(s).includes(kk)) && kk.length > bestLen) {
+        // avoid "uni" matching too aggressively inside other words — require key length >= 4 or full match
+        if (kk.length < 4 && key !== kk && !key.startsWith(kk)) continue;
+        // special: "fast" only as fastbank / fast bank
+        if (b.id === 'fast' && !(key.includes('fastbank') || key.includes('fast'))) continue;
+        if (b.id === 'unibank' && !(key.includes('uni') && (key.includes('bank') || key === 'unibank' || key.includes('unibank')))) {
+          if (!key.includes('unibank') && key !== 'uni') {
+            // allow "Unibank CJSC"
+            if (!s.toLowerCase().includes('uni')) continue;
+          }
+        }
+        best = b;
+        bestLen = kk.length;
+      }
+    }
+  }
+  // simpler key includes pass
+  if (!best) {
+    for (const b of CANONICAL_BANKS) {
+      for (const k of b.keys) {
+        const kl = k.toLowerCase();
+        if (kl.length >= 4 && s.toLowerCase().includes(kl)) return b;
+      }
+    }
+  }
+  return best;
+}
+
+/** Map free-text → canonical bank name (or keep custom payee as-is). */
+function normalizeBankName(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const hit = matchCanonicalBank(s);
+  return hit ? hit.name : s;
+}
+
 function bankLogoSrc(name) {
+  const hit = matchCanonicalBank(name);
+  if (hit) return hit.logo;
+  // legacy fallback
   const raw = String(name || '').toLowerCase().trim();
   if (!raw) return null;
   const compact = raw.replace(/[\s.\-_/]+/g, '');
@@ -2747,6 +2826,220 @@ function bankLogoSrc(name) {
     }
   }
   return null;
+}
+
+/** All banks for pickers (canonical only). */
+function bankCatalogOptions() {
+  return CANONICAL_BANKS.slice().sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Combobox field HTML: hidden value + logo trigger + searchable list.
+ * nameAttr: form field name ("bank" | "place")
+ */
+function bankPickerHtml({ id, nameAttr = 'bank', value = '', required = false, placeholder = 'Select bank…', allowCustom = true } = {}) {
+  const v = String(value || '');
+  const norm = normalizeBankName(v);
+  const display = norm || '';
+  const req = required ? 'required' : '';
+  const logo = display ? bankAvatarHtml(display, 'offer-avatar--sm') : `<div class="offer-avatar offer-avatar--sm offer-avatar--all" aria-hidden="true">?</div>`;
+  return `<div class="bank-picker" data-bank-picker="${escapeHtml(id || nameAttr)}" data-allow-custom="${allowCustom ? '1' : '0'}">
+    <input type="hidden" class="bank-picker-value" id="${escapeHtml(id || '')}" name="${escapeHtml(nameAttr)}" value="${escapeHtml(norm)}" ${req}>
+    <button type="button" class="bank-picker-trigger" aria-haspopup="listbox" aria-expanded="false">
+      <span class="bank-picker-logo">${logo}</span>
+      <span class="bank-picker-label">${display ? escapeHtml(display) : `<span class="bank-picker-placeholder">${escapeHtml(placeholder)}</span>`}</span>
+      <svg class="bank-picker-chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5 6 6.5 11 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="bank-picker-panel hidden" role="listbox">
+      <input type="search" class="bank-picker-search" placeholder="Search banks…" autocomplete="off" aria-label="Search banks">
+      <div class="bank-picker-list"></div>
+      ${allowCustom ? `<button type="button" class="bank-picker-other">Other / custom name…</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function fillBankPickerList(picker, filter = '') {
+  const list = picker.querySelector('.bank-picker-list');
+  if (!list) return;
+  const qstr = String(filter || '').toLowerCase().trim();
+  const current = picker.querySelector('.bank-picker-value')?.value || '';
+  const items = bankCatalogOptions().filter(b => {
+    if (!qstr) return true;
+    const blob = [b.name, ...(b.aliases || []), ...(b.keys || [])].join(' ').toLowerCase();
+    return blob.includes(qstr);
+  });
+  if (!items.length) {
+    list.innerHTML = `<div class="bank-picker-empty">No bank match${picker.dataset.allowCustom === '1' ? ' — use custom below' : ''}</div>`;
+    return;
+  }
+  list.innerHTML = items.map(b => {
+    const active = current === b.name || matchCanonicalBank(current)?.id === b.id;
+    return `<button type="button" class="bank-picker-option${active ? ' is-active' : ''}" role="option" data-bank-name="${escapeHtml(b.name)}" data-bank-id="${escapeHtml(b.id)}">
+      ${bankAvatarHtml(b.name, 'offer-avatar--sm')}
+      <span class="bank-picker-option-text">
+        <strong>${escapeHtml(b.name)}</strong>
+        ${b.aliases && b.aliases[0] ? `<small>${escapeHtml(b.aliases[0])}</small>` : ''}
+      </span>
+      <span class="bank-picker-option-check" aria-hidden="true"></span>
+    </button>`;
+  }).join('');
+}
+
+function setBankPickerValue(picker, rawName, { silent = false } = {}) {
+  const valueInput = picker.querySelector('.bank-picker-value');
+  const label = picker.querySelector('.bank-picker-label');
+  const logoWrap = picker.querySelector('.bank-picker-logo');
+  if (!valueInput) return;
+  const name = normalizeBankName(rawName);
+  valueInput.value = name;
+  if (label) {
+    label.innerHTML = name
+      ? escapeHtml(name)
+      : `<span class="bank-picker-placeholder">Select bank…</span>`;
+  }
+  if (logoWrap) {
+    logoWrap.innerHTML = name
+      ? bankAvatarHtml(name, 'offer-avatar--sm')
+      : `<div class="offer-avatar offer-avatar--sm offer-avatar--all" aria-hidden="true">?</div>`;
+  }
+  if (!silent) {
+    valueInput.dispatchEvent(new Event('change', { bubbles: true }));
+    valueInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+
+function closeAllBankPickers(except) {
+  document.querySelectorAll('.bank-picker').forEach(p => {
+    if (except && p === except) return;
+    p.classList.remove('is-open');
+    p.querySelector('.bank-picker-panel')?.classList.add('hidden');
+    p.querySelector('.bank-picker-trigger')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function openBankPicker(picker) {
+  closeAllBankPickers(picker);
+  picker.classList.add('is-open');
+  const panel = picker.querySelector('.bank-picker-panel');
+  panel?.classList.remove('hidden');
+  picker.querySelector('.bank-picker-trigger')?.setAttribute('aria-expanded', 'true');
+  fillBankPickerList(picker, '');
+  const search = picker.querySelector('.bank-picker-search');
+  if (search) {
+    search.value = '';
+    setTimeout(() => search.focus(), 30);
+  }
+}
+
+/** Upgrade a plain text input into a bank picker (modals / legacy fields). */
+function upgradeBankInput(input, { allowCustom = true, placeholder } = {}) {
+  if (!input || input.dataset.bankUpgraded === '1') return null;
+  if (input.closest('.bank-picker')) return input.closest('.bank-picker');
+  const id = input.id || '';
+  const nameAttr = input.getAttribute('name') || input.id || 'bank';
+  const required = input.required;
+  const value = input.value || '';
+  const wrap = document.createElement('div');
+  wrap.innerHTML = bankPickerHtml({
+    id,
+    nameAttr,
+    value,
+    required,
+    placeholder: placeholder || input.placeholder || 'Select bank…',
+    allowCustom
+  });
+  const picker = wrap.firstElementChild;
+  input.dataset.bankUpgraded = '1';
+  input.replaceWith(picker);
+  // keep id on hidden for form scripts that use q('cash-new-place')
+  const hidden = picker.querySelector('.bank-picker-value');
+  if (id && hidden) hidden.id = id;
+  return picker;
+}
+
+function wireBankPickers(root = document) {
+  // One-time document listeners
+  if (!window.__bankPickerWired) {
+    window.__bankPickerWired = true;
+    document.addEventListener('submit', e => {
+      const form = e.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      const requiredHidden = form.querySelectorAll('.bank-picker-value[required]');
+      for (const hid of requiredHidden) {
+        if (!String(hid.value || '').trim()) {
+          e.preventDefault();
+          const picker = hid.closest('.bank-picker');
+          if (picker) {
+            openBankPicker(picker);
+            picker.classList.add('is-invalid');
+          }
+          showError && showError('Please select a bank from the list.');
+          return;
+        }
+      }
+    }, true);
+    document.addEventListener('click', e => {
+      const trigger = e.target.closest('.bank-picker-trigger');
+      if (trigger) {
+        const picker = trigger.closest('.bank-picker');
+        if (picker.classList.contains('is-open')) closeAllBankPickers();
+        else openBankPicker(picker);
+        e.preventDefault();
+        return;
+      }
+      const opt = e.target.closest('.bank-picker-option');
+      if (opt) {
+        const picker = opt.closest('.bank-picker');
+        setBankPickerValue(picker, opt.getAttribute('data-bank-name') || '');
+        closeAllBankPickers();
+        e.preventDefault();
+        return;
+      }
+      const other = e.target.closest('.bank-picker-other');
+      if (other) {
+        const picker = other.closest('.bank-picker');
+        const custom = prompt('Custom bank / place / payee name:', picker.querySelector('.bank-picker-value')?.value || '');
+        if (custom !== null && custom.trim()) {
+          setBankPickerValue(picker, custom.trim());
+        }
+        closeAllBankPickers();
+        e.preventDefault();
+        return;
+      }
+      if (!e.target.closest('.bank-picker')) closeAllBankPickers();
+    });
+    document.addEventListener('input', e => {
+      if (!e.target.classList.contains('bank-picker-search')) return;
+      const picker = e.target.closest('.bank-picker');
+      if (picker) fillBankPickerList(picker, e.target.value);
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeAllBankPickers();
+    });
+  }
+
+  // Upgrade known modal / static fields
+  [
+    ['cash-new-place', true],
+    ['offer-new-place', true],
+    ['add-ob-bank', true],
+    ['edit-bank', true]
+  ].forEach(([id, allow]) => {
+    const el = (root.getElementById ? root : document).getElementById?.(id) || q(id);
+    if (el && el.tagName === 'INPUT') upgradeBankInput(el, { allowCustom: allow });
+  });
+
+  // Dynamic edit forms (cash/offer place fields)
+  (root.querySelectorAll ? root : document).querySelectorAll('input[name="place"], input[data-bank-field="1"]').forEach(inp => {
+    if (inp.tagName === 'INPUT' && !inp.closest('.bank-picker')) {
+      upgradeBankInput(inp, { allowCustom: true, placeholder: 'Select bank / place…' });
+    }
+  });
+  (root.querySelectorAll ? root : document).querySelectorAll('input[name="bank"]').forEach(inp => {
+    if (inp.tagName === 'INPUT' && !inp.classList.contains('bank-picker-value') && !inp.closest('.bank-picker')) {
+      upgradeBankInput(inp, { allowCustom: true, placeholder: 'Select bank…' });
+    }
+  });
 }
 
 /** Logo when bank is known; letter avatar otherwise. Used on Cash / Offers / Reconcile. */
@@ -2807,7 +3100,7 @@ function renderOfferGlassCard(e) {
         <input class="form-input" name="lastAvailableDate" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate || '') ? e.lastAvailableDate : ''}">
         <label class="completed-switch cash-edit-approved"><input type="checkbox" name="approved" ${approved ? 'checked' : ''}><span class="switch-track" aria-hidden="true"></span><span>Already approved</span></label>
       </div>
-      <input class="form-input" name="place"  value="${escapeHtml(e.place)}" placeholder="Bank / Place" required maxlength="100">
+      <input class="form-input" name="place" value="${escapeHtml(normalizeBankName(e.place))}" data-bank-field="1" placeholder="Bank / Place" required maxlength="100">
       <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
       <div class="cash-edit-btns">
         <button class="button button-ghost btn-sm"   type="button" onclick="closeCashEdit('${sid}')">Cancel</button>
@@ -2861,7 +3154,7 @@ function renderCashGlassCard(e) {
         <input class="form-input" name="lastAvailableDate" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate || '') ? e.lastAvailableDate : ''}">
         <label class="completed-switch cash-edit-approved"><input type="checkbox" name="approved" checked><span class="switch-track" aria-hidden="true"></span><span>Already approved</span></label>
       </div>
-      <input class="form-input" name="place"  value="${escapeHtml(e.place)}" placeholder="Bank / Place" required maxlength="100">
+      <input class="form-input" name="place" value="${escapeHtml(normalizeBankName(e.place))}" data-bank-field="1" placeholder="Bank / Place" required maxlength="100">
       <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
       <div class="cash-edit-btns">
         <button class="button button-ghost btn-sm"   type="button" onclick="closeCashEdit('${sid}')">Cancel</button>
@@ -2909,7 +3202,7 @@ function renderCashEntryCard(e) {
         <input class="form-input" name="lastAvailableDate" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate || '') ? e.lastAvailableDate : ''}">
         <label class="completed-switch cash-edit-approved"><input type="checkbox" name="approved" ${approved ? 'checked' : ''}><span class="switch-track" aria-hidden="true"></span><span>Already approved</span></label>
       </div>
-      <input class="form-input" name="place"  value="${escapeHtml(e.place)}" placeholder="Bank / Place" required maxlength="100">
+      <input class="form-input" name="place" value="${escapeHtml(normalizeBankName(e.place))}" data-bank-field="1" placeholder="Bank / Place" required maxlength="100">
       <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
       <div class="cash-edit-btns">
         <button class="button button-ghost btn-sm"   type="button" onclick="closeCashEdit('${sid}')">Cancel</button>
@@ -3100,13 +3393,13 @@ function renderOffersTab() {
 async function submitAddCash(event) {
   event.preventDefault();
   const category = document.getElementById('cash-new-category').value.trim();
-  const place    = document.getElementById('cash-new-place').value.trim();
+  const place    = normalizeBankName(document.getElementById('cash-new-place').value);
   const amount   = Number(document.getElementById('cash-new-amount').value) || 0;
   if (!place) return;
   const type = 'cash', payer = '', lastAvailableDate = '';
   const entry = { id: 'cash-' + Date.now(), place, amount, type, category, payer, lastAvailableDate, updatedAt: new Date().toISOString() };
   state.cashEntries = [...state.cashEntries, entry];
-  document.getElementById('cash-new-place').value = '';
+  (function(){ const el = document.getElementById('cash-new-place'); if (!el) return; const p = el.closest && el.closest('.bank-picker'); if (p) setBankPickerValue(p, '', { silent: true }); else el.value = ''; })();
   document.getElementById('cash-new-amount').value = '';
   document.getElementById('cash-new-category').value = '';
   closeCashAddModal();
@@ -3125,14 +3418,14 @@ async function submitAddOffer(event) {
   const category = document.getElementById('offer-new-category').value.trim();
   const payer    = document.getElementById('offer-new-payer').value.trim();
   const lastAvailableDate = document.getElementById('offer-new-date').value;
-  const place    = document.getElementById('offer-new-place').value.trim();
+  const place = normalizeBankName(document.getElementById('offer-new-place').value);
   const amount   = Number(document.getElementById('offer-new-amount').value) || 0;
   const approved = document.getElementById('offer-new-approved').checked ? 'true' : 'false';
   if (!place) return;
   const type = 'offer';
   const entry = { id: 'cash-' + Date.now(), place, amount, type, category, payer, lastAvailableDate, updatedAt: new Date().toISOString(), approved };
   state.cashEntries = [...state.cashEntries, entry];
-  document.getElementById('offer-new-place').value = '';
+  (function(){ const el = document.getElementById('offer-new-place'); if (!el) return; const p = el.closest && el.closest('.bank-picker'); if (p) setBankPickerValue(p, '', { silent: true }); else el.value = ''; })();
   document.getElementById('offer-new-amount').value = '';
   document.getElementById('offer-new-category').value = '';
   document.getElementById('offer-new-payer').value = '';
@@ -3151,6 +3444,7 @@ async function submitAddOffer(event) {
 
 function openCashAddModal() {
   q('cash-add-modal').classList.remove('hidden');
+  wireBankPickers(q('cash-add-modal') || document);
 }
 
 function closeCashAddModal() {
@@ -3159,6 +3453,7 @@ function closeCashAddModal() {
 
 function openOfferAddModal() {
   q('offer-add-modal').classList.remove('hidden');
+  wireBankPickers(q('offer-add-modal') || document);
 }
 
 function closeOfferAddModal() {
@@ -3169,7 +3464,10 @@ function openCashEdit(id) {
   const view = document.querySelector(`#cash-entry-${id} .cash-entry-view`);
   const form = document.getElementById('cash-edit-' + id);
   if (view) view.classList.add('hidden');
-  if (form) form.classList.remove('hidden');
+  if (form) {
+    form.classList.remove('hidden');
+    wireBankPickers(form);
+  }
 }
 
 function closeCashEdit(id) {
@@ -3187,7 +3485,7 @@ async function saveCashEdit(event, id) {
   const payer    = form.elements.payer             ? form.elements.payer.value.trim()             : '';
   const lastAvailableDate = form.elements.lastAvailableDate ? form.elements.lastAvailableDate.value : '';
   const approved = form.elements.approved ? (form.elements.approved.checked ? 'true' : 'false') : 'true';
-  const place  = form.elements.place.value.trim();
+  const place  = normalizeBankName(form.elements.place.value);
   const amount = Number(form.elements.amount.value) || 0;
   if (!place) return;
   const prev = state.cashEntries.find(e => e.id === id);
@@ -4349,6 +4647,7 @@ function renderPayerPanel() {
 // Boot
 // ================================================================
 document.addEventListener('DOMContentLoaded', () => {
+  wireBankPickers(document);
   // Input-modality tracking: keyboard actions stay instant; pointer/touch actions may animate.
   const setKeyboardMode = event => {
     if (event.key === 'Tab' || event.key.startsWith('Arrow') || event.key === 'Enter' || event.key === ' ') {
