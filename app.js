@@ -1354,7 +1354,13 @@ async function revalidateMonth(month, force = false) {
       if (loadedMonth !== month) showError('Could not load this month. Use the refresh button to retry.');
     } finally {
       monthRequests.delete(requestKey);
-      if (state.month === month) showLoading(false);
+      if (state.month === month) {
+        showLoading(false);
+        const syncButton = q('sync-button');
+        if (syncButton?.dataset.status === 'loading') {
+          setSyncStatus(loadedMonth === month ? 'ready' : 'error', loadedMonth === month ? 'Up to date' : 'Could not load. Tap to retry');
+        }
+      }
     }
   })();
   monthRequests.set(requestKey, task);
