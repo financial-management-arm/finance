@@ -4142,31 +4142,33 @@ function unitCard(u) {
   const amount = Number(u.amount) || 0;
   const status = depositCovered ? 'Using deposit' : paid ? 'Done this month' : payable ? 'Payment needed' : 'No upcoming payment';
   const statusClass = depositCovered || !payable ? ' is-muted' : paid ? ' is-done' : ' is-due';
+  const dueLabel = Number(u.dueDay) > 0 ? `Day ${Number(u.dueDay)}` : 'No due day';
+  const payLabel = paid ? 'Undo' : 'Mark done';
   return `<article class="offer-glass-card cash-glass-card unit-glass-card${statusClass}">
     <div class="offer-glass-glow cash-glass-glow" aria-hidden="true"></div>
-    <div class="cash-entry-view offer-glass-view">
-      <div class="offer-glass-main">
-        <div class="offer-glass-top">
-          <div class="offer-glass-title">
-            ${bankAvatarHtml(u.provider || u.name || 'Utility')}
-            <div class="offer-glass-text">
-              <div class="offer-bank-name">${escapeHtml(u.name || 'Unit')}</div>
-              <div class="offer-bank-meta">${escapeHtml(u.payer || 'No payer')}${u.provider ? ` · ${escapeHtml(u.provider)}` : ''}</div>
-            </div>
+    <div class="unit-card-shell">
+      <header class="unit-card-head">
+        <div class="unit-card-ident">
+          ${bankAvatarHtml(u.provider || u.name || 'Utility')}
+          <div class="unit-card-copy">
+            <h3 class="unit-card-title" title="${escapeHtml(u.name || 'Unit')}">${escapeHtml(u.name || 'Unit')}</h3>
+            <p class="unit-card-meta" title="${escapeHtml(u.payer || 'No payer')}${u.provider ? ` · ${escapeHtml(u.provider)}` : ''}">${escapeHtml(u.payer || 'No payer')}${u.provider ? ` · ${escapeHtml(u.provider)}` : ''}</p>
           </div>
-          ${amount > 0 ? `<div class="offer-glass-amount cash-glass-amount">${amd(amount)}</div>` : ''}
         </div>
-        <div class="offer-tags">
-          <span class="offer-tag offer-tag-cash">${escapeHtml(status)}</span>
-          ${Number(u.dueDay) > 0 ? `<span class="offer-tag offer-tag-cat">Day ${Number(u.dueDay)}</span>` : '<span class="offer-tag offer-tag-cat">No due day</span>'}
-          ${amount > 0 ? '' : '<span class="offer-tag offer-tag-payer">No amount</span>'}
-          ${rawAbonent ? `<button class="util-copy-btn util-copy-chip" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>` : ''}
-        </div>
+        <div class="unit-card-amount${amount > 0 ? '' : ' is-empty'}">${amount > 0 ? amd(amount) : '—'}</div>
+      </header>
+      <div class="unit-card-tags">
+        <span class="offer-tag offer-tag-cash">${escapeHtml(status)}</span>
+        <span class="offer-tag offer-tag-cat">${dueLabel}</span>
+        ${amount > 0 ? '' : '<span class="offer-tag offer-tag-payer">No amount</span>'}
+        ${rawAbonent ? `<button class="util-copy-btn util-copy-chip" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>` : '<span class="unit-card-tag-slot" aria-hidden="true"></span>'}
       </div>
-      <div class="cash-entry-actions offer-glass-actions">
-        ${payable ? `<button class="button ${paid ? 'button-secondary' : 'button-primary'} btn-sm" type="button" onclick="toggleUtilityPaid('${escapeHtml(u.id)}')">${paid ? 'Undo' : 'Mark done'}</button>` : ''}
-        <button class="button button-ghost btn-sm" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')">Edit</button>
-      </div>
+      <footer class="unit-card-foot">
+        ${payable
+          ? `<button class="button ${paid ? 'button-secondary' : 'button-primary'} unit-card-pay" type="button" onclick="toggleUtilityPaid('${escapeHtml(u.id)}')">${payLabel}</button>`
+          : `<button class="button button-secondary unit-card-pay" type="button" disabled>Not due</button>`}
+        <button class="button button-ghost unit-card-edit" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')">Edit</button>
+      </footer>
     </div>
   </article>`;
 }
