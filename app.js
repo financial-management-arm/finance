@@ -883,7 +883,7 @@ function renderReconcile() {
     const done = inBank.filter(l => balanceReadMonth(l) === state.month).length;
     return `<section class="recon-group" data-bank="${escapeHtml(bank)}">
       <header class="recon-group-head">
-        <h2>${escapeHtml(bank)}</h2>
+        <h2 class="recon-group-title">${bankAvatarHtml(bank, 'offer-avatar--sm')}<span>${escapeHtml(bank)}</span></h2>
         <span class="recon-group-count">${done}/${inBank.length}</span>
       </header>
       ${groups[bank].map(reconRow).join('')}
@@ -902,13 +902,11 @@ function reconRow(l) {
   const draft = reconDrafts.get(pkey(l.id, state.month));
   const saving = reconSaveTasks.has(pkey(l.id, state.month));
   const bank = l.bank || 'Bank';
-  const tone = bankAvatarTone(bank);
-  const initial = bankInitialFromName(bank);
   return `<div class="recon-row recon-glass-card ${done ? 'is-done' : ''} ${saving ? 'is-saving' : ''}" data-recon-id="${id}" ${saving ? 'aria-busy="true"' : ''}>
     <div class="recon-glass-main">
       <div class="recon-id">
         <div class="recon-glass-title">
-          <div class="offer-avatar offer-avatar--${tone}" aria-hidden="true">${escapeHtml(initial)}</div>
+          ${bankAvatarHtml(bank)}
           <div class="recon-glass-text">
             <div class="recon-name" style="color:${payerColor(l.payer)}">${escapeHtml(l.payer || '—')}</div>
             <div class="recon-sub">
@@ -2208,7 +2206,7 @@ function loanCard(o) {
                    style="--bank-color:${bankColor}">
     <div class="loan-card-top">
       <div class="loan-identity">
-        <div class="bank-avatar">${escapeHtml(String(o.bank || '?').trim().charAt(0).toUpperCase())}</div>
+        ${bankAvatarHtml(o.bank, 'bank-avatar')}
         <div>
           <div class="loan-bank">${escapeHtml(o.bank)}</div>
           <div class="loan-meta">${escapeHtml(o.payer)}${o.startDate ? ` · Started ${fmtStartDate(o.startDate)}` : ''}</div>
@@ -2294,7 +2292,7 @@ function nonLoanCard(o) {
   return `<article class="obligation-card" style="--bank-color:${bankColor}">
     <div class="loan-card-top">
       <div class="loan-identity">
-        <div class="bank-avatar">${escapeHtml(String(o.bank || '?').trim().charAt(0).toUpperCase())}</div>
+        ${bankAvatarHtml(o.bank, 'bank-avatar')}
         <div>
           <div class="loan-bank">${escapeHtml(o.bank)}</div>
           <div class="loan-meta">${escapeHtml(o.payer)} · ${escapeHtml(catDisplay)}</div>
@@ -2534,7 +2532,28 @@ function categoryAccent(cat) {
   return palette[h % palette.length];
 }
 
-/* Elite offer card — avatar tones from bank/place name */
+/* Elite offer card — bank logos + avatar fallbacks */
+const BANK_LOGO_RULES = [
+  { keys: ['acba'], file: 'bank-logos/acba.png' },
+  { keys: ['ameria'], file: 'bank-logos/ameriabank.png' },
+  { keys: ['amio', 'armbusiness'], file: 'bank-logos/amiobank.png' },
+  { keys: ['ararat'], file: 'bank-logos/araratbank.png' },
+  { keys: ['ardshin', 'ashib'], file: 'bank-logos/ardshinbank.png' },
+  { keys: ['armeconom', 'aeb'], file: 'bank-logos/armeconombank.png' },
+  { keys: ['armswiss'], file: 'bank-logos/armswissbank.svg' },
+  { keys: ['artsakh'], file: 'bank-logos/artsakhbank.svg' },
+  { keys: ['byblos'], file: 'bank-logos/byblos.svg' },
+  { keys: ['converse'], file: 'bank-logos/converse.png' },
+  { keys: ['evoca'], file: 'bank-logos/evocabank.png' },
+  { keys: ['fast'], file: 'bank-logos/fastbank.svg' },
+  { keys: ['idbank', 'id bank', 'айди'], file: 'bank-logos/idbank.png' },
+  { keys: ['ineco'], file: 'bank-logos/inecobank.png' },
+  { keys: ['mellat'], file: 'bank-logos/mellat.svg' },
+  { keys: ['uni'], file: 'bank-logos/unibank.png' },
+  { keys: ['vtb', 'втб'], file: 'bank-logos/vtb.png' },
+  { keys: ['hsbc'], file: 'bank-logos/hsbc.svg' }
+];
+
 function bankAvatarTone(name) {
   const tones = ['indigo', 'cyan', 'coral', 'emerald', 'blue', 'purple'];
   const s = String(name || '');
@@ -2548,12 +2567,36 @@ function bankInitialFromName(name) {
   return s ? s.charAt(0).toUpperCase() : '?';
 }
 
+function bankLogoSrc(name) {
+  const raw = String(name || '').toLowerCase().trim();
+  if (!raw) return null;
+  const compact = raw.replace(/[\s.\-_/]+/g, '');
+  for (const rule of BANK_LOGO_RULES) {
+    for (const key of rule.keys) {
+      const k = key.toLowerCase();
+      if (raw.includes(k) || compact.includes(k.replace(/\s+/g, ''))) return rule.file;
+    }
+  }
+  return null;
+}
+
+/** Logo when bank is known; letter avatar otherwise. Used on Cash / Offers / Reconcile. */
+function bankAvatarHtml(name, extraClass = '') {
+  const place = String(name || 'Bank');
+  const tone = bankAvatarTone(place);
+  const initial = bankInitialFromName(place);
+  const src = bankLogoSrc(place);
+  const cls = `offer-avatar${src ? ' offer-avatar--logo' : ' offer-avatar--' + tone}${extraClass ? ' ' + extraClass : ''}`;
+  if (src) {
+    return `<div class="${cls}" title="${escapeHtml(place)}"><img class="bank-logo-img" src="${src}" alt="" loading="lazy" onerror="this.onerror=null;this.remove();this.parentElement.classList.remove('offer-avatar--logo');this.parentElement.classList.add('offer-avatar--${tone}');this.parentElement.textContent='${escapeHtml(initial)}';"></div>`;
+  }
+  return `<div class="${cls}" title="${escapeHtml(place)}" aria-hidden="true">${escapeHtml(initial)}</div>`;
+}
+
 function renderOfferGlassCard(e) {
   const approved = cashEntryIsApproved(e);
   const sid = escapeHtml(e.id);
   const place = e.place || 'Lender';
-  const tone = bankAvatarTone(place);
-  const initial = bankInitialFromName(place);
   const validDate = e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate);
   const tags = `<div class="offer-tags">
     <span class="offer-tag ${approved ? 'offer-tag-approved' : 'offer-tag-pending'}">${approved ? 'Approved' : 'Pending approval'}</span>
@@ -2568,7 +2611,7 @@ function renderOfferGlassCard(e) {
       <div class="offer-glass-main">
         <div class="offer-glass-top">
           <div class="offer-glass-title">
-            <div class="offer-avatar offer-avatar--${tone}" aria-hidden="true">${escapeHtml(initial)}</div>
+            ${bankAvatarHtml(place)}
             <div class="offer-glass-text">
               <div class="offer-bank-name">${escapeHtml(place)}</div>
               <div class="offer-bank-meta">${approved ? 'Pre-approved credit · ready to draw' : 'Awaiting approval'}</div>
@@ -2607,8 +2650,6 @@ function renderOfferGlassCard(e) {
 function renderCashGlassCard(e) {
   const sid = escapeHtml(e.id);
   const place = e.place || 'Place';
-  const tone = bankAvatarTone(place);
-  const initial = bankInitialFromName(place);
   const validDate = e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate);
   const hasTags = e.category || e.payer || validDate;
   const tags = hasTags ? `<div class="offer-tags">
@@ -2624,7 +2665,7 @@ function renderCashGlassCard(e) {
       <div class="offer-glass-main">
         <div class="offer-glass-top">
           <div class="offer-glass-title">
-            <div class="offer-avatar offer-avatar--${tone}" aria-hidden="true">${escapeHtml(initial)}</div>
+            ${bankAvatarHtml(place)}
             <div class="offer-glass-text">
               <div class="offer-bank-name">${escapeHtml(place)}</div>
               <div class="offer-bank-meta">${e.category ? escapeHtml(e.category) : 'Available balance'}</div>
