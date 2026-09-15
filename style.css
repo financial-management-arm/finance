@@ -5896,3 +5896,28 @@ code.abonent-code {
   .rx-y, .rx-x { fill: #94a3b8; }
   .rx-grid { stroke: rgba(148,163,184,0.16); }
 }
+
+/* Dark month pulse — force readable numbers */
+#page-reports .today-hero {
+  background: linear-gradient(115deg, #102433 0%, #1b4558 58%, #0f766e 140%);
+  border-color: rgba(255,255,255,0.08);
+}
+#page-reports .today-hero .eyebrow,
+#page-reports .today-hero .hero-amount,
+#page-reports .today-hero .hero-sub,
+#page-reports .today-hero .progress-ring-copy strong,
+#page-reports .today-hero .progress-ring-copy span {
+  color: #f8fafc;
+}
+#page-reports .today-hero .eyebrow,
+#page-reports .today-hero .hero-sub,
+#page-reports .today-hero .progress-ring-copy span {
+  color: rgba(248, 250, 252, 0.78);
+}
+#page-reports .today-hero .hero-amount {
+  color: #ffffff;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.18);
+}
+#page-reports .today-hero .progress-ring-track { stroke: rgba(255,255,255,0.22); }
+#page-reports .today-hero .progress-ring-value { stroke: #5eead4; }
+#page-reports .today-hero .progress-ring-copy strong { color: #ffffff; }

@@ -4439,27 +4439,34 @@ function reportAxisTicks(max, count = 4) {
   return Array.from({ length: count + 1 }, (_, i) => Math.round((top / count) * i));
 }
 
-async function syncReports() {
-  if (reportSyncTask) return reportSyncTask;
+async function syncReports(force = false) {
+  if (reportSyncTask && !force) return reportSyncTask;
   const token = ++reportSyncToken;
-  state.reportLoading = true;
+  const cached = seedReportData();
+  const fresh = !force && cached && (Date.now() - Number(cached.savedAt || 0) < 20 * 60 * 1000);
   state.reportError = false;
+  renderReports();
+  if (fresh) return null;
+
+  state.reportLoading = true;
   const previousReportData = state.reportData;
-  if (!previousReportData) renderReports();
   const btn = document.getElementById('btn-sync-reports');
   if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
   reportSyncTask = (async () => {
     try {
       const params = { action: 'getReportData', toMonth: todayMonth(), window: state.reportWindow };
       if (state.reportPayer !== 'all') params.payer = state.reportPayer;
-      const data = await callApi(params, { retries: 0, timeout: 20000 });
+      const data = await callApi(params, { retries: 0, timeout: 28000 });
       if (data.error) throw new Error(data.error);
-      if (token === reportSyncToken) state.reportData = data;
+      if (token === reportSyncToken) {
+        state.reportData = data;
+        writeReportCache(data);
+      }
     } catch (err) {
       if (token === reportSyncToken) {
-        state.reportError = true;
-        state.reportData = previousReportData;
-        showError('Reports are taking too long. Try Sync again.');
+        state.reportError = !previousReportData;
+        state.reportData = previousReportData || buildLocalReportData();
+        if (!previousReportData) showError('Reports are taking too long. Try Sync again.');
       }
     } finally {
       if (token === reportSyncToken) {
@@ -4485,29 +4492,106 @@ function reportPayerOptions() {
   return [...payerSet].sort();
 }
 
+function reportCacheKey() {
+  return `finance-arm:report:${state.reportWindow}:${state.reportPayer || 'all'}`;
+}
+
+function readReportCache() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(reportCacheKey()) || 'null');
+    if (!parsed || !parsed.data) return null;
+    return parsed;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeReportCache(data) {
+  try {
+    localStorage.setItem(reportCacheKey(), JSON.stringify({ savedAt: Date.now(), data }));
+  } catch (err) { /* ignore quota */ }
+}
+
+function reportMonthList() {
+  const to = todayMonth();
+  const n = Math.min(Math.max(Number(state.reportWindow) || 6, 1), 24);
+  return Array.from({ length: n }, (_, i) => shiftMonth(to, -(n - 1 - i)));
+}
+
+function buildLocalReportData() {
+  const months = reportMonthList();
+  const payer = state.reportPayer === 'all' ? '' : String(state.reportPayer || '').trim();
+  const incomeByMonth = {};
+  state.income.forEach(row => {
+    const mo = String(row.date || '').slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(mo)) return;
+    incomeByMonth[mo] = (incomeByMonth[mo] || 0) + (Number(row.amount) || 0);
+  });
+  const cashFlow = months.map(mo => {
+    const income = incomeByMonth[mo] || 0;
+    let paid = 0;
+    Object.values(state.paymentMeta || {}).forEach(p => {
+      const keyMo = String(p.month || String(p.key || '').split('__')[1] || '');
+      if (keyMo !== mo) return;
+      const isPd = p.paid === true || String(p.paid).toUpperCase() === 'TRUE';
+      const isPartial = String(p.status || '').toLowerCase() === 'partial';
+      if (isPd || isPartial) paid += Number(p.paidAmount) || 0;
+    });
+    return { month: mo, income, paid, net: income - paid };
+  });
+  const loans = activeLoans().filter(l => !payer || String(l.payer || '').trim() === payer);
+  const nowDebt = loans.reduce((s, l) => s + (Number(loanBalance(l) ?? l.currentBalance) || 0), 0);
+  const debt = months.map((mo, i) => ({
+    month: mo,
+    totalBalance: mo === todayMonth() || mo === state.month ? nowDebt : 0,
+    delta: i === 0 ? null : 0
+  }));
+  if (debt.length) debt[debt.length - 1].totalBalance = nowDebt;
+  const loanProjections = loans.map(loan => {
+    const balance = Number(loanBalance(loan) ?? loan.currentBalance) || 0;
+    const monthly = Number(loan.amount) || 0;
+    const payoffDate = monthly > 0 && balance > 0 ? shiftMonth(todayMonth(), Math.ceil(balance / monthly)) : null;
+    return { id: loan.id, bank: String(loan.bank || ''), payer: String(loan.payer || ''), balance, monthly, payoffDate };
+  });
+  return {
+    months, cashFlow, debt, paymentHealth: [], loanProjections,
+    payers: reportPayerOptions(), activeFilter: payer || null, local: true
+  };
+}
+
+function seedReportData() {
+  const cached = readReportCache();
+  if (cached && cached.data) {
+    state.reportData = cached.data;
+    return cached;
+  }
+  if (!state.reportData) state.reportData = buildLocalReportData();
+  return null;
+}
+
 function reportEnrichedCashFlow(d) {
   const raw = d.cashFlow || [];
   const payMap = new Map(Object.entries(state.paymentMeta || {}));
-  const hasLocal = payMap.size > 0;
   const utils = state.utilities.filter(u => u.active === true || String(u.active).toUpperCase() === 'TRUE');
 
   function monthPaid(month, fallback) {
-    if (!hasLocal) return Number(fallback) || 0;
     const items = [
       ...activeObs().filter(o => isObligationDueThisMonth(o, month)),
       ...utils
     ];
     let total = 0;
+    let saw = false;
     items.forEach(item => {
       const p = payMap.get(`${item.id}__${month}`);
       if (!p) return;
+      saw = true;
       const isPd = p.paid === true || String(p.paid).toUpperCase() === 'TRUE';
       const isPartial = String(p.status || '').toLowerCase() === 'partial';
       if (isPd || isPartial) {
         total += Number(p.paidAmount) > 0 ? Number(p.paidAmount) : (Number(item.amount) || 0);
       }
     });
-    return total;
+    return saw ? total : (Number(fallback) || 0);
   }
 
   return raw.map(r => {
@@ -4534,16 +4618,15 @@ function reportSnapshot() {
 function renderReports() {
   const body = document.getElementById('report-body');
   if (!body) return;
+  if (!state.reportData) seedReportData();
   if (!state.reportData && !state.reportLoading) {
     if (state.reportError) {
       body.innerHTML = `${renderBalancePanel()}<div class="report-panel"><div class="report-empty">Could not load the period analysis.<br>Tap <strong>↻ Sync</strong> to retry.</div></div>`;
       return;
     }
     syncReports();
-    body.innerHTML = reportsSkeleton();
-    return;
   }
-  if (state.reportLoading || !state.reportData) {
+  if (!state.reportData) {
     body.innerHTML = reportsSkeleton();
     return;
   }
@@ -5440,14 +5523,13 @@ document.addEventListener('DOMContentLoaded', () => {
     state.reportData = null;
     state.reportLoading = false;
     state.reportError = false;
-    if (state.tab === 'reports') syncReports();
+    if (state.tab === 'reports') syncReports(false);
   });
 
   document.getElementById('btn-sync-reports').addEventListener('click', () => {
-    state.reportData = null;
     state.reportLoading = false;
     state.reportError = false;
-    if (state.tab === 'reports') syncReports();
+    if (state.tab === 'reports') syncReports(true);
   });
 
   // Report column sort (click on <th data-sp data-sc>)
