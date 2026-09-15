@@ -1456,21 +1456,17 @@ function activateTab(tab) {
 }
 
 function ensureUiUnlocked() {
-  // Filter drawer sets .app inert — if it never closes cleanly, the whole site
-  // looks "stuck" until refresh. Always clear that lock when navigating.
+  // Never allow a stale overlay/inert state to make the whole app unclickable.
   try {
     document.body.classList.remove('filter-drawer-open');
     document.body.classList.remove('is-loading');
     const appEl = document.querySelector('.app');
-    if (appEl) appEl.inert = false;
+    if (appEl) {
+      appEl.inert = false;
+      appEl.removeAttribute('inert');
+    }
     const drawer = q('filter-drawer');
     if (drawer) drawer.inert = true;
-    // An open "Add / Edit" modal has a full-viewport backdrop (z-index:500) that
-    // sits above the sidebar. If the user navigates to another tab instead of
-    // explicitly closing it (very natural), every further click -- including
-    // on the sidebar nav itself -- lands on that backdrop and does nothing,
-    // looking exactly like the site is "locked". Always close any leftover
-    // modal when navigating.
     document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(m => m.classList.add('hidden'));
   } catch (_) { /* ignore */ }
 }
@@ -4957,6 +4953,9 @@ function renderPayerPanel() {
 // Boot
 // ================================================================
 document.addEventListener('DOMContentLoaded', () => {
+  ensureUiUnlocked();
+  window.addEventListener('focus', ensureUiUnlocked);
+  window.addEventListener('pageshow', ensureUiUnlocked);
   wireBankPickers(document);
   // Input-modality tracking: keyboard actions stay instant; pointer/touch actions may animate.
   const setKeyboardMode = event => {
@@ -5402,10 +5401,8 @@ function openFilterDrawer(tab) {
   }
 
   const drawer = q('filter-drawer');
-  const appEl = document.querySelector('.app');
   document.body.classList.add('filter-drawer-open');
   if (drawer) drawer.inert = false;
-  if (appEl) appEl.inert = true;
 
   // Rebuild bank logo pickers for selects currently shown
   document.querySelectorAll('.filter-drawer-body:not(.hidden) select').forEach(sel => {
@@ -5421,7 +5418,10 @@ function openFilterDrawer(tab) {
 function closeFilterDrawer() {
   document.body.classList.remove('filter-drawer-open');
   const appEl = document.querySelector('.app');
-  if (appEl) appEl.inert = false;
+  if (appEl) {
+    appEl.inert = false;
+    appEl.removeAttribute('inert');
+  }
   const drawer = q('filter-drawer');
   if (drawer) drawer.inert = true;
   try { filterReturnFocus?.focus(); } catch (_) {}
