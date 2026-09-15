@@ -3863,38 +3863,30 @@ function renderIncomeTab() {
   q('income-tbody').innerHTML = sorted.map(i => {
     const opts = Object.entries(streamLabel)
       .map(([v, l]) => `<option value="${v}"${i.stream === v ? ' selected' : ''}>${l}</option>`).join('');
-    return `<tr id="income-row-${escapeHtml(i.id)}">
-      <td colspan="5">
-        <div class="offer-glass-card cash-glass-card income-glass-card">
-          <div class="offer-glass-glow cash-glass-glow" aria-hidden="true"></div>
-          <div class="cash-entry-view offer-glass-view">
-            <div class="offer-glass-main">
-              <div class="offer-glass-top">
-                <div class="offer-glass-title">
-                  ${bankAvatarHtml(streamLabel[i.stream] || i.stream || 'Income')}
-                  <div class="offer-glass-text">
-                    <div class="offer-bank-name">${escapeHtml(streamLabel[i.stream] || i.stream || 'Income')}</div>
-                    <div class="offer-bank-meta">${escapeHtml(i.note || 'Income entry')}</div>
-                  </div>
-                </div>
-                <div class="offer-glass-amount cash-glass-amount">${amd(i.amount)}</div>
-              </div>
-              <div class="offer-tags">
-                <span class="offer-tag offer-tag-cash">Income</span>
-                <span class="offer-tag offer-tag-cat">${escapeHtml(String(i.date).slice(0, 10))}</span>
-              </div>
-            </div>
-            <div class="cash-entry-actions offer-glass-actions">
-              <button class="btn-icon-edit" type="button" onclick="openIncomeEdit('${escapeHtml(i.id)}')" title="Edit" aria-label="Edit income">✎</button>
-              <button class="btn-icon-delete" type="button" onclick="confirmDeleteIncome('${escapeHtml(i.id)}')" title="Delete" aria-label="Delete income">✕</button>
+    const source = streamLabel[i.stream] || i.stream || 'Income';
+    const note = i.note || 'Income entry';
+    return `<article class="offer-glass-card cash-glass-card unit-glass-card income-glass-card" id="income-row-${escapeHtml(i.id)}">
+      <div class="offer-glass-glow cash-glass-glow" aria-hidden="true"></div>
+      <div class="unit-card-shell">
+        <header class="unit-card-head">
+          <div class="unit-card-ident">
+            ${bankAvatarHtml(source)}
+            <div class="unit-card-copy">
+              <h3 class="unit-card-title" title="${escapeHtml(source)}">${escapeHtml(source)}</h3>
+              <p class="unit-card-meta" title="${escapeHtml(note)}">${escapeHtml(note)}</p>
             </div>
           </div>
+          <div class="unit-card-amount">${amd(i.amount)}</div>
+        </header>
+        <div class="unit-card-tags">
+          <span class="offer-tag offer-tag-cash">Income</span>
+          <span class="offer-tag offer-tag-cat">${escapeHtml(String(i.date).slice(0, 10))}</span>
         </div>
-      </td>
-    </tr>
-    <tr id="income-edit-${escapeHtml(i.id)}" class="income-edit-tr hidden">
-      <td colspan="5">
-        <form class="income-inline-edit" onsubmit="saveIncomeEdit(event,'${escapeHtml(i.id)}')">
+        <footer class="unit-card-foot">
+          <button class="button button-secondary unit-card-pay" type="button" onclick="openIncomeEdit('${escapeHtml(i.id)}')">Edit</button>
+          <button class="button button-ghost unit-card-edit" type="button" onclick="confirmDeleteIncome('${escapeHtml(i.id)}')">✕</button>
+        </footer>
+        <form class="income-inline-edit income-edit-tr hidden" id="income-edit-${escapeHtml(i.id)}" onsubmit="saveIncomeEdit(event,'${escapeHtml(i.id)}')">
           <input class="form-input income-edit-field" name="date" type="date" value="${escapeHtml(String(i.date).slice(0, 10))}" required>
           <select class="form-select income-edit-field" name="stream">${opts}</select>
           <input class="form-input income-edit-field" name="amount" type="number" value="${Number(i.amount)}" min="1" required>
@@ -3904,8 +3896,8 @@ function renderIncomeTab() {
             <button class="button button-primary btn-sm" type="submit">Save</button>
           </div>
         </form>
-      </td>
-    </tr>`;
+      </div>
+    </article>`;
   }).join('');
 }
 
@@ -4121,7 +4113,7 @@ function renderUtilities() {
         <span class="util-group-name">${escapeHtml(payer)}</span>
         <span class="util-group-progress${allDone ? ' is-complete' : ''}">${doneCount}/${items.length} done</span>
       </div>
-      <div class="util-group-list">${items.map(utilityRow).join('')}</div>
+      <div class="util-group-list unit-glass-grid">${items.map(utilityRow).join('')}</div>
     </section>`;
   }).join('');
   container.innerHTML = friendly + `<div class="util-detail-title">Detailed list</div>` + detailed;
@@ -4184,40 +4176,35 @@ function utilityRow(u) {
 
   const amountText = fixed && Number(u.amount) > 0 ? amd(Number(u.amount)) : paidAmt ? amd(Number(paidAmt)) : '';
   return `<div class="util-row${paid ? ' is-done' : ''}" id="util-row-${escapeHtml(u.id)}" data-util-id="${escapeHtml(u.id)}">
-    <div class="offer-glass-card cash-glass-card util-glass-card${paid ? ' is-done' : ''}">
+    <article class="offer-glass-card cash-glass-card unit-glass-card util-glass-card${paid ? ' is-done' : ''}">
       <div class="offer-glass-glow cash-glass-glow" aria-hidden="true"></div>
-      <div class="cash-entry-view offer-glass-view">
-        <div class="offer-glass-main">
-          <div class="offer-glass-top">
-            <div class="offer-glass-title">
-              ${bankAvatarHtml(u.provider || u.name || 'Utility')}
-              <div class="offer-glass-text">
-                <div class="offer-bank-name">${escapeHtml(u.name)}</div>
-                <div class="offer-bank-meta">${escapeHtml(u.provider || 'Utility provider')}</div>
-              </div>
+      <div class="unit-card-shell">
+        <header class="unit-card-head">
+          <div class="unit-card-ident">
+            ${bankAvatarHtml(u.provider || u.name || 'Utility')}
+            <div class="unit-card-copy">
+              <h3 class="unit-card-title" title="${escapeHtml(u.name)}">${escapeHtml(u.name)}</h3>
+              <p class="unit-card-meta" title="${escapeHtml(u.provider || 'Utility provider')}">${escapeHtml(u.provider || 'Utility provider')}</p>
             </div>
-            ${amountText ? `<div class="offer-glass-amount cash-glass-amount">${amountText}</div>` : ''}
           </div>
-          <div class="offer-tags">
-            <span class="offer-tag offer-tag-cash">${paid ? 'Done' : 'Utility'}</span>
-            ${Number(u.dueDay) > 0 ? `<span class="offer-tag offer-tag-cat">Day ${Number(u.dueDay)}</span>` : ''}
-            ${!personal ? `<span class="offer-tag offer-tag-payer">Business</span>` : ''}
-            ${showAbonent ? `<span class="offer-tag offer-tag-date">${escapeHtml(rawAbonent)}</span>` : '<span class="offer-tag offer-tag-date">Transfer</span>'}
-            ${showAbonent ? `<button class="util-copy-btn util-copy-chip" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy</button>` : ''}
-          </div>
+          <div class="unit-card-amount${amountText ? '' : ' is-empty'}">${amountText || '—'}</div>
+        </header>
+        <div class="unit-card-tags">
+          <span class="offer-tag offer-tag-cash">${paid ? 'Done' : 'Utility'}</span>
+          ${Number(u.dueDay) > 0 ? `<span class="offer-tag offer-tag-cat">Day ${Number(u.dueDay)}</span>` : '<span class="offer-tag offer-tag-cat">No due day</span>'}
+          ${!personal ? `<span class="offer-tag offer-tag-payer">Business</span>` : ''}
+          ${showAbonent
+            ? `<button class="util-copy-btn util-copy-chip" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>`
+            : '<span class="offer-tag offer-tag-date">Transfer</span>'}
         </div>
-        <div class="cash-entry-actions offer-glass-actions">
-          <button class="util-toggle${paid ? ' is-done' : ''}" type="button"
-                  onclick="toggleUtilityPaid('${escapeHtml(u.id)}')"
-                  aria-label="${paid ? 'Mark undone' : 'Mark done'}"
-                  title="${paid ? 'Mark undone' : 'Mark done'}"></button>
-          <button class="btn-icon-edit" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')"
-                  title="Edit" aria-label="Edit utility">✎</button>
-          <button class="btn-icon-delete" type="button" onclick="confirmDeleteUtility('${escapeHtml(u.id)}')"
-                  title="Delete" aria-label="Delete utility">✕</button>
-        </div>
+        <footer class="unit-card-foot unit-card-foot-3">
+          <button class="button ${paid ? 'button-secondary' : 'button-primary'} unit-card-pay" type="button"
+                  onclick="toggleUtilityPaid('${escapeHtml(u.id)}')">${paid ? 'Undo' : 'Mark done'}</button>
+          <button class="button button-ghost unit-card-edit" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')">Edit</button>
+          <button class="button button-ghost unit-card-edit" type="button" onclick="confirmDeleteUtility('${escapeHtml(u.id)}')">✕</button>
+        </footer>
       </div>
-    </div>
+    </article>
     ${personal && !fixed && !paid ? `<div class="util-amount-panel hidden" id="util-panel-${escapeHtml(u.id)}">
       <label class="util-panel-label">Amount paid ֏</label>
       <div class="util-panel-row">
