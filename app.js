@@ -1370,15 +1370,13 @@ async function revalidateMonth(month, force = false) {
 }
 
 function setSyncStatus(status, label) {
-  const button = q('sync-button');
-  if (button) {
+  document.querySelectorAll('.header-sync, #sync-button').forEach(button => {
     button.dataset.status = status;
     button.disabled = status === 'saving';
-  }
+    button.title = label || 'Refresh data';
+  });
   const statusLabel = q('sync-status');
   if (statusLabel) statusLabel.textContent = label;
-  const mobileLabel = q('sync-status-mobile');
-  if (mobileLabel) mobileLabel.textContent = label;
 }
 
 function toggleMobileNav(open) {
@@ -1557,13 +1555,35 @@ function togglePageHeader(pageId) {
 function initCollapsibleHeaders() {
   document.querySelectorAll('.page > .page-header').forEach(header => {
     const page = header.parentElement;
-    if (!page || header.querySelector('.header-toggle')) return;
+    if (!page || header.querySelector('.header-rail')) return;
+    const rail = document.createElement('div');
+    rail.className = 'header-rail';
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'header-toggle';
     btn.addEventListener('click', () => togglePageHeader(page.id));
-    header.insertBefore(btn, header.firstChild);
+    const sync = document.createElement('button');
+    sync.type = 'button';
+    sync.className = 'header-sync';
+    sync.title = 'Refresh data';
+    sync.innerHTML = `<span class="sync-dot" aria-hidden="true"></span>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 8a6 6 0 1 0 0 5M16 3v5h-5"/></svg>`;
+    sync.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      refreshData(false).catch(() => {});
+    });
+    rail.append(btn, sync);
+    header.insertBefore(rail, header.firstChild);
   });
+  if (!q('sync-status')) {
+    const live = document.createElement('span');
+    live.id = 'sync-status';
+    live.className = 'sr-only';
+    live.setAttribute('role', 'status');
+    live.setAttribute('aria-live', 'polite');
+    document.body.appendChild(live);
+  }
   refreshHeaderToggles();
 }
 

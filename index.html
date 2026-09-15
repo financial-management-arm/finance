@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=89">
+  <link rel="stylesheet" href="style.css?v=90">
 </head>
 <body class="month-pending">
 
@@ -39,15 +39,7 @@
       <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V10h4v8H4Zm6 0V4h4v14h-4Zm6 0v-6h4v6h-4Z"/></svg><span class="nav-label">Reports</span></a></li>
       <li class="mobile-more"><button id="mobile-more-button" type="button" onclick="toggleMobileNav()" aria-expanded="false" aria-controls="mobile-menu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h1m5 0h1m5 0h1"/></svg><span>More</span></button></li>
     </ul>
-    <div class="sidebar-footer">
-      <span class="workspace-avatar">H</span>
-      <div><strong>Harutyunyan</strong><span>Personal workspace</span></div>
-      <button id="sync-button" type="button" onclick="refreshData(false).catch(() => {})" title="Refresh data">
-        <span class="sync-dot" aria-hidden="true"></span>
-        <span id="sync-status" role="status" aria-live="polite">Connecting...</span>
-        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 8a6 6 0 1 0 0 5M16 3v5h-5"/></svg>
-      </button>
-    </div>
+    <div class="sidebar-footer"><span class="workspace-avatar">H</span><div><strong>Harutyunyan</strong><span>Personal workspace</span></div></div>
   </nav>
   <div id="mobile-menu" class="mobile-menu hidden" aria-label="More pages">
     <button type="button" onclick="switchTab('cash')">Cash <span>Track cash holdings</span></button>
@@ -56,7 +48,6 @@
     <button type="button" onclick="switchTab('utilities')">Utilities <span>Manage recurring expenses</span></button>
     <button type="button" onclick="switchTab('partners')">Partners <span>Banks, agencies & everyone else you deal with</span></button>
     <button type="button" onclick="switchTab('reports')">Reports <span>See the bigger picture</span></button>
-    <button type="button" onclick="refreshData(false).catch(() => {})">Refresh data <span id="sync-status-mobile">Sync the latest numbers</span></button>
   </div>
 
   <!-- ═══════════════ MAIN ═══════════════ -->
@@ -1103,7 +1094,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=121"></script>
+<script src="app.js?v=122"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>

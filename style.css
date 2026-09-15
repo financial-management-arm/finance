@@ -6102,7 +6102,7 @@ code.abonent-code {
   padding: 6px 12px;
   align-items: center;
 }
-.page.header-closed > .page-header > *:not(.header-toggle) {
+.page.header-closed > .page-header > *:not(.header-rail) {
   display: none !important;
 }
 .page.header-closed > .page-header .header-toggle,
@@ -6680,3 +6680,48 @@ code.abonent-code {
 }
 .sidebar-footer #sync-button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; }
 .sidebar-footer #sync-status { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-bar { display: none !important; height: 0 !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); border: 0;
+}
+.header-rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.page.header-closed > .page-header .header-rail { display: flex !important; }
+.page.header-closed > .page-header .header-toggle { flex: 1 1 auto; width: auto; min-width: 0; }
+.header-sync {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(8,18,28,0.28);
+  color: #ecfeff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+}
+.header-sync svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+.header-sync .sync-dot {
+  position: absolute;
+  top: 7px; right: 7px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+}
+.header-sync[data-status="error"] .sync-dot { background: #f59e0b; }
+.header-sync[data-status="loading"] .sync-dot,
+.header-sync[data-status="saving"] .sync-dot { background: #60a5fa; }
+.header-sync[data-status="loading"] svg { animation: header-sync-spin .8s linear infinite; }
+@keyframes header-sync-spin { to { transform: rotate(360deg); } }
+.page.header-open > .page-header .header-rail {
+  width: auto;
+  margin-left: auto;
+  order: 8;
+}
+.sidebar-footer #sync-button { display: none !important; }
