@@ -856,7 +856,7 @@ function renderReconcile() {
       <div class="recon-bar"><div class="recon-bar-fill" id="recon-bar-fill"></div></div>
       <p class="recon-hint">
         <span id="recon-results-count">${reconResultsText(all, loans)}</span>
-        <br>Type a balance, then click Save or press Enter. Saved rows stay in place until you choose Hide saved.
+        <br>Type the remaining balance, then Save or press Enter. Cards update as you confirm each loan.
       </p>
     </div>`;
 
@@ -901,36 +901,48 @@ function reconRow(l) {
   const contracts = contractParts(l.contractNumber);
   const draft = reconDrafts.get(pkey(l.id, state.month));
   const saving = reconSaveTasks.has(pkey(l.id, state.month));
-  return `<div class="recon-row ${done ? 'is-done' : ''} ${saving ? 'is-saving' : ''}" data-recon-id="${id}" ${saving ? 'aria-busy="true"' : ''}>
-    <div class="recon-id">
-      <div class="recon-name" style="color:${payerColor(l.payer)}">${escapeHtml(l.payer || '—')}</div>
-      <div class="recon-sub">
-        <span>${escapeHtml(l.bank || '')}</span>
-        ${contracts.length ? contracts.map(part => copyChip(part)).join('')
-                           : '<span class="recon-nocontract">no contract</span>'}
-        ${Number(l.loanTotal) > 0 ? `<span class="recon-initial">${amd(l.loanTotal)} initial</span>` : ''}
-        ${Number(l.amount) > 0 ? `<span>${amd(l.amount)}/mo</span>` : ''}
+  const bank = l.bank || 'Bank';
+  const tone = bankAvatarTone(bank);
+  const initial = bankInitialFromName(bank);
+  return `<div class="recon-row recon-glass-card ${done ? 'is-done' : ''} ${saving ? 'is-saving' : ''}" data-recon-id="${id}" ${saving ? 'aria-busy="true"' : ''}>
+    <div class="recon-glass-main">
+      <div class="recon-id">
+        <div class="recon-glass-title">
+          <div class="offer-avatar offer-avatar--${tone}" aria-hidden="true">${escapeHtml(initial)}</div>
+          <div class="recon-glass-text">
+            <div class="recon-name" style="color:${payerColor(l.payer)}">${escapeHtml(l.payer || '—')}</div>
+            <div class="recon-sub">
+              <span class="recon-bank-label">${escapeHtml(bank)}</span>
+              ${contracts.length ? contracts.map(part => copyChip(part)).join('')
+                                 : '<span class="recon-nocontract">no contract</span>'}
+              ${Number(l.loanTotal) > 0 ? `<span class="recon-initial">${amd(l.loanTotal)} initial</span>` : ''}
+              ${Number(l.amount) > 0 ? `<span>${amd(l.amount)}/mo</span>` : ''}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="recon-prev-wrap">
-      <span class="recon-prev">${prev !== null ? amd(prev) : '—'}</span>
-      <span class="recon-prev-when">${src ? monthLabel(src) : 'never read'}</span>
-    </div>
-    <div class="recon-entry">
-      <input class="recon-input" id="recon-input-${id}" type="number" inputmode="numeric" min="0"
-             aria-label="Remaining balance for ${escapeHtml(l.payer || '')} at ${escapeHtml(l.bank || '')}"
-             value="${escapeHtml(draft?.value ?? (done && prev !== null ? String(prev) : ''))}" ${saving ? 'disabled' : ''}
-             placeholder="${prev !== null ? prev : 'balance'}"
-             onfocus="this.select()"
-             oninput="reconcileDelta('${id}', this)"
-             onkeydown="reconcileKey(event, '${id}', this)">
-      <span class="recon-delta ${draft?.status === 'error' ? 'is-up' : ''}" id="recon-delta-${id}" role="status">${saving ? 'Saving...' : draft?.status === 'error' ? 'Not confirmed. Retry or refresh.' : draft ? 'Not saved' : done ? 'Saved' : ''}</span>
-    </div>
-    <div class="recon-actions">
-      <button class="button button-primary recon-save" id="recon-save-${id}" type="button" ${saving ? 'disabled' : ''}
-              onclick="reconcileSave('${id}', q('recon-input-${id}'))">${saving ? 'Saving...' : draft?.status === 'error' ? 'Retry' : 'Save'}</button>
-      <button class="button button-ghost recon-keep" type="button" ${saving ? 'disabled' : ''}
-              onclick="reconcileKeep('${id}')" title="Fill in the last saved balance">Use last</button>
+      <div class="recon-prev-wrap">
+        <span class="recon-prev-label">Last saved</span>
+        <span class="recon-prev">${prev !== null ? amd(prev) : '—'}</span>
+        <span class="recon-prev-when">${src ? monthLabel(src) : 'never read'}</span>
+      </div>
+      <div class="recon-entry">
+        <label class="recon-entry-label" for="recon-input-${id}">New balance</label>
+        <input class="recon-input" id="recon-input-${id}" type="number" inputmode="numeric" min="0"
+               aria-label="Remaining balance for ${escapeHtml(l.payer || '')} at ${escapeHtml(l.bank || '')}"
+               value="${escapeHtml(draft?.value ?? (done && prev !== null ? String(prev) : ''))}" ${saving ? 'disabled' : ''}
+               placeholder="${prev !== null ? prev : 'balance'}"
+               onfocus="this.select()"
+               oninput="reconcileDelta('${id}', this)"
+               onkeydown="reconcileKey(event, '${id}', this)">
+        <span class="recon-delta ${draft?.status === 'error' ? 'is-up' : ''}" id="recon-delta-${id}" role="status">${saving ? 'Saving...' : draft?.status === 'error' ? 'Not confirmed. Retry or refresh.' : draft ? 'Not saved' : done ? 'Saved' : ''}</span>
+      </div>
+      <div class="recon-actions">
+        <button class="button button-primary recon-save" id="recon-save-${id}" type="button" ${saving ? 'disabled' : ''}
+                onclick="reconcileSave('${id}', q('recon-input-${id}'))">${saving ? 'Saving...' : draft?.status === 'error' ? 'Retry' : 'Save'}</button>
+        <button class="button button-ghost recon-keep" type="button" ${saving ? 'disabled' : ''}
+                onclick="reconcileKeep('${id}')" title="Fill in the last saved balance">Use last</button>
+      </div>
     </div>
   </div>`;
 }
@@ -1328,7 +1340,21 @@ function activateTab(tab) {
   );
 }
 
+function ensureUiUnlocked() {
+  // Filter drawer sets .app inert — if it never closes cleanly, the whole site
+  // looks "stuck" until refresh. Always clear that lock when navigating.
+  try {
+    document.body.classList.remove('filter-drawer-open');
+    document.body.classList.remove('is-loading');
+    const appEl = document.querySelector('.app');
+    if (appEl) appEl.inert = false;
+    const drawer = q('filter-drawer');
+    if (drawer) drawer.inert = true;
+  } catch (_) { /* ignore */ }
+}
+
 function switchTab(tab) {
+  ensureUiUnlocked();
   toggleMobileNav(false);
   activateTab(tab);
   updateUrlForTab(tab, tab === 'reports' ? String(state.reportWindow) : '');
@@ -4124,8 +4150,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('touchstart', setPointerMode, { capture: true, passive: true });
 
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && document.body.classList.contains('filter-drawer-open')) {
-      closeFilterDrawer();
+    if (event.key === 'Escape') {
+      if (document.body.classList.contains('filter-drawer-open')) closeFilterDrawer();
+      else ensureUiUnlocked();
     }
   });
 
@@ -4419,6 +4446,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.addEventListener('hashchange', () => {
+    ensureUiUnlocked();
     const { tab: nextTab, sub: nextSub } = parseRoute();
     if (!nextTab) return;
     const nextWin = nextTab === 'reports' && [3, 6, 12].includes(Number(nextSub)) ? Number(nextSub) : state.reportWindow;
@@ -4544,21 +4572,25 @@ function openFilterDrawer(tab) {
     resultsEl.textContent = src ? src.textContent : '';
   }
 
+  const drawer = q('filter-drawer');
+  const appEl = document.querySelector('.app');
   document.body.classList.add('filter-drawer-open');
-  q('filter-drawer').inert = false;
-  document.querySelector('.app').inert = true;
+  if (drawer) drawer.inert = false;
+  if (appEl) appEl.inert = true;
 
-  const activeBody = document.getElementById(`drawer-${tab}-filters`);
-  if (activeBody) {
-    q('filter-drawer').querySelector('.filter-drawer-close').focus();
-  }
+  try {
+    const closeBtn = drawer && drawer.querySelector('.filter-drawer-close');
+    if (closeBtn) closeBtn.focus();
+  } catch (_) { /* focus can fail; never leave UI locked forever */ }
 }
 
 function closeFilterDrawer() {
   document.body.classList.remove('filter-drawer-open');
-  document.querySelector('.app').inert = false;
-  q('filter-drawer').inert = true;
-  filterReturnFocus?.focus();
+  const appEl = document.querySelector('.app');
+  if (appEl) appEl.inert = false;
+  const drawer = q('filter-drawer');
+  if (drawer) drawer.inert = true;
+  try { filterReturnFocus?.focus(); } catch (_) {}
 }
 
 function updateFilterBadge(tab, count) {
