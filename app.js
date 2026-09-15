@@ -3441,8 +3441,8 @@ function renderOfferGlassCard(e) {
         ${tags}
       </div>
       <div class="cash-entry-actions offer-glass-actions">
-        <button class="btn-icon-edit" type="button" onclick="openCashEdit('${sid}')" title="Edit" aria-label="Edit offer">✎</button>
-        <button class="btn-icon-delete" type="button" onclick="confirmDeleteCash('${sid}')" title="Delete" aria-label="Delete offer">✕</button>
+        <button class="button button-primary" type="button" onclick="openCashEdit('${sid}')">Edit</button>
+        <button class="button button-ghost" type="button" onclick="confirmDeleteCash('${sid}')">Delete</button>
       </div>
     </div>
     <form class="cash-entry-edit hidden" id="cash-edit-${sid}" onsubmit="saveCashEdit(event,'${sid}')">
@@ -3495,8 +3495,8 @@ function renderCashGlassCard(e) {
         ${tags}
       </div>
       <div class="cash-entry-actions offer-glass-actions">
-        <button class="btn-icon-edit" type="button" onclick="openCashEdit('${sid}')" title="Edit" aria-label="Edit entry">✎</button>
-        <button class="btn-icon-delete" type="button" onclick="confirmDeleteCash('${sid}')" title="Delete" aria-label="Delete entry">✕</button>
+        <button class="button button-primary" type="button" onclick="openCashEdit('${sid}')">Edit</button>
+        <button class="button button-ghost" type="button" onclick="confirmDeleteCash('${sid}')">Delete</button>
       </div>
     </div>
     <form class="cash-entry-edit hidden" id="cash-edit-${sid}" onsubmit="saveCashEdit(event,'${sid}')">
@@ -3543,8 +3543,8 @@ function renderCashEntryCard(e) {
         ${tags}
       </div>
       <div class="cash-entry-actions">
-        <button class="btn-icon-edit" type="button" onclick="openCashEdit('${sid}')" title="Edit" aria-label="Edit entry">✎</button>
-        <button class="btn-icon-delete" type="button" onclick="confirmDeleteCash('${sid}')" title="Delete" aria-label="Delete entry">✕</button>
+        <button class="button button-primary" type="button" onclick="openCashEdit('${sid}')">Edit</button>
+        <button class="button button-ghost" type="button" onclick="confirmDeleteCash('${sid}')">Delete</button>
       </div>
     </div>
     <form class="cash-entry-edit hidden" id="cash-edit-${sid}" onsubmit="saveCashEdit(event,'${sid}')">
@@ -3955,7 +3955,7 @@ function renderIncomeTab() {
           <span class="offer-tag offer-tag-cat">${escapeHtml(String(i.date).slice(0, 10))}</span>
         </div>
         <footer class="unit-card-foot">
-          <button class="button button-secondary unit-card-pay" type="button" onclick="openIncomeEdit('${escapeHtml(i.id)}')">Edit</button>
+          <button class="button button-primary unit-card-pay" type="button" onclick="openIncomeEdit('${escapeHtml(i.id)}')">Edit</button>
           <button class="button button-ghost unit-card-edit" type="button" onclick="confirmDeleteIncome('${escapeHtml(i.id)}')">✕</button>
         </footer>
         <form class="income-inline-edit income-edit-tr hidden" id="income-edit-${escapeHtml(i.id)}" onsubmit="saveIncomeEdit(event,'${escapeHtml(i.id)}')">

@@ -6630,3 +6630,36 @@ code.abonent-code {
   transform: translateY(1px);
   filter: brightness(.96);
 }
+
+.offer-glass-view { flex-wrap: wrap; }
+.offer-glass-main { flex: 1 1 calc(100% - 48px); }
+.offer-glass-actions {
+  flex: 1 1 100%;
+  flex-direction: row;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.offer-glass-actions .button,
+.cash-entry-actions .button {
+  min-height: 40px;
+  width: 100%;
+}
+.offer-glass-actions .button-ghost,
+.cash-entry-actions .button-ghost {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e2e8f0;
+  border-radius: 12px;
+}
+#page-income .page-header-actions .button-primary,
+#page-cash .page-header-actions .button-primary,
+#page-offers .page-header-actions .button-primary,
+#page-income .unit-card-pay.button-primary {
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  border: 0 !important;
+  color: #fff !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 16px -8px rgba(37, 99, 235, 0.9), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+}
