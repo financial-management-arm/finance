@@ -2508,6 +2508,76 @@ function categoryAccent(cat) {
   return palette[h % palette.length];
 }
 
+/* Elite offer card — avatar tones from bank/place name */
+function bankAvatarTone(name) {
+  const tones = ['indigo', 'cyan', 'coral', 'emerald', 'blue', 'purple'];
+  const s = String(name || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff;
+  return tones[h % tones.length];
+}
+
+function bankInitialFromName(name) {
+  const s = String(name || '').trim();
+  return s ? s.charAt(0).toUpperCase() : '?';
+}
+
+function renderOfferGlassCard(e) {
+  const approved = cashEntryIsApproved(e);
+  const sid = escapeHtml(e.id);
+  const place = e.place || 'Lender';
+  const tone = bankAvatarTone(place);
+  const initial = bankInitialFromName(place);
+  const validDate = e.lastAvailableDate && /^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate);
+  const tags = `<div class="offer-tags">
+    <span class="offer-tag ${approved ? 'offer-tag-approved' : 'offer-tag-pending'}">${approved ? 'Approved' : 'Pending approval'}</span>
+    ${e.category ? `<span class="offer-tag offer-tag-cat">${escapeHtml(e.category)}</span>` : ''}
+    ${e.payer ? `<span class="offer-tag offer-tag-payer">${escapeHtml(e.payer)}</span>` : ''}
+    ${validDate ? `<span class="offer-tag offer-tag-date">${e.lastAvailableDate}</span>` : ''}
+  </div>`;
+
+  return `<div class="offer-glass-card" id="cash-entry-${sid}">
+    <div class="offer-glass-glow" aria-hidden="true"></div>
+    <div class="cash-entry-view offer-glass-view">
+      <div class="offer-glass-main">
+        <div class="offer-glass-top">
+          <div class="offer-glass-title">
+            <div class="offer-avatar offer-avatar--${tone}" aria-hidden="true">${escapeHtml(initial)}</div>
+            <div class="offer-glass-text">
+              <div class="offer-bank-name">${escapeHtml(place)}</div>
+              <div class="offer-bank-meta">${approved ? 'Pre-approved credit · ready to draw' : 'Awaiting approval'}</div>
+            </div>
+          </div>
+          <div class="offer-glass-amount">${amd(Number(e.amount))}</div>
+        </div>
+        ${tags}
+      </div>
+      <div class="cash-entry-actions offer-glass-actions">
+        <button class="btn-icon-edit" type="button" onclick="openCashEdit('${sid}')" title="Edit" aria-label="Edit offer">✎</button>
+        <button class="btn-icon-delete" type="button" onclick="confirmDeleteCash('${sid}')" title="Delete" aria-label="Delete offer">✕</button>
+      </div>
+    </div>
+    <form class="cash-entry-edit hidden" id="cash-edit-${sid}" onsubmit="saveCashEdit(event,'${sid}')">
+      <select class="form-input" name="type">
+        <option value="cash">Cash Holding</option>
+        <option value="offer" selected>Loan Offer</option>
+      </select>
+      <input class="form-input" name="category" type="text" list="all-categories-list" value="${escapeHtml(e.category || '')}" placeholder="Category (optional)" maxlength="80">
+      <div class="cash-edit-offer-fields">
+        <input class="form-input" name="payer" type="text" list="offer-payers-list" value="${escapeHtml(e.payer || '')}" placeholder="For whom" maxlength="80">
+        <input class="form-input" name="lastAvailableDate" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(e.lastAvailableDate || '') ? e.lastAvailableDate : ''}">
+        <label class="completed-switch cash-edit-approved"><input type="checkbox" name="approved" ${approved ? 'checked' : ''}><span class="switch-track" aria-hidden="true"></span><span>Already approved</span></label>
+      </div>
+      <input class="form-input" name="place"  value="${escapeHtml(e.place)}" placeholder="Bank / Place" required maxlength="100">
+      <input class="form-input" name="amount" type="number" value="${Number(e.amount)}" min="0" step="1000" required>
+      <div class="cash-edit-btns">
+        <button class="button button-ghost btn-sm"   type="button" onclick="closeCashEdit('${sid}')">Cancel</button>
+        <button class="button button-primary btn-sm" type="submit">Save</button>
+      </div>
+    </form>
+  </div>`;
+}
+
 function renderCashEntryCard(e) {
   const isOffer = cashEntryIsOffer(e);
   const approved = cashEntryIsApproved(e);
@@ -2663,7 +2733,7 @@ function renderOfferSection(allOffers) {
       <span class="cash-section-title">${title}</span>
       <span class="cash-section-badge ${badgeClass||''}">${list.length}</span>
     </div>
-    <div class="cash-entries-list">${list.map(renderCashEntryCard).join('')}</div>
+    <div class="offer-glass-grid">${list.map(renderOfferGlassCard).join('')}</div>
     <div class="section-total">Subtotal: <strong>${amd(subtotal)}</strong></div>`;
   }
 
@@ -2672,7 +2742,7 @@ function renderOfferSection(allOffers) {
       <span class="cash-section-title">Loan Offers</span>
       <span class="cash-section-badge">${allOffers.length}</span>
     </div>
-    <p class="offers-block-note">Pre-approved credit — not yet drawn</p>
+    <p class="offers-block-note">Pre-approved credit lines — tap a card to edit · not yet drawn into obligations</p>
     <span id="offer-results-count" class="cash-results-line">${resultsText}</span>
     ${sorted.length
       ? `${subsection('Approved', approvedList, 'is-approved')}
@@ -2711,18 +2781,21 @@ function renderCashTab() {
 function renderOffersTab() {
   const offerEntries = state.cashEntries.filter(cashEntryIsOffer);
   const offerTotal   = offerEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const approvedN = offerEntries.filter(cashEntryIsApproved).length;
+  const lenders = new Set(offerEntries.map(e => e.place).filter(Boolean)).size;
 
   const summary = `
-    <div class="actives-summary-2">
+    <div class="actives-summary-2 offer-summary-elite">
       <div class="actives-stat">
         <span class="actives-stat-label">Loan Offers</span>
         <span class="actives-stat-value is-warning">${amd(offerTotal)}</span>
-        <span class="actives-stat-sub">${offerEntries.length} entr${offerEntries.length === 1 ? 'y' : 'ies'}</span>
+        <span class="actives-stat-sub">${offerEntries.length} entr${offerEntries.length === 1 ? 'y' : 'ies'} · ${approvedN} approved</span>
       </div>
       <div class="actives-stat-sep"></div>
       <div class="actives-stat">
         <span class="actives-stat-label">Lenders</span>
-        <span class="actives-stat-value">${new Set(offerEntries.map(e => e.place).filter(Boolean)).size}</span>
+        <span class="actives-stat-value">${lenders}</span>
+        <span class="actives-stat-sub">Compare & draw when ready</span>
       </div>
     </div>`;
 
