@@ -93,6 +93,8 @@ const reconSaveTasks = new Set();
 const reconSessionSaved = new Set();
 let financialWriteQueue = Promise.resolve();
 let toastTimer;
+let reportSyncTask = null;
+let reportSyncToken = 0;
 
 // ================================================================
 // Utilities
@@ -4366,26 +4368,37 @@ function sortRows(arr, sortStr) {
 }
 
 async function syncReports() {
+  if (reportSyncTask) return reportSyncTask;
+  const token = ++reportSyncToken;
   state.reportLoading = true;
   state.reportError = false;
-  state.reportData = null;
-  renderReports();
+  const previousReportData = state.reportData;
+  if (!previousReportData) renderReports();
   const btn = document.getElementById('btn-sync-reports');
   if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
-  try {
-    const params = { action: 'getReportData', toMonth: todayMonth(), window: state.reportWindow };
-    if (state.reportPayer !== 'all') params.payer = state.reportPayer;
-    const data = await callApi(params, { timeout: 55000 });
-    if (data.error) throw new Error(data.error);
-    state.reportData = data;
-  } catch (err) {
-    state.reportError = true;
-    showError('Could not load reports: ' + err.message);
-  } finally {
-    state.reportLoading = false;
-    if (btn) { btn.disabled = false; btn.textContent = '↻ Sync'; }
-    renderReports();
-  }
+  reportSyncTask = (async () => {
+    try {
+      const params = { action: 'getReportData', toMonth: todayMonth(), window: state.reportWindow };
+      if (state.reportPayer !== 'all') params.payer = state.reportPayer;
+      const data = await callApi(params, { retries: 0, timeout: 20000 });
+      if (data.error) throw new Error(data.error);
+      if (token === reportSyncToken) state.reportData = data;
+    } catch (err) {
+      if (token === reportSyncToken) {
+        state.reportError = true;
+        state.reportData = previousReportData;
+        showError('Reports are taking too long. Try Sync again.');
+      }
+    } finally {
+      if (token === reportSyncToken) {
+        state.reportLoading = false;
+        if (btn) { btn.disabled = false; btn.textContent = '↻ Sync'; }
+        renderReports();
+      }
+      reportSyncTask = null;
+    }
+  })();
+  return reportSyncTask;
 }
 
 function renderReports() {
