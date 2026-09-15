@@ -1758,9 +1758,12 @@ function utilityPaymentCard(o, index) {
         </div>
         <div class="util-pay-sub">
           ${o.provider ? `<span>${escapeHtml(o.provider)}</span>` : ''}
-          ${showAbonent ? `<code class="abonent-code" style="font-size:11px">${escapeHtml(o.abonentNumber)}</code>
-            <button class="util-copy-btn" type="button" style="min-height:22px;height:22px;font-size:11px;padding:0 6px"
-                    onclick="copyAbonent('${escapeHtml(o.abonentNumber)}', this)">Copy</button>` : ''}
+          ${showAbonent ? `<button class="copy-chip abonent-chip" type="button"
+              onclick="copyAbonent('${escapeHtml(o.abonentNumber)}', this)"
+              title="Copy abonent ${escapeHtml(o.abonentNumber)}">
+              <code class="abonent-code-inner">${escapeHtml(o.abonentNumber)}</code>
+              <span>Copy</span>
+            </button>` : ''}
           ${resolved && completedAt ? `<time class="payment-card-time">${paid ? 'Paid' : 'Recorded'} ${formatTimestamp(completedAt)}</time>` : ''}
         </div>
       </div>
