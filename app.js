@@ -59,6 +59,7 @@ const state = {
   incomeSourceFilter: 'all',
   incomeDateFrom: '',
   incomeDateTo: '',
+  incomeScope: 'month',
   cashEntries: [],
   cashFilter: 'all',
   cashPayerFilter: 'all',
@@ -3894,6 +3895,7 @@ function renderIncomeTab() {
   };
   const search = state.incomeSearch.toLocaleLowerCase();
   const filtered = state.income.filter(i => {
+    if (state.incomeScope === 'month' && !String(i.date).startsWith(state.month)) return false;
     if (state.incomeSourceFilter !== 'all' && i.stream !== state.incomeSourceFilter) return false;
     const date = String(i.date || '').slice(0, 10);
     if (state.incomeDateFrom && date < state.incomeDateFrom) return false;
@@ -3903,26 +3905,29 @@ function renderIncomeTab() {
     return true;
   });
   const sorted = [...filtered].sort(incomeSorters[state.incomeSort] || incomeSorters['date-desc']);
-  q('income-results-count').textContent = `Showing ${sorted.length} of ${state.income.length} entries`;
+  q('income-results-count').textContent = state.incomeScope === 'month'
+    ? `${sorted.length} in ${monthLabel(state.month)}`
+    : `${sorted.length} of ${state.income.length} all-time`;
+  q('income-scope-month')?.classList.toggle('is-active', state.incomeScope === 'month');
+  q('income-scope-all')?.classList.toggle('is-active', state.incomeScope === 'all');
 
   const sourceGroups = Object.entries(streamLabel).map(([value, label]) => {
     const allRows = state.income.filter(i => i.stream === value);
-    const thisMonth = allRows.filter(i => String(i.date).startsWith(state.month));
-    const monthAmt = thisMonth.reduce((s, i) => s + Number(i.amount || 0), 0);
-    const allAmt = allRows.reduce((s, i) => s + Number(i.amount || 0), 0);
-    const share = tot > 0 ? Math.round((monthAmt / tot) * 100) : 0;
-    return { value, label, monthAmt, allAmt, monthCount: thisMonth.length, allCount: allRows.length, share };
-  }).filter(g => g.allCount > 0 || g.monthAmt > 0);
-  q('income-source-summary').innerHTML = sourceGroups.length
-    ? `<div class="income-group-grid">${sourceGroups.map(g => `
-        <button class="income-group-card ${state.incomeSourceFilter === g.value ? 'is-active' : ''}"
-                type="button" onclick="setIncomeSourceFilter('${g.value}')">
-          <span class="ig-kicker">${escapeHtml(g.label)}</span>
-          <strong class="ig-month">${amd(g.monthAmt)}</strong>
-          <span class="ig-count">${g.monthCount} this month · ${g.share}% of month</span>
-          <span class="ig-all">All-time ${amd(g.allAmt)} · ${g.allCount} entries</span>
-        </button>`).join('')}</div>`
-    : '<span class="muted">No income sources recorded this month.</span>';
+    const scopeRows = state.incomeScope === 'month'
+      ? allRows.filter(i => String(i.date).startsWith(state.month))
+      : allRows;
+    const amt = scopeRows.reduce((s, i) => s + Number(i.amount || 0), 0);
+    const base = state.incomeScope === 'month' ? tot : allTimeTotal;
+    const share = base > 0 ? Math.round((amt / base) * 100) : 0;
+    return { value, label, amt, count: scopeRows.length, share };
+  }).filter(g => g.count > 0);
+  q('income-source-summary').innerHTML = sourceGroups.map(g => `
+    <button class="income-rail-chip ${state.incomeSourceFilter === g.value ? 'is-active' : ''}"
+            type="button" onclick="setIncomeSourceFilter('${g.value}')">
+      <span>${escapeHtml(g.label)}</span>
+      <strong>${amd(g.amt)}</strong>
+      <em>${g.share}%</em>
+    </button>`).join('') || '';
   const streamOpts = Object.entries(streamLabel)
     .map(([v, l]) => `<option value="${v}">{L}</option>`.replace('{L}', l))
     .join('');
@@ -3987,6 +3992,11 @@ function renderIncomeTab() {
       </section>`
     : '';
   q('income-tbody').innerHTML = grouped + orphanHtml || '<div class="empty-state">No income entries match these filters.</div>';
+}
+
+function setIncomeScope(scope) {
+  state.incomeScope = scope === 'all' ? 'all' : 'month';
+  renderIncomeTab();
 }
 
 function setIncomeSourceFilter(source) {

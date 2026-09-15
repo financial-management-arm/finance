@@ -6413,3 +6413,89 @@ code.abonent-code {
   color: #042f2e !important;
   font-weight: 800 !important;
 }
+
+/* Income — one hero, source rail, grouped ledger */
+.income-layout { display: flex; flex-direction: column; gap: 14px; }
+.income-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 18px;
+  border-radius: 22px;
+  background:
+    radial-gradient(420px 160px at 90% -10%, rgba(45,212,191,.22), transparent 58%),
+    linear-gradient(125deg, #102433, #1b4558 58%, #0f766e 140%);
+  color: #f8fafc;
+  box-shadow: 0 18px 36px -22px rgba(15, 23, 42, .5);
+}
+.income-hero .eyebrow,
+.income-hero .hero-sub,
+.income-hero-all { color: rgba(248,250,252,.72); }
+.income-hero .hero-amount {
+  color: #fff;
+  font-size: clamp(28px, 7vw, 44px);
+  font-weight: 800;
+  letter-spacing: -.04em;
+  margin: 6px 0 8px;
+}
+.income-hero-all { margin-top: 8px; font-size: 12px; }
+.income-hero-all strong { color: #ecfeff; }
+.income-scope {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(8,18,28,.35);
+  flex-shrink: 0;
+}
+.income-scope-btn {
+  border: 0;
+  background: transparent;
+  color: rgba(248,250,252,.8);
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: 700 12px Inter, sans-serif;
+  cursor: pointer;
+}
+.income-scope-btn.is-active {
+  background: #fff;
+  color: #0f172a;
+}
+.income-source-rail {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px;
+  scrollbar-width: none;
+}
+.income-rail-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: color-mix(in srgb, #fff 86%, transparent);
+  cursor: pointer;
+  color: inherit;
+}
+.income-rail-chip strong { font-variant-numeric: tabular-nums; }
+.income-rail-chip em { font-style: normal; font-size: 11px; color: var(--color-text-muted); }
+.income-rail-chip.is-active {
+  background: #102433;
+  border-color: transparent;
+  color: #f8fafc;
+}
+.income-rail-chip.is-active em { color: rgba(248,250,252,.7); }
+.income-results { font-size: 12px; margin: 0 2px; }
+@media (max-width: 700px) {
+  .income-hero { flex-direction: column; align-items: stretch; }
+  .income-scope { align-self: flex-start; }
+  #page-income .page-header-actions .search-input,
+  #page-income .page-header-actions .sort-select,
+  #page-income .page-header-actions .income-date-filter { width: 100%; min-width: 0; }
+}
