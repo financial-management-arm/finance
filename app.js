@@ -4276,11 +4276,12 @@ function unitCard(u) {
         ${amount > 0 ? '' : '<span class="offer-tag offer-tag-payer">No amount</span>'}
         ${rawAbonent ? `<button class="util-copy-btn util-copy-chip" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>` : '<span class="unit-card-tag-slot" aria-hidden="true"></span>'}
       </div>
-      <footer class="unit-card-foot">
+      <footer class="unit-card-foot unit-card-foot-3">
         ${payable
           ? `<button class="button ${paid ? 'button-secondary' : 'button-primary'} unit-card-pay" type="button" onclick="toggleUtilityPaid('${escapeHtml(u.id)}')">${payLabel}</button>`
           : `<button class="button button-secondary unit-card-pay" type="button" disabled>Not due</button>`}
         <button class="button button-ghost unit-card-edit" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')">Edit</button>
+        <button class="button button-ghost unit-card-edit" type="button" onclick="confirmDeleteUtility('${escapeHtml(u.id)}')">Delete</button>
       </footer>
     </div>
   </article>`;
@@ -4322,7 +4323,7 @@ function utilityRow(u) {
           <button class="button ${paid ? 'button-secondary' : 'button-primary'} unit-card-pay" type="button"
                   onclick="toggleUtilityPaid('${escapeHtml(u.id)}')">${paid ? 'Undo' : 'Mark done'}</button>
           <button class="button button-ghost unit-card-edit" type="button" onclick="openUtilEdit('${escapeHtml(u.id)}')">Edit</button>
-          <button class="button button-ghost unit-card-edit" type="button" onclick="confirmDeleteUtility('${escapeHtml(u.id)}')">✕</button>
+          <button class="button button-ghost unit-card-edit" type="button" onclick="confirmDeleteUtility('${escapeHtml(u.id)}')">Delete</button>
         </footer>
       </div>
     </article>
