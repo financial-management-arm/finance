@@ -6594,3 +6594,39 @@ code.abonent-code {
     grid-column: 1 / -1;
   }
 }
+
+/* Action blue — same language as + Add offer */
+.button-primary,
+.btn-primary,
+.payment-done.button-primary,
+.loan-complete,
+.loan-glass-card .button-secondary.loan-complete,
+.loan-glass-card .loan-complete,
+.unit-card-pay.button-primary,
+.recon-save.button-primary,
+.payment-actions-row .payment-done,
+:where(.payment-card-actions, .payment-basic-actions,
+       .util-pay-actions, .payment-status-actions) .button-primary {
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  border: 0 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 8px 16px -8px rgba(37, 99, 235, 0.9),
+    inset 0 1px 0 rgba(255,255,255,0.22) !important;
+  font-weight: 700 !important;
+}
+.button-primary:hover,
+.btn-primary:hover,
+.payment-done.button-primary:hover,
+.loan-complete:hover,
+.unit-card-pay.button-primary:hover {
+  filter: brightness(1.06);
+}
+.button-primary:active,
+.btn-primary:active,
+.loan-complete:active {
+  transform: translateY(1px);
+  filter: brightness(.96);
+}
