@@ -18,6 +18,7 @@ const state = {
   income: [],
   loanHistory: [],
   utilities: [],
+  partners: [],
   month: todayMonth(),
   tab: 'schedule',
   filter: 'all',
@@ -482,7 +483,7 @@ async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
 
 // Apply a raw "all" API response into state and re-render.
 function applyAllData(data) {
-  const fingerprint = JSON.stringify([state.month, data.obligations, data.payments, data.income, data.loanHistory, data.utilities, data.cashEntries]);
+  const fingerprint = JSON.stringify([state.month, data.obligations, data.payments, data.income, data.loanHistory, data.utilities, data.cashEntries, data.partners]);
   loadedMonth = state.month;
   document.body.classList.remove('month-pending');
   if (fingerprint === appliedFingerprint) return;
@@ -502,6 +503,7 @@ function applyAllData(data) {
   });
   state.utilities = data.utilities || [];
   state.cashEntries = data.cashEntries || [];
+  state.partners = data.partners || [];
   renderPayerFilters();
   render();
 }
@@ -922,7 +924,7 @@ function fillReconSelect(id, allLabel, values, stateKey) {
   const sel = q(id);
   if (!sel) return;
   let vals = values.map(v => normalizeBankName(v)).filter(Boolean);
-  if (isBankFilterSelect(id)) vals = [...vals, ...CANONICAL_BANKS.map(b => b.name)];
+  if (isBankFilterSelect(id)) vals = [...vals, ...allBankEntries().map(b => b.name)];
   vals = [...new Set(vals)].sort((a, b) => a.localeCompare(b));
   if (!vals.includes(state[stateKey]) && state[stateKey] !== 'all') state[stateKey] = 'all';
   sel.innerHTML = [`<option value="all">${allLabel}</option>`]
@@ -1409,7 +1411,7 @@ function showToast(msg) {
 // URL routing -- each tab (and the Reports period sub-tab) gets its own
 // address, so a direct link or a page refresh lands back on the same view.
 // ================================================================
-const VALID_TABS = ['schedule', 'loans', 'reconcile', 'income', 'cash', 'offers', 'utilities', 'reports'];
+const VALID_TABS = ['schedule', 'loans', 'reconcile', 'income', 'cash', 'offers', 'utilities', 'partners', 'reports'];
 
 function parseRoute() {
   const raw = (location.hash || '').replace(/^#\/?/, '');
@@ -1434,7 +1436,7 @@ function activateTab(tab) {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  q('mobile-more-button').classList.toggle('active', ['cash', 'offers', 'reconcile', 'utilities', 'reports'].includes(tab));
+  q('mobile-more-button').classList.toggle('active', ['cash', 'offers', 'reconcile', 'utilities', 'partners', 'reports'].includes(tab));
   document.querySelectorAll('.page').forEach(p =>
     p.classList.toggle('active', p.id === 'page-' + tab)
   );
@@ -1479,6 +1481,7 @@ function renderCurrentTab() {
     case 'cash':       renderCash(); wireBankPickers(document); break;
     case 'offers':     renderOffers(); wireBankPickers(document); break;
     case 'utilities':  renderUtilities();  break;
+    case 'partners':   renderPartnersTab(); break;
     case 'reports':    renderDashboard();  renderReports();  break;
   }
 }
@@ -2250,7 +2253,7 @@ function setObligationSelectOptions(id, values, allLabel, selectedValue) {
   let source = values.map(value => String(value || '').trim()).filter(Boolean).map(normalizeBankName);
   // Bank/place filters always include full catalog so every bank is selectable
   if (isBankFilterSelect(id)) {
-    source = source.concat(CANONICAL_BANKS.map(b => b.name));
+    source = source.concat(allBankEntries().map(b => b.name));
   }
   const options = [...new Set(source)]
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
@@ -2770,19 +2773,40 @@ function bankNormKey(s) {
   return String(s || '').toLowerCase().replace(/[\s.\-_/'"«»]+/g, '');
 }
 
+function allBankEntries() {
+  // Partners (added on the Partners page, each with your own avatar) are
+  // merged with the static bank catalog so they show up in every bank /
+  // place / payee picker across the app -- one identity everywhere, not a
+  // duplicate free-text entry per tab.
+  const partnerEntries = (state.partners || [])
+    .filter(p => p.active !== false && p.active !== 'false')
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      logo: p.avatar || null,
+      keys: [String(p.name || '').toLowerCase()],
+      aliases: [],
+      category: p.category || '',
+      isPartner: true
+    }));
+  const partnerNames = new Set(partnerEntries.map(p => bankNormKey(p.name)));
+  const canonical = CANONICAL_BANKS.filter(b => !partnerNames.has(bankNormKey(b.name)));
+  return [...partnerEntries, ...canonical];
+}
+
 function matchCanonicalBank(raw) {
   const s = String(raw || '').trim();
   if (!s) return null;
   const key = bankNormKey(s);
   // exact canonical name
-  for (const b of CANONICAL_BANKS) {
+  for (const b of allBankEntries()) {
     if (bankNormKey(b.name) === key) return b;
     if ((b.aliases || []).some(a => bankNormKey(a) === key)) return b;
   }
   // keyword / includes (prefer longer keys)
   let best = null;
   let bestLen = 0;
-  for (const b of CANONICAL_BANKS) {
+  for (const b of allBankEntries()) {
     for (const k of b.keys) {
       const kk = bankNormKey(k);
       if (!kk) continue;
@@ -2804,7 +2828,7 @@ function matchCanonicalBank(raw) {
   }
   // simpler key includes pass
   if (!best) {
-    for (const b of CANONICAL_BANKS) {
+    for (const b of allBankEntries()) {
       for (const k of b.keys) {
         const kl = k.toLowerCase();
         if (kl.length >= 4 && s.toLowerCase().includes(kl)) return b;
@@ -2840,7 +2864,7 @@ function bankLogoSrc(name) {
 
 /** All banks for pickers (canonical only). */
 function bankCatalogOptions() {
-  return CANONICAL_BANKS.slice().sort((a, b) => a.name.localeCompare(b.name));
+  return allBankEntries().slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -2915,6 +2939,231 @@ function setBankPickerValue(picker, rawName, { silent = false } = {}) {
   if (!silent) {
     valueInput.dispatchEvent(new Event('change', { bubbles: true }));
     valueInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+
+// ================================================================
+// Partners -- one identity (bank, agency, employer, anyone) reused
+// everywhere a bank/place/payee picker shows up, each with its own avatar.
+// ================================================================
+let pendingPartnerAvatar = { add: '', edit: '' };
+
+const PARTNER_CATEGORY_LABELS = {
+  bank: 'Bank',
+  government: 'Government / agency',
+  company: 'Company',
+  person: 'Person',
+  other: 'Other'
+};
+
+/** Read an image file, shrink it to a small square-ish JPEG, return a data URL. */
+function resizeImageFile(file, maxDim = 128, quality = 0.78) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      reject(new Error('Please choose an image file.'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that image.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not decode that image.'));
+      img.onload = () => {
+        let { width, height } = img;
+        const scale = Math.min(1, maxDim / Math.max(width, height));
+        width = Math.max(1, Math.round(width * scale));
+        height = Math.max(1, Math.round(height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        if (dataUrl.length > 45000) {
+          reject(new Error('That photo is too large even after shrinking. Try a simpler image.'));
+          return;
+        }
+        resolve(dataUrl);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePartnerAvatarPick(event, which) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const preview = q(which === 'add' ? 'add-partner-avatar-preview' : 'edit-partner-avatar-preview');
+  try {
+    const dataUrl = await resizeImageFile(file);
+    pendingPartnerAvatar[which] = dataUrl;
+    if (preview) preview.innerHTML = `<img src="${dataUrl}" alt="">`;
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    event.target.value = '';
+  }
+}
+
+// Partner writes carry an avatar (up to ~45KB of base64), so they go over
+// POST instead of the GET query string every other action uses. The body is
+// sent as text/plain on purpose: a JSON content-type would trigger a CORS
+// preflight (OPTIONS) request, which the Apps Script web app can't answer.
+async function postApi(params) {
+  setSyncStatus('saving', 'Saving changes...');
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    invalidateCachedMonth(state.month);
+    setSyncStatus('ready', 'Changes saved');
+    return json;
+  } catch (err) {
+    setSyncStatus('error', 'Save failed. Try again');
+    throw err;
+  }
+}
+
+function activePartners() {
+  return (state.partners || []).filter(p => p.active !== false && p.active !== 'false');
+}
+
+/** Everything already recorded under this partner's name, so it's obvious
+ *  it's the same counterparty everywhere instead of a fresh duplicate. */
+function partnerRelationships(name) {
+  const key = bankNormKey(name);
+  const matches = v => !!key && bankNormKey(v) === key;
+  const cashAll = state.cashEntries || [];
+  return {
+    obligations: (state.obligations || []).filter(o => o.active !== false && matches(o.bank)),
+    cash: cashAll.filter(c => c.type !== 'offer' && matches(c.place)),
+    offers: cashAll.filter(c => c.type === 'offer' && matches(c.place)),
+    utilities: (state.utilities || []).filter(u => u.active !== false && matches(u.provider))
+  };
+}
+
+function partnerCardHtml(p) {
+  const rel = partnerRelationships(p.name);
+  const debt = rel.obligations.reduce((sum, o) => sum + (Number(o.currentBalance) || 0), 0);
+  const parts = [];
+  if (rel.obligations.length) parts.push(`${rel.obligations.length} obligation${rel.obligations.length === 1 ? '' : 's'}`);
+  if (rel.cash.length) parts.push(`${rel.cash.length} cash entr${rel.cash.length === 1 ? 'y' : 'ies'}`);
+  if (rel.offers.length) parts.push(`${rel.offers.length} offer${rel.offers.length === 1 ? '' : 's'}`);
+  if (rel.utilities.length) parts.push(`${rel.utilities.length} utility bill${rel.utilities.length === 1 ? '' : 's'}`);
+  const relText = parts.length ? parts.join(' · ') : 'No linked records yet';
+  const catLabel = PARTNER_CATEGORY_LABELS[p.category] || '';
+  return `<div class="partner-card">
+    <div class="partner-card-avatar">${bankAvatarHtml(p.name, 'partner-avatar-lg')}</div>
+    <div class="partner-card-body">
+      <div class="partner-card-name">${escapeHtml(p.name)}</div>
+      ${catLabel ? `<div class="partner-card-cat">${escapeHtml(catLabel)}</div>` : ''}
+      <div class="partner-card-rel">${escapeHtml(relText)}</div>
+      ${debt ? `<div class="partner-card-debt">${amd(debt)} owed</div>` : ''}
+    </div>
+    <div class="partner-card-actions">
+      <button type="button" class="icon-btn" onclick="openEditPartnerModal('${escapeHtml(p.id)}')" aria-label="Edit ${escapeHtml(p.name)}">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16v-2.8L13.6 3.6a1.5 1.5 0 0 1 2.1 0l1.7 1.7a1.5 1.5 0 0 1 0 2.1L7.8 17H5a1 1 0 0 1-1-1Z"/></svg>
+      </button>
+      <button type="button" class="icon-btn icon-btn-danger" onclick="deletePartnerPrompt('${escapeHtml(p.id)}')" aria-label="Remove ${escapeHtml(p.name)}">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 6h10m-8 0V4h6v2m-7 0 .6 10a1 1 0 0 0 1 1h4.8a1 1 0 0 0 1-1L14 6"/></svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+function renderPartnersTab() {
+  const container = q('partners-container');
+  if (!container) return;
+  const partners = activePartners().slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  if (!partners.length) {
+    container.innerHTML = `<div class="empty-state">No partners yet. Add a bank, government body, employer or anyone else you deal with -- once added, they show up with their own avatar in every dropdown across the app instead of a plain typed name.</div>`;
+    return;
+  }
+  container.innerHTML = `<div class="partner-card-grid">${partners.map(partnerCardHtml).join('')}</div>`;
+}
+
+function openAddPartnerModal() {
+  pendingPartnerAvatar.add = '';
+  q('add-partner-form')?.reset();
+  const preview = q('add-partner-avatar-preview');
+  if (preview) preview.innerHTML = '<span>?</span>';
+  q('add-partner-modal').classList.remove('hidden');
+  q('add-partner-name')?.focus();
+}
+
+function closeAddPartnerModal() {
+  q('add-partner-modal').classList.add('hidden');
+}
+
+async function submitAddPartner(event) {
+  event.preventDefault();
+  const name = q('add-partner-name').value.trim();
+  if (!name) return;
+  const category = q('add-partner-category').value;
+  try {
+    await postApi({ action: 'addPartner', name, category, avatar: pendingPartnerAvatar.add || '' });
+    closeAddPartnerModal();
+    await revalidateMonth(state.month, true);
+    renderCurrentTab();
+    showToast(`${name} added`);
+  } catch (err) {
+    showError(`Could not add partner: ${err.message}`);
+  }
+}
+
+function openEditPartnerModal(id) {
+  const partner = (state.partners || []).find(p => String(p.id) === String(id));
+  if (!partner) return;
+  pendingPartnerAvatar.edit = '';
+  q('edit-partner-id').value = partner.id;
+  q('edit-partner-name').value = partner.name || '';
+  q('edit-partner-category').value = partner.category || '';
+  const preview = q('edit-partner-avatar-preview');
+  if (preview) preview.innerHTML = partner.avatar ? `<img src="${partner.avatar}" alt="">` : '<span>?</span>';
+  q('edit-partner-modal').classList.remove('hidden');
+}
+
+function closeEditPartnerModal() {
+  q('edit-partner-modal').classList.add('hidden');
+}
+
+async function submitEditPartner(event) {
+  event.preventDefault();
+  const id = q('edit-partner-id').value;
+  const name = q('edit-partner-name').value.trim();
+  if (!id || !name) return;
+  const category = q('edit-partner-category').value;
+  const params = { action: 'updatePartner', id, name, category };
+  if (pendingPartnerAvatar.edit) params.avatar = pendingPartnerAvatar.edit;
+  try {
+    await postApi(params);
+    closeEditPartnerModal();
+    await revalidateMonth(state.month, true);
+    renderCurrentTab();
+    showToast('Partner updated');
+  } catch (err) {
+    showError(`Could not update partner: ${err.message}`);
+  }
+}
+
+async function deletePartnerPrompt(id) {
+  const partner = (state.partners || []).find(p => String(p.id) === String(id));
+  if (!partner) return;
+  if (!confirm(`Remove "${partner.name}" from your partners list? Existing obligations, cash entries, offers and utilities that mention this name are kept as-is.`)) return;
+  try {
+    await postApi({ action: 'deletePartner', id });
+    await revalidateMonth(state.month, true);
+    renderCurrentTab();
+  } catch (err) {
+    showError(`Could not remove partner: ${err.message}`);
   }
 }
 

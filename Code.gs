@@ -17,7 +17,8 @@ var SCHEMAS = {
     'completed', 'completedAt', 'snapshotAt', 'updatedAt'
   ],
   Utilities: ['id', 'name', 'payer', 'provider', 'abonentNumber', 'amount', 'type', 'dueDay', 'active', 'personalExpense'],
-  Cash: ['id', 'place', 'amount', 'type', 'category', 'payer', 'lastAvailableDate', 'updatedAt', 'approved']
+  Cash: ['id', 'place', 'amount', 'type', 'category', 'payer', 'lastAvailableDate', 'updatedAt', 'approved'],
+  Partners: ['id', 'name', 'category', 'avatar', 'createdAt', 'updatedAt', 'active']
 };
 
 function doGet(e) {
@@ -44,6 +45,7 @@ function doGet(e) {
         utilities: sheetToJson(ss, 'Utilities'),
         cashEntries: sheetToJson(ss, 'Cash'),
         serverMonth: month,
+partners: sheetToJson(ss, 'Partners'),
         syncedAt: isoNow()
       };
       putAllCache(month, result);
@@ -491,6 +493,98 @@ function updateUtility(ss, params) {
     personalExpense: params.personalExpense === 'true' || params.personalExpense === true
   });
   return { ok: true };
+}
+
+function addPartner(ss, params) {
+  var name = String(params.name || '').trim().slice(0, 120);
+  if (!name) throw new Error('Partner name is required');
+  var category = String(params.category || '').trim().slice(0, 40);
+  var avatar = String(params.avatar || '');
+  if (avatar.length > 60000) throw new Error('Avatar image is too large');
+  var id = 'partner-' + Date.now();
+  var now = isoNow();
+  var row = SCHEMAS.Partners.map(function(col) {
+    switch (col) {
+      case 'id': return id;
+      case 'name': return name;
+      case 'category': return category;
+      case 'avatar': return avatar;
+      case 'createdAt': return now;
+      case 'updatedAt': return now;
+      case 'active': return true;
+      default: return '';
+    }
+  });
+  ss.getSheetByName('Partners').appendRow(row);
+  return { success: true, id: id };
+}
+
+function updatePartner(ss, params) {
+  var id = String(params.id || '');
+  if (!id) throw new Error('Partner id is required');
+  var name = String(params.name || '').trim().slice(0, 120);
+  if (!name) throw new Error('Partner name is required');
+  var updates = {
+    name: name,
+    category: String(params.category || '').trim().slice(0, 40),
+    updatedAt: isoNow()
+  };
+  if (params.avatar !== undefined) {
+    var avatar = String(params.avatar || '');
+    if (avatar.length > 60000) throw new Error('Avatar image is too large');
+    updates.avatar = avatar;
+  }
+  if (params.active !== undefined) {
+    updates.active = params.active === 'true' || params.active === true;
+  }
+  updateObjectByKey(ss.getSheetByName('Partners'), 'id', id, updates);
+  return { success: true };
+}
+
+function deletePartner(ss, params) {
+  var id = String(params.id || '');
+  if (!id) throw new Error('Partner id is required');
+  updateObjectByKey(ss.getSheetByName('Partners'), 'id', id, {
+    active: false,
+    updatedAt: isoNow()
+  });
+  return { success: true };
+}
+
+// Avatars can be a few KB each, so partner writes come in as POST bodies
+// instead of GET query params (Apps Script GET requests risk being truncated
+// by intermediate proxies well before a base64 image would fit). The request
+// is sent with Content-Type: text/plain on purpose -- a JSON Content-Type
+// would trigger a CORS preflight (OPTIONS) request, which Apps Script web
+// apps don't handle -- so we parse the raw text body as JSON ourselves.
+function doPost(e) {
+  var params = {};
+  try {
+    if (e && e.postData && e.postData.contents) {
+      params = JSON.parse(e.postData.contents);
+    }
+  } catch (err) {
+    return jsonOutput({ error: 'Invalid request body' });
+  }
+  var action = params.action || '';
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var result;
+  try {
+    ensureSheetSchema(ss, 'Partners');
+    if (action === 'addPartner') {
+      result = withLock(function() { return addPartner(ss, params); });
+    } else if (action === 'updatePartner') {
+      result = withLock(function() { return updatePartner(ss, params); });
+    } else if (action === 'deletePartner') {
+      result = withLock(function() { return deletePartner(ss, params); });
+    } else {
+      result = { error: 'Unknown POST action: ' + action };
+    }
+    if (!(result && result.error)) clearAllCache();
+  } catch (err) {
+    result = { error: err && err.message ? err.message : String(err) };
+  }
+  return jsonOutput(result);
 }
 
 // Creates one immutable monthly row per active loan. Existing rows are not

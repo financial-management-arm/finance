@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=76">
+  <link rel="stylesheet" href="style.css?v=77">
 </head>
 <body class="month-pending">
 
@@ -35,6 +35,7 @@
       <li><a href="#" data-tab="cash" aria-label="Cash"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h14v10H7V4Zm-4 4h14v10H3V8Zm4 5h6"/></svg><span class="nav-label">Cash</span></a></li>
       <li><a href="#" data-tab="offers" aria-label="Loan offers"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11V3Z"/><circle cx="14" cy="8" r="1.6"/></svg><span class="nav-label">Offers</span></a></li>
       <li><a href="#" data-tab="utilities" aria-label="Utilities"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v8a5 5 0 0 0 10 0V4M7 4h10M12 16v4M9 20h6"/></svg><span class="nav-label">Utilities</span></a></li>
+      <li><a href="#" data-tab="partners" aria-label="Partners"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20c0-3 3-5 6-5s6 2 6 5M10 20c0-2.7 2.2-4.8 5-4.8s5 2.1 5 4.8"/></svg><span class="nav-label">Partners</span></a></li>
       <li><a href="#" data-tab="reports" aria-label="Reports"><span class="nav-dot"></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V10h4v8H4Zm6 0V4h4v14h-4Zm6 0v-6h4v6h-4Z"/></svg><span class="nav-label">Reports</span></a></li>
       <li class="mobile-more"><button id="mobile-more-button" type="button" onclick="toggleMobileNav()" aria-expanded="false" aria-controls="mobile-menu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h1m5 0h1m5 0h1"/></svg><span>More</span></button></li>
     </ul>
@@ -45,6 +46,7 @@
     <button type="button" onclick="switchTab('offers')">Loan offers <span>Pre-approved credit lines</span></button>
     <button type="button" onclick="switchTab('reconcile')">Reconcile balances <span>Check your remaining debt</span></button>
     <button type="button" onclick="switchTab('utilities')">Utilities <span>Manage recurring expenses</span></button>
+    <button type="button" onclick="switchTab('partners')">Partners <span>Banks, agencies & everyone else you deal with</span></button>
     <button type="button" onclick="switchTab('reports')">Reports <span>See the bigger picture</span></button>
   </div>
 
@@ -356,6 +358,22 @@
     </section>
 
 
+    <!-- ─── PARTNERS ─── -->
+    <section id="page-partners" class="page">
+      <div class="page-header">
+        <h1>Partners</h1>
+        <div class="page-header-actions">
+          <button class="btn-primary" type="button" onclick="openAddPartnerModal()">+ Add partner</button>
+        </div>
+      </div>
+      <div class="page-body">
+        <div class="partners-container" id="partners-container">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+    </section>
+
+
     <!-- ─── REPORTS ─── -->
     <section id="page-reports" class="page">
       <div class="page-header">
@@ -622,6 +640,67 @@
           <button class="btn-secondary" type="button" onclick="closeUtilEdit()">Cancel</button>
           <button class="btn-primary" type="submit">Save changes</button>
         </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── ADD PARTNER MODAL ─── -->
+<div class="modal-backdrop hidden" id="add-partner-modal">
+  <div class="edit-modal income-add-dialog" role="dialog" aria-modal="true" aria-labelledby="add-partner-title">
+    <div class="modal-header">
+      <h2 id="add-partner-title">Add partner</h2>
+      <button class="modal-close" type="button" onclick="closeAddPartnerModal()" aria-label="Close">×</button>
+    </div>
+    <form id="add-partner-form" onsubmit="submitAddPartner(event)">
+      <div class="partner-avatar-field">
+        <div class="partner-avatar-preview" id="add-partner-avatar-preview"><span>?</span></div>
+        <label class="button button-ghost partner-avatar-btn">Choose photo
+          <input type="file" accept="image/*" hidden onchange="handlePartnerAvatarPick(event, 'add')">
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="add-partner-name">Name</label>
+        <input class="form-input" id="add-partner-name" placeholder="e.g. State Revenue Committee" required maxlength="120">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="add-partner-category">Type</label>
+        <select class="form-input" id="add-partner-category"><option value="">Not set</option><option value="bank">Bank</option><option value="government">Government / agency</option><option value="company">Company</option><option value="person">Person</option><option value="other">Other</option></select>
+      </div>
+      <div class="modal-actions">
+        <button class="button button-ghost" type="button" onclick="closeAddPartnerModal()">Cancel</button>
+        <button class="button button-primary" type="submit">Add partner</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── EDIT PARTNER MODAL ─── -->
+<div class="modal-backdrop hidden" id="edit-partner-modal">
+  <div class="edit-modal income-add-dialog" role="dialog" aria-modal="true" aria-labelledby="edit-partner-title">
+    <div class="modal-header">
+      <h2 id="edit-partner-title">Edit partner</h2>
+      <button class="modal-close" type="button" onclick="closeEditPartnerModal()" aria-label="Close">×</button>
+    </div>
+    <form id="edit-partner-form" onsubmit="submitEditPartner(event)">
+      <input type="hidden" id="edit-partner-id">
+      <div class="partner-avatar-field">
+        <div class="partner-avatar-preview" id="edit-partner-avatar-preview"><span>?</span></div>
+        <label class="button button-ghost partner-avatar-btn">Change photo
+          <input type="file" accept="image/*" hidden onchange="handlePartnerAvatarPick(event, 'edit')">
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-partner-name">Name</label>
+        <input class="form-input" id="edit-partner-name" required maxlength="120">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-partner-category">Type</label>
+        <select class="form-input" id="edit-partner-category"><option value="">Not set</option><option value="bank">Bank</option><option value="government">Government / agency</option><option value="company">Company</option><option value="person">Person</option><option value="other">Other</option></select>
+      </div>
+      <div class="modal-actions">
+        <button class="button button-ghost" type="button" onclick="closeEditPartnerModal()">Cancel</button>
+        <button class="button button-primary" type="submit">Save changes</button>
       </div>
     </form>
   </div>
@@ -1027,7 +1106,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=103"></script>
+<script src="app.js?v=104"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>
