@@ -3019,13 +3019,16 @@ async function handlePartnerAvatarPick(event, which) {
 // POST instead of the GET query string every other action uses. The body is
 // sent as text/plain on purpose: a JSON content-type would trigger a CORS
 // preflight (OPTIONS) request, which the Apps Script web app can't answer.
-async function postApi(params) {
+async function postApi(params, { timeout = 20000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
   setSyncStatus('saving', 'Saving changes...');
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(params)
+      body: JSON.stringify(params),
+      signal: controller.signal
     });
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
     const json = await res.json();
@@ -3035,7 +3038,27 @@ async function postApi(params) {
     return json;
   } catch (err) {
     setSyncStatus('error', 'Save failed. Try again');
+    if (err.name === 'AbortError') throw new Error('Server took too long. Nothing was changed in the app.');
     throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function withSubmitLock(form, label, task) {
+  const button = form?.querySelector('[type="submit"]');
+  const original = button ? button.textContent : '';
+  if (button) {
+    button.disabled = true;
+    button.textContent = label;
+  }
+  try {
+    return await task();
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = original;
+    }
   }
 }
 
@@ -3112,13 +3135,16 @@ function closeAddPartnerModal() {
 
 async function submitAddPartner(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   const name = q('add-partner-name').value.trim();
   if (!name) return;
   const category = q('add-partner-category').value;
   try {
-    await postApi({ action: 'addPartner', name, category, avatar: pendingPartnerAvatar.add || '' });
+    await withSubmitLock(form, 'Adding...', () =>
+      postApi({ action: 'addPartner', name, category, avatar: pendingPartnerAvatar.add || '' })
+    );
     closeAddPartnerModal();
-    await revalidateMonth(state.month, true);
+    revalidateMonth(state.month, true).catch(() => {});
     renderCurrentTab();
     showToast(`${name} added`);
   } catch (err) {
@@ -3144,6 +3170,7 @@ function closeEditPartnerModal() {
 
 async function submitEditPartner(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   const id = q('edit-partner-id').value;
   const name = q('edit-partner-name').value.trim();
   if (!id || !name) return;
@@ -3151,9 +3178,9 @@ async function submitEditPartner(event) {
   const params = { action: 'updatePartner', id, name, category };
   if (pendingPartnerAvatar.edit) params.avatar = pendingPartnerAvatar.edit;
   try {
-    await postApi(params);
+    await withSubmitLock(form, 'Saving...', () => postApi(params));
     closeEditPartnerModal();
-    await revalidateMonth(state.month, true);
+    revalidateMonth(state.month, true).catch(() => {});
     renderCurrentTab();
     showToast('Partner updated');
   } catch (err) {
@@ -3167,7 +3194,7 @@ async function deletePartnerPrompt(id) {
   if (!confirm(`Remove "${partner.name}" from your partners list? Existing obligations, cash entries, offers and utilities that mention this name are kept as-is.`)) return;
   try {
     await postApi({ action: 'deletePartner', id });
-    await revalidateMonth(state.month, true);
+    revalidateMonth(state.month, true).catch(() => {});
     renderCurrentTab();
   } catch (err) {
     showError(`Could not remove partner: ${err.message}`);
