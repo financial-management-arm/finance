@@ -2469,15 +2469,6 @@ function loanCard(o) {
           <div class="loan-meta">${escapeHtml(o.payer)}${o.startDate ? ` · Started ${fmtStartDate(o.startDate)}` : ''}</div>
         </div>
       </div>
-      <div class="loan-card-actions">
-        ${paidOff ? '<span class="paid-off-badge">Paid off</span>' : ''}
-        <button class="button button-secondary loan-complete" type="button"
-                onclick="completeLoan('${escapeHtml(o.id)}', this)">Complete</button>
-        <button class="button button-ghost loan-edit-toggle" type="button"
-                onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
-        <button class="button btn-delete-ghost" type="button"
-                onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
-      </div>
     </div>
     <div class="loan-financials">
       <div class="loan-arc-wrap">
@@ -2510,6 +2501,15 @@ function loanCard(o) {
                   title="Copy ${escapeHtml(part)}">${escapeHtml(part)} <span>Copy</span></button>
         `).join('')}
       </div>` : ''}
+    <div class="loan-card-actions">
+      ${paidOff ? '<span class="paid-off-badge">Paid off</span>' : ''}
+      <button class="button button-secondary loan-complete" type="button"
+              onclick="completeLoan('${escapeHtml(o.id)}', this)">Complete</button>
+      <button class="button button-ghost loan-edit-toggle" type="button"
+              onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
+      <button class="button btn-delete-ghost" type="button"
+              onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
+    </div>
     <form class="inline-loan-edit hidden" id="inline-edit-${escapeHtml(o.id)}"
           onsubmit="submitInlineLoanEdit(event, '${escapeHtml(o.id)}')">
       <label class="bank-picker-label-wrap">Bank / Payee${bankPickerHtml({ nameAttr: "bank", value: o.bank, required: true, placeholder: "Select bank…" })}</label>
@@ -2555,17 +2555,17 @@ function nonLoanCard(o) {
           <div class="loan-meta">${escapeHtml(o.payer)} · ${escapeHtml(catDisplay)}</div>
         </div>
       </div>
-      <div class="loan-card-actions">
-        <button class="button button-ghost loan-edit-toggle" type="button"
-                onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
-        <button class="button btn-delete-ghost" type="button"
-                onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
-      </div>
     </div>
     <div class="obligation-details">
       <span class="ob-amount">${Number(o.amount) > 0 ? amd(Number(o.amount)) : '—'}</span>
       ${Number(o.dueDay) > 0 ? `<span class="ob-due">due day ${Number(o.dueDay)}</span>` : ''}
       ${badge}
+    </div>
+    <div class="loan-card-actions">
+      <button class="button button-ghost loan-edit-toggle" type="button"
+              onclick="openLoanEditor('${escapeHtml(o.id)}')">Edit</button>
+      <button class="button btn-delete-ghost" type="button"
+              onclick="confirmDeleteObligation('${escapeHtml(o.id)}')">Delete</button>
     </div>
     <form class="inline-loan-edit hidden" id="inline-edit-${escapeHtml(o.id)}"
           onsubmit="submitInlineObligationEdit(event, '${escapeHtml(o.id)}')">

@@ -6499,3 +6499,98 @@ code.abonent-code {
   #page-income .page-header-actions .sort-select,
   #page-income .page-header-actions .income-date-filter { width: 100%; min-width: 0; }
 }
+
+/* Dark-card type — never inherit light-theme ink */
+.loan-glass-card,
+.payment-glass-card,
+.offer-glass-card,
+.cash-glass-card,
+.unit-glass-card,
+.income-glass-card,
+.util-glass-card,
+.recon-glass-card {
+  color: #e8eef6 !important;
+}
+.loan-glass-card .loan-balance-line,
+.loan-glass-card .loan-monthly-line,
+.loan-glass-card .loan-arc-copy,
+.loan-glass-card .loan-arc-copy span,
+.loan-glass-card .ob-due,
+.loan-glass-card .loan-meta,
+.offer-glass-card .offer-bank-meta,
+.offer-glass-card .unit-card-meta {
+  color: #c5d0de !important;
+  -webkit-text-fill-color: #c5d0de !important;
+  background: none !important;
+}
+.loan-glass-card .loan-balance-line strong,
+.loan-glass-card .loan-arc-copy strong,
+.loan-glass-card .ob-amount,
+.loan-glass-card .loan-bank,
+.offer-glass-card .offer-bank-name,
+.offer-glass-card .unit-card-title,
+.offer-glass-card .unit-card-amount,
+.offer-glass-amount,
+.cash-glass-amount {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: none !important;
+  background-image: none !important;
+}
+.loan-glass-card .loan-balance-line strong,
+.offer-glass-card .unit-card-amount,
+.offer-glass-amount,
+.cash-glass-amount,
+.loan-glass-card .ob-amount {
+  color: #7ee7c7 !important;
+  -webkit-text-fill-color: #7ee7c7 !important;
+}
+
+.loan-card.loan-glass-card,
+.obligation-card.loan-glass-card {
+  display: flex;
+  flex-direction: column;
+}
+.loan-card .loan-card-actions,
+.obligation-card .loan-card-actions {
+  margin-top: auto;
+  padding-top: 14px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.obligation-card .loan-card-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 720px) {
+  .page.header-closed > .page-header {
+    padding: 8px 12px 6px;
+  }
+  .page.header-closed > .page-header .header-toggle {
+    min-height: 48px;
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 16px;
+  }
+  .ht-kicker { display: none; }
+  .header-toggle-meta { display: none !important; }
+  .header-toggle-title {
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 58vw;
+  }
+  .page.header-open > .page-header-actions {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .page.header-open > .page-header-actions .button-primary,
+  .page.header-open > .page-header-actions #income-clear-filters {
+    grid-column: 1 / -1;
+  }
+}
