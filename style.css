@@ -6742,3 +6742,38 @@ code.abonent-code {
     overflow: hidden !important;
   }
 }
+.unit-glass-card .unit-card-foot,
+.util-glass-card .unit-card-foot,
+.unit-card-foot.unit-card-foot-3 {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-auto-flow: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+.unit-card-foot.unit-card-foot-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.unit-glass-card .unit-card-foot > .button,
+.util-glass-card .unit-card-foot > .button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  width: auto !important;
+  min-height: 42px !important;
+  height: 42px !important;
+  margin: 0 !important;
+  padding: 0 8px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+.unit-glass-card .unit-card-foot > .button-ghost,
+.util-glass-card .unit-card-foot > .button-ghost {
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
