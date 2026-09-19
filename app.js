@@ -214,9 +214,26 @@ function payerClass(p) {
 
 const PALETTE = ['#2563eb','#db2777','#16a34a','#d97706','#7c3aed','#0891b2','#9a3412','#475569'];
 
+function formatAbonent(value) {
+  return String(value ?? '').replace(/:$/, '').trim();
+}
+
+function abonentCopyButton(value) {
+  const code = formatAbonent(value);
+  if (!code || code.toLowerCase() === 'transfer') return '';
+  const safe = escapeHtml(code);
+  return `<button class="util-copy-btn util-copy-chip abonent-chip" type="button"
+      onclick="copyAbonent('${safe}', this)"
+      title="Copy ${safe}"
+      aria-label="Copy abonent ${safe}">
+      <code class="abonent-code-inner">${safe}</code>
+      <span>Copy</span>
+    </button>`;
+}
+
 function personalUtilsAsObs() {
   return activeUtils().filter(shouldShowUtilityInPayments).map(u => {
-    const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
+    const rawAbonent = formatAbonent(u.abonentNumber);
     return {
       id: u.id,
       payer: String(u.payer || '').trim(),
@@ -504,7 +521,10 @@ function applyAllData(data) {
   state.loanHistory.forEach(row => {
     state.loanSnapshotIndex[`${toMonthKey(row.month)}__${row.obligationId}`] = row;
   });
-  state.utilities = data.utilities || [];
+  state.utilities = (data.utilities || []).map(u => ({
+    ...u,
+    abonentNumber: formatAbonent(u.abonentNumber)
+  }));
   state.cashEntries = data.cashEntries || [];
   state.partners = data.partners || [];
   renderPayerFilters();
@@ -1861,12 +1881,7 @@ function utilityPaymentCard(o, index) {
         </div>
         <div class="util-pay-sub">
           ${o.provider ? `<span>${escapeHtml(o.provider)}</span>` : ''}
-          ${showAbonent ? `<button class="copy-chip abonent-chip" type="button"
-              onclick="copyAbonent('${escapeHtml(o.abonentNumber)}', this)"
-              title="Copy abonent ${escapeHtml(o.abonentNumber)}">
-              <code class="abonent-code-inner">${escapeHtml(o.abonentNumber)}</code>
-              <span>Copy</span>
-            </button>` : ''}
+          ${showAbonent ? abonentCopyButton(o.abonentNumber).replace('util-copy-btn util-copy-chip', 'copy-chip') : ''}
           ${resolved && completedAt ? `<time class="payment-card-time">${paid ? 'Paid' : 'Recorded'} ${formatTimestamp(completedAt)}</time>` : ''}
         </div>
       </div>
@@ -4118,9 +4133,14 @@ async function toggleUtilityPaid(id) {
   const key = pkey(id, state.month);
   if (state.payments[key]) { await setUtilityPayment(id, 'unpaid', null); return; }
   const u = state.utilities.find(u => String(u.id) === String(id));
-  if (!u) return;
-  if (isUtilPersonal(u) && !isUtilFixed(u)) { openUtilPanel(id); return; }
-  const amt = isUtilFixed(u) ? (Number(u.amount) || 0) : 0;
+  if (!u) {
+    showError('Utility not found.');
+    return;
+  }
+  const metaAmt = Number(state.paymentMeta[key]?.paidAmount);
+  const amt = isUtilFixed(u)
+    ? (Number(u.amount) || 0)
+    : (Number.isFinite(metaAmt) && metaAmt > 0 ? metaAmt : (Number(u.amount) || 0));
   await setUtilityPayment(id, 'paid', amt);
 }
 
@@ -4160,7 +4180,7 @@ async function setUtilityPayment(id, status, paidAmt) {
   try {
     await callApi({ action: 'setPayment', key, paid, status, month: state.month,
       paidAmount: paidAmt !== null ? paidAmt : '' });
-    if (paid) showToast('Utility marked done.');
+    showToast(paid ? 'Utility marked done.' : 'Utility unmarked.');
   } catch (err) {
     state.payments[key] = prev.paid;
     if (prev.meta) state.paymentMeta[key] = prev.meta; else delete state.paymentMeta[key];
@@ -4170,38 +4190,20 @@ async function setUtilityPayment(id, status, paidAmt) {
 }
 
 function patchUtilRow(id) {
-  const row = document.getElementById('util-row-' + id);
-  if (!row) { renderUtilities(); return; }
-  const paid = !!state.payments[pkey(id, state.month)];
-  row.classList.toggle('is-done', paid);
-  const btn = row.querySelector('.util-toggle');
-  if (btn) {
-    btn.classList.toggle('is-done', paid);
-    btn.setAttribute('aria-label', paid ? 'Mark undone' : 'Mark done');
-    btn.title = paid ? 'Mark undone' : 'Mark done';
-  }
-  const panel = row.querySelector('.util-amount-panel');
-  if (panel && paid) panel.classList.add('hidden');
-  const group = row.closest('.util-group');
-  if (group) {
-    const rows = group.querySelectorAll('.util-row');
-    const doneCount = [...rows].filter(r => r.classList.contains('is-done')).length;
-    const prog = group.querySelector('.util-group-progress');
-    if (prog) {
-      prog.textContent = `${doneCount}/${rows.length} done`;
-      prog.classList.toggle('is-complete', doneCount === rows.length);
-    }
-    group.classList.toggle('all-done', doneCount === rows.length);
-  }
+  renderUtilities();
+  if (state.tab === 'schedule' || state.tab === 'payments') render();
 }
 
 async function copyAbonent(value, btn) {
+  const text = formatAbonent(value);
+  if (!text) return;
   try {
-    await navigator.clipboard.writeText(value);
+    await navigator.clipboard.writeText(text);
     if ('vibrate' in navigator) navigator.vibrate(10);
-    const orig = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = orig; }, 1200);
+    const label = btn.querySelector('span') || btn;
+    const orig = label.textContent;
+    label.textContent = 'Copied';
+    setTimeout(() => { label.textContent = orig; }, 1200);
   } catch {
     showError('Copy failed.');
   }
@@ -4251,7 +4253,7 @@ function unitCard(u) {
   const paid = !!state.payments[key];
   const depositCovered = isDepositCoveredUtility(u);
   const payable = shouldShowUtilityInPayments(u);
-  const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
+  const rawAbonent = formatAbonent(u.abonentNumber);
   const amount = Number(u.amount) || 0;
   const status = depositCovered ? 'Using deposit' : paid ? 'Done this month' : payable ? 'Payment needed' : 'No upcoming payment';
   const statusClass = depositCovered || !payable ? ' is-muted' : paid ? ' is-done' : ' is-due';
@@ -4274,7 +4276,7 @@ function unitCard(u) {
         <span class="offer-tag offer-tag-cash">${escapeHtml(status)}</span>
         <span class="offer-tag offer-tag-cat">${dueLabel}</span>
         ${amount > 0 ? '' : '<span class="offer-tag offer-tag-payer">No amount</span>'}
-        ${rawAbonent ? `<button class="util-copy-btn util-copy-chip" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>` : '<span class="unit-card-tag-slot" aria-hidden="true"></span>'}
+        ${rawAbonent ? abonentCopyButton(rawAbonent) : '<span class="unit-card-tag-slot" aria-hidden="true"></span>'}
       </div>
       <footer class="unit-card-foot unit-card-foot-3">
         ${payable
@@ -4293,8 +4295,8 @@ function utilityRow(u) {
   const paidAmt = state.paymentMeta[key]?.paidAmount;
   const personal = isUtilPersonal(u);
   const fixed = isUtilFixed(u);
-  const rawAbonent = String(u.abonentNumber || '').replace(/:$/, '').trim();
-  const showAbonent = rawAbonent && rawAbonent !== 'transfer';
+  const rawAbonent = formatAbonent(u.abonentNumber);
+  const showAbonent = rawAbonent && rawAbonent.toLowerCase() !== 'transfer';
 
   const amountText = fixed && Number(u.amount) > 0 ? amd(Number(u.amount)) : paidAmt ? amd(Number(paidAmt)) : '';
   return `<div class="util-row${paid ? ' is-done' : ''}" id="util-row-${escapeHtml(u.id)}" data-util-id="${escapeHtml(u.id)}">
@@ -4316,7 +4318,7 @@ function utilityRow(u) {
           ${Number(u.dueDay) > 0 ? `<span class="offer-tag offer-tag-cat">Day ${Number(u.dueDay)}</span>` : '<span class="offer-tag offer-tag-cat">No due day</span>'}
           ${!personal ? `<span class="offer-tag offer-tag-payer">Business</span>` : ''}
           ${showAbonent
-            ? `<button class="util-copy-btn util-copy-chip" type="button" onclick="copyAbonent('${escapeHtml(rawAbonent)}', this)">Copy code</button>`
+            ? abonentCopyButton(rawAbonent)
             : '<span class="offer-tag offer-tag-date">Transfer</span>'}
         </div>
         <footer class="unit-card-foot unit-card-foot-3">

@@ -4379,10 +4379,58 @@ button:disabled { cursor: wait; opacity: .6; }
 }
 
 .util-copy-chip {
-  height: 24px;
+  height: auto;
   min-height: 24px;
-  padding: 0 10px;
+  padding: 4px 8px 4px 10px;
   border-radius: 999px;
+}
+
+.unit-glass-card .util-copy-chip,
+.unit-glass-card .abonent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: auto;
+  min-height: 26px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  background: rgba(6, 18, 36, 0.92);
+  color: #e0f2fe;
+  -webkit-text-fill-color: #e0f2fe;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.unit-glass-card .abonent-code-inner {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e0f2fe;
+  -webkit-text-fill-color: #e0f2fe;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  letter-spacing: 0.04em;
+}
+
+.unit-glass-card .abonent-chip span {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.35);
+  color: #c7d2fe;
+  -webkit-text-fill-color: #c7d2fe;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 

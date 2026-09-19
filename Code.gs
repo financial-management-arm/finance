@@ -446,7 +446,7 @@ function addUtility(ss, params) {
       case 'name': return name;
       case 'payer': return payer;
       case 'provider': return String(params.provider || '').trim().slice(0, 120);
-      case 'abonentNumber': return String(params.abonentNumber || '').trim().slice(0, 60);
+      case 'abonentNumber': return textCode(params.abonentNumber);
       case 'amount': return Number(params.amount) || 0;
       case 'type': return String(params.type || 'variable').trim();
       case 'dueDay': return Math.round(Number(params.dueDay) || 0);
@@ -455,7 +455,9 @@ function addUtility(ss, params) {
       default: return '';
     }
   });
-  ss.getSheetByName('Utilities').appendRow(row);
+  var utilSheet = ss.getSheetByName('Utilities');
+  utilSheet.appendRow(row);
+  forceTextColumn(utilSheet, 'abonentNumber');
   return { ok: true, id: id };
 }
 
@@ -485,13 +487,14 @@ function updateUtility(ss, params) {
     name: String(params.name || '').trim().slice(0, 80),
     payer: String(params.payer || '').trim(),
     provider: String(params.provider || '').trim().slice(0, 120),
-    abonentNumber: String(params.abonentNumber || '').trim().slice(0, 60),
+    abonentNumber: textCode(params.abonentNumber),
     amount: Number(params.amount) || 0,
     type: String(params.type || 'variable').trim(),
     dueDay: Math.round(Number(params.dueDay) || 0),
     active: params.active === 'true' || params.active === true,
     personalExpense: params.personalExpense === 'true' || params.personalExpense === true
   });
+  forceTextColumn(ss.getSheetByName('Utilities'), 'abonentNumber');
   return { ok: true };
 }
 
@@ -904,18 +907,40 @@ function looksLikeDataRow(sheetName, firstCell) {
   return false;
 }
 
+function textCode(value) {
+  return String(value == null ? '' : value).replace(/^'/, '').trim().slice(0, 60);
+}
+
+function forceTextColumn(sheet, headerName) {
+  if (!sheet) return;
+  var headers = SCHEMAS[sheet.getName()] || [];
+  var col = headers.indexOf(headerName) + 1;
+  if (col < 1) return;
+  var rows = Math.max(sheet.getLastRow() - 1, 1);
+  sheet.getRange(2, col, rows, 1).setNumberFormat('@');
+}
+
 function sheetToJson(ss, name) {
   var sheet = ss.getSheetByName(name);
   if (!sheet || sheet.getLastRow() < 2) return [];
   var headers = SCHEMAS[name] || sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
-  return values.filter(function(row) {
-    return row.some(function(value) { return value !== ''; });
-  }).map(function(row) {
+  var range = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length);
+  var values = range.getValues();
+  var displays = (name === 'Utilities' || name === 'Obligations') ? range.getDisplayValues() : null;
+  var textHeaders = { abonentNumber: true, contractNumber: true };
+  return values.map(function(row, rowIndex) {
+    if (!row.some(function(value) { return value !== ''; })) return null;
     var obj = {};
-    headers.forEach(function(header, index) { obj[header] = row[index]; });
+    headers.forEach(function(header, index) {
+      if (displays && textHeaders[header]) {
+        var shown = String(displays[rowIndex][index] || '').trim();
+        obj[header] = shown !== '' ? shown : row[index];
+      } else {
+        obj[header] = row[index];
+      }
+    });
     return obj;
-  });
+  }).filter(Boolean);
 }
 
 function rowsForMonth(rows, month, getMonth) {
