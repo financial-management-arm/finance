@@ -3676,9 +3676,12 @@ button:active,
   max-width: none;
   margin: 0 0 16px;
 }
-#page-reconcile .completed-switch { color: #fde68a; }
-#page-reconcile .completed-switch .switch-track { background: rgba(245, 158, 11, 0.35); }
-#page-reconcile .completed-switch input:checked + .switch-track { background: #f59e0b; }
+#page-reconcile .completed-switch {
+  color: #0f172a;
+  font-weight: 700;
+}
+#page-reconcile .completed-switch .switch-track { background: #cbd5e1; }
+#page-reconcile .completed-switch input:checked + .switch-track { background: #2563eb; }
 .recon-intro { max-width: 880px; margin: 0 auto var(--space-4); }
 .recon-bar {
   height: 6px;
@@ -6854,12 +6857,12 @@ code.abonent-code {
   --tab-glow: 139, 92, 246;
 }
 #page-reconcile {
-  --tab-a: 251, 191, 36;
-  --tab-b: 245, 158, 11;
-  --tab-c: 253, 186, 116;
-  --tab-bg1: 48, 28, 8;
-  --tab-bg2: 18, 12, 8;
-  --tab-glow: 245, 158, 11;
+  --tab-a: 96, 165, 250;
+  --tab-b: 37, 99, 235;
+  --tab-c: 125, 211, 252;
+  --tab-bg1: 15, 23, 42;
+  --tab-bg2: 8, 15, 30;
+  --tab-glow: 37, 99, 235;
 }
 #page-income {
   --tab-a: 52, 211, 153;
@@ -7051,3 +7054,33 @@ code.abonent-code {
 #page-schedule .payment-glass-card .payment-card-title h2 {
   color: #f0f9ff !important;
 }
+
+#page-reconcile .recon-intro,
+#page-reconcile .recon-group-head h2,
+#page-reconcile .recon-group-title {
+  color: #0f172a !important;
+}
+#page-reconcile .recon-glass-card,
+#page-reconcile .recon-row.recon-glass-card,
+#page-reconcile .recon-row.recon-glass-card.is-done {
+  background: linear-gradient(145deg, #142033, #0b1220) !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+  color: #f8fafc !important;
+}
+#page-reconcile .recon-name,
+#page-reconcile .recon-initial,
+#page-reconcile .recon-prev {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  background: none !important;
+}
+#page-reconcile .recon-sub,
+#page-reconcile .recon-bank-label,
+#page-reconcile .recon-prev-label,
+#page-reconcile .recon-entry-label,
+#page-reconcile .recon-prev-when,
+#page-reconcile .recon-delta {
+  color: #cbd5e1 !important;
+}
+#page-reconcile .recon-delta.is-saved,
+#page-reconcile .recon-delta.is-down { color: #34d399 !important; }
