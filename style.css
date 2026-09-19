@@ -6825,3 +6825,222 @@ code.abonent-code {
   color: #f8fafc !important;
   -webkit-text-fill-color: #f8fafc !important;
 }
+
+/* =========================================================
+   Per-tab card palettes
+   Payments is the hero surface. Every other tab has its own hue.
+   ========================================================= */
+#page-schedule {
+  --tab-a: 56, 189, 248;
+  --tab-b: 99, 102, 241;
+  --tab-c: 167, 139, 250;
+  --tab-bg1: 10, 24, 72;
+  --tab-bg2: 6, 10, 28;
+  --tab-glow: 59, 130, 246;
+}
+#page-loans {
+  --tab-a: 167, 139, 250;
+  --tab-b: 139, 92, 246;
+  --tab-c: 244, 114, 182;
+  --tab-bg1: 36, 18, 64;
+  --tab-bg2: 14, 10, 28;
+  --tab-glow: 139, 92, 246;
+}
+#page-reconcile {
+  --tab-a: 251, 191, 36;
+  --tab-b: 245, 158, 11;
+  --tab-c: 253, 186, 116;
+  --tab-bg1: 48, 28, 8;
+  --tab-bg2: 18, 12, 8;
+  --tab-glow: 245, 158, 11;
+}
+#page-income {
+  --tab-a: 52, 211, 153;
+  --tab-b: 16, 185, 129;
+  --tab-c: 125, 211, 252;
+  --tab-bg1: 6, 40, 28;
+  --tab-bg2: 8, 16, 18;
+  --tab-glow: 16, 185, 129;
+}
+#page-cash {
+  --tab-a: 45, 212, 191;
+  --tab-b: 13, 148, 136;
+  --tab-c: 94, 234, 212;
+  --tab-bg1: 6, 36, 36;
+  --tab-bg2: 8, 16, 22;
+  --tab-glow: 20, 184, 166;
+}
+#page-offers {
+  --tab-a: 129, 140, 248;
+  --tab-b: 192, 132, 252;
+  --tab-c: 34, 211, 238;
+  --tab-bg1: 28, 22, 72;
+  --tab-bg2: 12, 12, 32;
+  --tab-glow: 99, 102, 241;
+}
+#page-utilities {
+  --tab-a: 110, 231, 183;
+  --tab-b: 22, 163, 74;
+  --tab-c: 52, 211, 153;
+  --tab-bg1: 6, 36, 24;
+  --tab-bg2: 8, 16, 16;
+  --tab-glow: 16, 185, 129;
+}
+#page-partners {
+  --tab-a: 251, 113, 133;
+  --tab-b: 244, 63, 94;
+  --tab-c: 253, 186, 116;
+  --tab-bg1: 48, 16, 28;
+  --tab-bg2: 18, 10, 16;
+  --tab-glow: 244, 63, 94;
+}
+#page-reports {
+  --tab-a: 125, 211, 252;
+  --tab-b: 56, 189, 248;
+  --tab-c: 148, 163, 184;
+  --tab-bg1: 12, 28, 48;
+  --tab-bg2: 8, 12, 22;
+  --tab-glow: 14, 165, 233;
+}
+
+#page-schedule .page-header,
+#page-loans .page-header,
+#page-reconcile .page-header,
+#page-income .page-header,
+#page-cash .page-header,
+#page-offers .page-header,
+#page-utilities .page-header,
+#page-partners .page-header,
+#page-reports .page-header {
+  border-bottom-color: rgba(var(--tab-a), 0.18);
+}
+
+#page-schedule .payments-workspace,
+#page-schedule .page-body,
+#page-loans .page-body,
+#page-reconcile .page-body,
+#page-income .page-body,
+#page-cash .page-body,
+#page-offers .page-body,
+#page-utilities .page-body,
+#page-partners .page-body,
+#page-reports .page-body {
+  background-image:
+    radial-gradient(820px 380px at -8% -12%, rgba(var(--tab-glow), 0.16), transparent 58%),
+    radial-gradient(640px 340px at 108% -8%, rgba(var(--tab-a), 0.10), transparent 52%);
+}
+
+#page-schedule .payment-overview {
+  border-color: rgba(var(--tab-a), 0.35) !important;
+  background: linear-gradient(135deg, rgba(var(--tab-bg1), 0.94), rgba(var(--tab-bg2), 0.98)) !important;
+  box-shadow: 0 18px 40px -16px rgba(var(--tab-glow), 0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+#page-schedule .payment-glass-card,
+#page-schedule .util-pay-card,
+#page-loans .loan-glass-card,
+#page-loans .obligation-card,
+#page-reconcile .recon-glass-card,
+#page-income .income-table-card,
+#page-income .surface-card,
+#page-cash .cash-glass-card,
+#page-cash .offer-glass-card,
+#page-offers .offer-glass-card,
+#page-utilities .unit-glass-card,
+#page-utilities .util-glass-card,
+#page-utilities .offer-glass-card,
+#page-partners .partner-card,
+#page-reports .report-panel {
+  border-color: rgba(var(--tab-a), 0.38) !important;
+  background: linear-gradient(145deg, rgba(var(--tab-bg1), 0.94), rgba(var(--tab-bg2), 0.98)) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--tab-b), 0.16),
+    0 16px 36px -12px rgba(0, 0, 0, 0.38),
+    0 0 42px -12px rgba(var(--tab-glow), 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+  color: #e2e8f0;
+}
+
+#page-schedule .payment-glass-card::before,
+#page-loans .loan-glass-card::before,
+#page-reconcile .recon-glass-card::before,
+#page-cash .cash-glass-card::before,
+#page-offers .offer-glass-card::before,
+#page-utilities .unit-glass-card::before,
+#page-utilities .offer-glass-card::before {
+  background: linear-gradient(135deg, rgba(var(--tab-a), 0.75), rgba(var(--tab-c), 0.35), rgba(var(--tab-b), 0.55)) !important;
+}
+
+#page-schedule .offer-glass-glow,
+#page-schedule .cash-glass-glow,
+#page-loans .offer-glass-glow,
+#page-cash .cash-glass-glow,
+#page-offers .offer-glass-glow,
+#page-utilities .offer-glass-glow,
+#page-utilities .cash-glass-glow {
+  background: rgb(var(--tab-glow)) !important;
+  opacity: 0.30;
+}
+
+#page-schedule .payment-glass-card .payment-card-amount strong,
+#page-loans .loan-glass-card .ob-amount,
+#page-cash .cash-glass-amount,
+#page-offers .offer-glass-amount,
+#page-utilities .unit-card-amount {
+  background: linear-gradient(90deg, rgb(var(--tab-a)), rgb(var(--tab-c)), rgb(var(--tab-b))) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+#page-schedule .payment-glass-card .button-primary,
+#page-loans .loan-glass-card .button-secondary,
+#page-loans .loan-glass-card .loan-complete,
+#page-utilities .unit-card-pay.button-primary,
+#page-offers .button-primary,
+#page-cash .button-primary,
+#page-partners .button-primary {
+  background: linear-gradient(135deg, rgb(var(--tab-b)), rgb(var(--tab-a))) !important;
+  border: none !important;
+  color: #fff !important;
+}
+
+#page-schedule .payment-glass-card .payment-progress-fill {
+  background: linear-gradient(90deg, rgb(var(--tab-b)), rgb(var(--tab-a))) !important;
+}
+
+#page-partners .partner-card-name,
+#page-reports .report-panel,
+#page-income .income-table-card {
+  color: #f8fafc;
+}
+#page-partners .partner-card-cat,
+#page-partners .partner-card-rel {
+  color: #fda4af;
+}
+
+/* Payments is the premium tab — stronger rim, deeper glow, brighter type */
+#page-schedule .payment-glass-card,
+#page-schedule .util-pay-card {
+  border-color: rgba(56, 189, 248, 0.48) !important;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(56, 189, 248, 0.20), transparent 46%),
+    radial-gradient(90% 70% at 0% 100%, rgba(99, 102, 241, 0.22), transparent 50%),
+    linear-gradient(145deg, rgba(8, 28, 78, 0.96), rgba(6, 10, 28, 0.98)) !important;
+  box-shadow:
+    0 0 0 1px rgba(125, 211, 252, 0.18),
+    0 20px 44px -14px rgba(2, 8, 24, 0.55),
+    0 0 56px -10px rgba(56, 189, 248, 0.42),
+    inset 0 1px 0 rgba(186, 230, 253, 0.16) !important;
+}
+#page-schedule .payment-glass-card:hover,
+#page-schedule .util-pay-card:hover {
+  box-shadow:
+    0 0 0 1px rgba(125, 211, 252, 0.32),
+    0 24px 52px -12px rgba(2, 8, 24, 0.6),
+    0 0 64px -8px rgba(56, 189, 248, 0.55) !important;
+}
+#page-schedule .payment-overview strong,
+#page-schedule .payment-glass-card .payment-card-title h2 {
+  color: #f0f9ff !important;
+}
