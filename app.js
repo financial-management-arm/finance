@@ -908,8 +908,7 @@ function activeReconFilterCount() {
   return [
     state.reconSearch,
     state.reconBank !== 'all',
-    state.reconPayer !== 'all',
-    state.reconShowDone
+    state.reconPayer !== 'all'
   ].filter(Boolean).length;
 }
 

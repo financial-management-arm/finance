@@ -3672,6 +3672,13 @@ button:active,
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.recon-toolbar {
+  max-width: none;
+  margin: 0 0 16px;
+}
+#page-reconcile .completed-switch { color: #fde68a; }
+#page-reconcile .completed-switch .switch-track { background: rgba(245, 158, 11, 0.35); }
+#page-reconcile .completed-switch input:checked + .switch-track { background: #f59e0b; }
 .recon-intro { max-width: 880px; margin: 0 auto var(--space-4); }
 .recon-bar {
   height: 6px;

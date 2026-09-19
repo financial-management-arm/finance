@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=94">
+  <link rel="stylesheet" href="style.css?v=95">
 </head>
 <body class="month-pending">
 
@@ -125,7 +125,16 @@
           <button class="btn-today">Today</button>
         </div>
       </div>
-      <div class="page-body" id="recon-container"></div>
+      <div class="page-body">
+        <div class="payment-toolbar recon-toolbar">
+          <label class="completed-switch">
+            <input id="recon-show-done" type="checkbox">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span>Show reconciled</span>
+          </label>
+        </div>
+        <div id="recon-container"></div>
+      </div>
     </section>
 
     <!-- ─── INCOME ─── -->
@@ -980,10 +989,6 @@
         <svg class="filter-input-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m13 13 3.5 3.5"/></svg>
         <input class="filter-input" id="recon-search" type="search" placeholder="Bank, payer or contract">
       </label>
-      <label class="filter-toggle-row">
-        <input type="checkbox" id="recon-show-done">
-        Show reconciled loans
-      </label>
     </div>
     <div class="filter-section">
       <div class="filter-section-label">Narrow down</div>
@@ -1094,7 +1099,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=125"></script>
+<script src="app.js?v=126"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>
