@@ -7380,8 +7380,8 @@ body.income-filter-open { overflow: hidden; }
 #page-reconcile .recon-delta.is-down { color: #34d399 !important; }
 
 /* Income mobile header: keep the sync/collapse rail from floating alone —
-   group title + Filter + sync + collapse-toggle on one row, so nothing
-   sits isolated and asymmetric. */
+   group title + Filter + sync + collapse-toggle + Add all on one clustered
+   row, so nothing sits isolated and asymmetric. */
 @media (max-width: 720px) {
   #page-income.header-open > .page-header {
     flex-wrap: wrap;
@@ -7399,11 +7399,24 @@ body.income-filter-open { overflow: hidden; }
   #page-income.header-open > .page-header .header-filter-btn {
     order: 3;
     flex: 0 0 auto;
-    margin-left: 8px;
+    padding: 0 12px !important;
+    font-size: 13px !important;
+    min-height: 32px !important;
+    gap: 6px !important;
   }
   #page-income.header-open > .page-header .page-header-actions {
     order: 4;
-    flex: 1 1 100%;
+    flex: 0 0 auto !important;
+    display: flex !important;
+    margin-left: 0 !important;
+  }
+  #page-income.header-open > .page-header .page-header-actions .button-primary {
+    grid-column: unset !important;
+    width: auto !important;
+    min-height: 32px !important;
+    padding: 0 14px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
   }
   #page-income.header-open > .page-header .month-nav {
     order: 5;
@@ -7531,30 +7544,6 @@ body.income-filter-open { overflow: hidden; }
   min-height: 0 !important;
 }
 
-/* ── Income mobile header: cluster Filter alongside + Add, sync and the
-   collapse-toggle instead of giving + Add its own separate full row ── */
-@media (max-width: 720px) {
-  #page-income.header-open > .page-header .header-filter-btn {
-    padding: 0 12px !important;
-    font-size: 13px !important;
-    min-height: 32px !important;
-    gap: 6px !important;
-  }
-  #page-income.header-open > .page-header .page-header-actions {
-    order: 4;
-    flex: 0 0 auto !important;
-    display: flex !important;
-    margin-left: 0 !important;
-  }
-  #page-income.header-open > .page-header .page-header-actions .button-primary {
-    grid-column: unset !important;
-    width: auto !important;
-    min-height: 32px !important;
-    padding: 0 14px !important;
-    font-size: 13px !important;
-    border-radius: 10px !important;
-  }
-}
 .filter-drawer-footer .filter-done-btn,
 .filter-drawer-footer .button-primary {
   background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%) !important;
