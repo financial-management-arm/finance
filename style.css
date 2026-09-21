@@ -6793,6 +6793,17 @@ body.income-filter-open { overflow: hidden; }
 }
 .income-hero-all { margin-top: 8px; font-size: 12px; }
 .income-hero-all strong { color: #ecfeff; }
+.income-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.income-hero-actions .filter-trigger-btn {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.16);
+  color: #f8fafc;
+}
 .income-scope {
   display: flex;
   gap: 6px;
@@ -7431,12 +7442,23 @@ body.income-filter-open { overflow: hidden; }
 /* ── Collapsed header: keep the sync + collapse-toggle inside one shared
    header card instead of floating as separate disconnected chips ── */
 .page.header-closed > .page-header {
-  background:
-    radial-gradient(360px 140px at 8% -20%, rgba(94, 234, 212, 0.14), transparent 58%),
-    linear-gradient(165deg, #122033 0%, #0d1726 58%, #102a32 100%);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 18px;
-  box-shadow: 0 14px 30px -20px rgba(8, 15, 28, 0.5);
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  margin: 8px 36px 10px;
+  padding: 0 !important;
+  min-height: 0;
+  overflow: visible;
+}
+.page.header-open > .page-header {
+  margin: 8px 36px 10px;
+}
+@media (max-width: 768px) {
+  .page.header-closed > .page-header,
+  .page.header-open > .page-header {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
 }
 .page.header-closed > .page-header .header-rail { gap: 10px; }
 

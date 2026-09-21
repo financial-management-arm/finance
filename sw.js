@@ -1,9 +1,9 @@
-const CACHE = 'finances-arm-v79';
+const CACHE = 'finances-arm-v80';
 
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=101',
+  './style.css?v=98',
   './app.js?v=129',
   './exports.js?v=1',
   './config.js?v=21',
@@ -13,7 +13,7 @@ const ASSETS = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS).catch(() => {}))
   );
   self.skipWaiting();
 });
@@ -27,35 +27,35 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-function network(request) {
-  return fetch(request).then(response => {
-    if (response && response.ok) {
-      const copy = response.clone();
-      caches.open(CACHE).then(cache => cache.put(request, copy));
-    }
-    return response;
-  });
+function putCache(request, response) {
+  if (response && response.ok) {
+    const copy = response.clone();
+    caches.open(CACHE).then(cache => cache.put(request, copy));
+  }
+  return response;
 }
 
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-  // Navigations: serve the cached shell instantly, refresh it in the
-  // background so the next load picks up a new deploy.
-  if (req.mode === 'navigate') {
+  const url = new URL(req.url);
+  const isAppFile = req.mode === 'navigate' ||
+    /\.(?:html|css|js)$/.test(url.pathname) ||
+    url.searchParams.has('v');
+
+  // Always try the network first for the app shell so a refresh
+  // never paints a previous deploy underneath the current one.
+  if (isAppFile) {
     event.respondWith(
-      caches.match(req).then(cached => {
-        const update = network(req).catch(() => null);
-        return cached || update || caches.match('./index.html');
-      })
+      fetch(req).then(res => putCache(req, res)).catch(() =>
+        caches.match(req).then(cached => cached || caches.match('./index.html'))
+      )
     );
     return;
   }
 
-  // Everything else: cache-first, falling back to network and caching the
-  // result for next time.
   event.respondWith(
-    caches.match(req).then(cached => cached || network(req).catch(() => cached))
+    caches.match(req).then(cached => cached || fetch(req).then(res => putCache(req, res)))
   );
 });

@@ -4060,6 +4060,7 @@ function renderIncomeTab() {
 
 function setIncomeScope(scope) {
   state.incomeScope = scope === 'all' ? 'all' : 'month';
+  renderIncomeFilterOptions();
   renderIncomeTab();
 }
 
@@ -4085,6 +4086,17 @@ const INCOME_SORT_FILTER_OPTIONS = [
 ];
 
 function renderIncomeFilterOptions() {
+  const scopeList = q('income-filter-scope-list');
+  if (scopeList) {
+    scopeList.innerHTML = [
+      { value: 'month', label: 'This month' },
+      { value: 'all', label: 'All time' }
+    ].map(o => `
+      <button type="button" class="sheet-radio-row${state.incomeScope === o.value ? ' is-active' : ''}" onclick="setIncomeScope('${o.value}')">
+        <span>${escapeHtml(o.label)}</span>
+        <span class="sheet-radio-dot" aria-hidden="true"></span>
+      </button>`).join('');
+  }
   const sourceList = q('income-filter-source-list');
   if (sourceList) {
     sourceList.innerHTML = INCOME_SOURCE_FILTER_OPTIONS.map(o => `
@@ -4119,6 +4131,7 @@ function updateIncomeFilterBadge() {
   const badge = q('income-filter-badge');
   const btn = q('income-filter-btn');
   const count = [
+    state.incomeScope === 'all',
     state.incomeSourceFilter && state.incomeSourceFilter !== 'all',
     !!state.incomeDateFrom,
     !!state.incomeDateTo,
@@ -4171,10 +4184,16 @@ function clearIncomeFilters() {
   state.incomeSourceFilter = 'all';
   state.incomeDateFrom = '';
   state.incomeDateTo = '';
-  q('income-search').value = '';
-  q('income-source-filter').value = 'all';
-  q('income-date-from').value = '';
-  q('income-date-to').value = '';
+  state.incomeScope = 'month';
+  const search = q('income-search');
+  const source = q('income-source-filter');
+  const from = q('income-date-from');
+  const to = q('income-date-to');
+  if (search) search.value = '';
+  if (source) source.value = 'all';
+  if (from) from.value = '';
+  if (to) to.value = '';
+  renderIncomeFilterOptions();
   renderIncomeTab();
 }
 
@@ -5722,27 +5741,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const reconClear = q('recon-clear-filters');
   if (reconClear) reconClear.addEventListener('click', clearReconFilters);
 
-  q('income-sort').addEventListener('change', event => {
+  q('income-sort')?.addEventListener('change', event => {
     state.incomeSort = event.target.value;
     renderIncome();
   });
-  q('income-search').addEventListener('input', event => {
+  q('income-search')?.addEventListener('input', event => {
     state.incomeSearch = event.target.value.trim();
     renderIncomeTab();
   });
-  q('income-source-filter').addEventListener('change', event => {
+  q('income-source-filter')?.addEventListener('change', event => {
     state.incomeSourceFilter = event.target.value;
     renderIncomeTab();
   });
-  q('income-date-from').addEventListener('change', event => {
+  q('income-date-from')?.addEventListener('change', event => {
     state.incomeDateFrom = event.target.value;
     renderIncomeTab();
   });
-  q('income-date-to').addEventListener('change', event => {
+  q('income-date-to')?.addEventListener('change', event => {
     state.incomeDateTo = event.target.value;
     renderIncomeTab();
   });
-  q('income-clear-filters').addEventListener('click', clearIncomeFilters);
+  q('income-clear-filters')?.addEventListener('click', clearIncomeFilters);
   q('income-add-modal').addEventListener('click', event => {
     if (event.target === event.currentTarget) closeIncomeModal();
   });
