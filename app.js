@@ -1586,18 +1586,7 @@ function initCollapsibleHeaders() {
     btn.type = 'button';
     btn.className = 'header-toggle';
     btn.addEventListener('click', () => togglePageHeader(page.id));
-    const sync = document.createElement('button');
-    sync.type = 'button';
-    sync.className = 'header-sync';
-    sync.title = 'Refresh data';
-    sync.innerHTML = `<span class="sync-dot" aria-hidden="true"></span>
-      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 8a6 6 0 1 0 0 5M16 3v5h-5"/></svg>`;
-    sync.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      refreshData(false).catch(() => {});
-    });
-    rail.append(btn, sync);
+    rail.append(btn);
     header.insertBefore(rail, header.firstChild);
   });
   if (!q('sync-status')) {

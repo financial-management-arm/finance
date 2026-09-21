@@ -7045,6 +7045,10 @@ body.income-filter-open { overflow: hidden; }
 }
 .page.header-closed > .page-header .header-rail { display: flex !important; }
 .page.header-closed > .page-header .header-toggle { flex: 1 1 auto; width: auto; min-width: 0; }
+.header-sync,
+#sync-button {
+  display: none !important;
+}
 .header-sync {
   flex: 0 0 40px;
   width: 40px;
@@ -7053,7 +7057,7 @@ body.income-filter-open { overflow: hidden; }
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(8,18,28,0.28);
   color: #ecfeff;
-  display: grid;
+  display: none;
   place-items: center;
   cursor: pointer;
   position: relative;
