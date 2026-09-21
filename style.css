@@ -7410,3 +7410,154 @@ body.income-filter-open { overflow: hidden; }
     flex: 1 1 100%;
   }
 }
+
+/* ── Collapsed header: keep the sync + collapse-toggle inside one shared
+   header card instead of floating as separate disconnected chips ── */
+.page.header-closed > .page-header {
+  background:
+    radial-gradient(360px 140px at 8% -20%, rgba(94, 234, 212, 0.14), transparent 58%),
+    linear-gradient(165deg, #122033 0%, #0d1726 58%, #102a32 100%);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 14px 30px -20px rgba(8, 15, 28, 0.5);
+}
+.page.header-closed > .page-header .header-rail { gap: 10px; }
+
+/* ── Collapse-toggle arrow: a plain SVG caret instead of the old rotated
+   border hack, which could render as an odd/lopsided shape ── */
+.header-toggle-chev {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.header-toggle-chev::before { content: none; }
+.header-toggle-chev svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .2s ease;
+  display: block;
+}
+.page.header-open .header-toggle-chev svg { transform: rotate(180deg); }
+
+/* ── Filter trigger buttons: blue everywhere, matching the primary + Add
+   action, so Filter reads as the same weight of control on every tab ── */
+.filter-trigger-btn {
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  border: 0 !important;
+  color: #fff !important;
+  box-shadow: 0 8px 16px -10px rgba(37, 99, 235, 0.75), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+}
+.filter-trigger-btn svg { stroke: #fff !important; }
+.filter-trigger-btn:hover { filter: brightness(1.06); }
+.filter-trigger-btn:active { transform: translateY(1px); }
+.filter-trigger-btn.has-filters {
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%) !important;
+  box-shadow: 0 0 0 2px rgba(96,165,250,.45) !important;
+}
+.filter-trigger-btn .filter-badge {
+  background: #fff !important;
+  color: #1d4ed8 !important;
+}
+
+/* ── Filter drawer: bottom-sheet shape everywhere (was a right-side
+   slide-in panel on desktop and a full-screen takeover on mobile) ── */
+.filter-drawer::before { display: none; }
+.filter-drawer-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.22);
+  margin: 10px auto 2px;
+  flex-shrink: 0;
+}
+.filter-drawer {
+  position: fixed !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  height: auto !important;
+  max-height: min(86vh, 720px) !important;
+  width: min(480px, 100vw) !important;
+  max-width: 100vw !important;
+  border-radius: 24px 24px 0 0 !important;
+  transform: translate(-50%, 100%) !important;
+  transition: transform 260ms cubic-bezier(.32,.72,0,1) !important;
+}
+.filter-drawer-open .filter-drawer {
+  transform: translate(-50%, 0) !important;
+}
+.filter-drawer-footer {
+  position: static !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  padding: 12px 20px calc(16px + env(safe-area-inset-bottom)) !important;
+  box-shadow: none !important;
+}
+.filter-drawer-footer .filter-results-count {
+  order: 3;
+  flex: none !important;
+  text-align: center;
+  font-size: 12px;
+}
+.filter-drawer-footer .filter-clear-btn {
+  order: 1;
+  align-self: center;
+  background: none !important;
+  border: 0 !important;
+  color: rgba(226,232,240,.6) !important;
+  font-size: 13px !important;
+  padding: 4px 8px !important;
+}
+.filter-drawer-footer .filter-clear-btn:hover { color: #fff !important; background: none !important; }
+.filter-drawer-footer .filter-done-btn,
+.filter-drawer-footer .button-primary {
+  order: 2;
+  width: 100%;
+  padding: 14px !important;
+  border-radius: 14px !important;
+  font-size: 15px !important;
+  min-height: 0 !important;
+}
+
+/* ── Income mobile header: cluster Filter alongside + Add, sync and the
+   collapse-toggle instead of giving + Add its own separate full row ── */
+@media (max-width: 720px) {
+  #page-income.header-open > .page-header .header-filter-btn {
+    padding: 0 12px !important;
+    font-size: 13px !important;
+    min-height: 32px !important;
+    gap: 6px !important;
+  }
+  #page-income.header-open > .page-header .page-header-actions {
+    order: 4;
+    flex: 0 0 auto !important;
+    display: flex !important;
+    margin-left: 0 !important;
+  }
+  #page-income.header-open > .page-header .page-header-actions .button-primary {
+    grid-column: unset !important;
+    width: auto !important;
+    min-height: 32px !important;
+    padding: 0 14px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
+  }
+}
+.filter-drawer-footer .filter-done-btn,
+.filter-drawer-footer .button-primary {
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  box-shadow: 0 8px 16px -10px rgba(37, 99, 235, 0.75), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  color: #fff !important;
+}
