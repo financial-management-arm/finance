@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=96">
+  <link rel="stylesheet" href="style.css?v=97">
 </head>
 <body class="month-pending">
 
@@ -298,27 +298,29 @@
     </div>
 
     <div class="modal-backdrop hidden" id="income-add-modal">
-      <div class="edit-modal income-add-dialog" role="dialog" aria-modal="true" aria-labelledby="income-add-title">
+      <div class="edit-modal income-add-dialog income-glass-modal" role="dialog" aria-modal="true" aria-labelledby="income-add-title">
         <div class="modal-header">
           <h2 id="income-add-title">Add income</h2>
           <button class="modal-close" type="button" onclick="closeIncomeModal()" aria-label="Close">×</button>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="f-date">Date</label>
-          <input type="date" class="form-input" id="f-date">
-        </div>
+        <div class="income-add-avatar" id="income-add-avatar-preview"></div>
         <div class="form-group">
           <label class="form-label" for="f-amount">Amount (֏)</label>
-          <input type="number" class="form-input" id="f-amount" placeholder="0" min="0">
+          <input type="number" class="form-input income-add-amount" id="f-amount" placeholder="0" min="0">
         </div>
         <div class="form-group">
-          <label class="form-label" for="f-stream">Source</label>
-          <select class="form-select" id="f-stream">
+          <label class="form-label">Source</label>
+          <div class="income-source-chips" id="income-source-chips"></div>
+          <select class="form-select hidden" id="f-stream" aria-hidden="true" tabindex="-1">
             <option value="car_rental">Car Rental</option>
             <option value="legal">Legal</option>
             <option value="real_estate">Real Estate</option>
             <option value="other">Other</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f-date">Date</label>
+          <input type="date" class="form-input" id="f-date">
         </div>
         <div class="form-group">
           <label class="form-label" for="f-note">Note (optional)</label>
@@ -1099,7 +1101,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=126"></script>
+<script src="app.js?v=127"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>

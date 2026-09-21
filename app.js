@@ -2776,9 +2776,39 @@ function savePaymentBalanceFromInput(id) {
 // ================================================================
 // Income
 // ================================================================
+const INCOME_SOURCE_OPTIONS = [
+  { value: 'car_rental', label: 'Car Rental' },
+  { value: 'legal', label: 'Legal' },
+  { value: 'real_estate', label: 'Real Estate' },
+  { value: 'other', label: 'Other' }
+];
+
+function renderIncomeAddChips(selected) {
+  const wrap = q('income-source-chips');
+  if (!wrap) return;
+  wrap.innerHTML = INCOME_SOURCE_OPTIONS.map(o => `
+    <button type="button" class="income-source-chip${o.value === selected ? ' is-active' : ''}" data-source="${o.value}" onclick="selectIncomeSource('${o.value}')">
+      ${bankAvatarHtml(o.label)}
+      <span>${escapeHtml(o.label)}</span>
+    </button>`).join('');
+  updateIncomeAddAvatar(selected);
+}
+
+function updateIncomeAddAvatar(source) {
+  const label = (INCOME_SOURCE_OPTIONS.find(o => o.value === source) || {}).label || 'Income';
+  const preview = q('income-add-avatar-preview');
+  if (preview) preview.innerHTML = bankAvatarHtml(label);
+}
+
+function selectIncomeSource(value) {
+  q('f-stream').value = value;
+  renderIncomeAddChips(value);
+}
+
 function openIncomeModal() {
   q('income-add-modal').classList.remove('hidden');
   q('f-date').value = q('f-date').value || new Date().toISOString().slice(0, 10);
+  renderIncomeAddChips(q('f-stream').value || 'car_rental');
   q('f-amount').focus();
 }
 

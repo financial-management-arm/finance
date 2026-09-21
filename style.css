@@ -593,6 +593,88 @@ tfoot td {
 .income-add-dialog { width: min(460px, calc(100vw - 28px)); }
 .income-add-dialog .modal-actions { margin-top: var(--space-5); }
 
+/* ── Add income modal (glass) ───────────────────────────────── */
+.income-glass-modal {
+  background:
+    radial-gradient(480px 200px at 100% -10%, rgba(45,212,191,.28), transparent 60%),
+    linear-gradient(160deg, #0b1723 0%, #102433 42%, #123a3a 100%);
+  color: #f1f5f9;
+  border: 1px solid rgba(45,212,191,.18);
+  box-shadow: 0 30px 70px -30px rgba(2, 12, 20, .65);
+}
+.income-glass-modal .modal-header h2 { color: #fff; }
+.income-glass-modal .modal-close {
+  background: rgba(255,255,255,.08);
+  color: #cbd5e1;
+  border: 0;
+}
+.income-glass-modal .modal-close:hover { background: rgba(255,255,255,.16); }
+.income-glass-modal .form-label { color: rgba(226,232,240,.72); }
+.income-glass-modal .form-input,
+.income-glass-modal .form-select {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  color: #f1f5f9;
+}
+.income-glass-modal .form-input::placeholder { color: rgba(226,232,240,.4); }
+.income-glass-modal .form-input:focus,
+.income-glass-modal .form-select:focus {
+  outline: none;
+  border-color: #2dd4bf;
+  box-shadow: 0 0 0 3px rgba(45,212,191,.22);
+}
+.income-glass-modal input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .7; }
+
+.income-add-avatar { display: flex; justify-content: center; margin-bottom: 14px; }
+.income-add-avatar .offer-avatar { width: 56px; height: 56px; font-size: 22px; box-shadow: 0 10px 24px -8px rgba(45,212,191,.55); }
+
+.income-add-amount {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  text-align: center;
+  padding: 14px !important;
+  letter-spacing: .3px;
+}
+
+.income-source-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+.income-source-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  color: #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.income-source-chip:hover { background: rgba(255,255,255,.09); }
+.income-source-chip:active { transform: translateY(1px); }
+.income-source-chip.is-active {
+  background: rgba(45,212,191,.16);
+  border-color: #2dd4bf;
+  color: #fff;
+}
+.income-source-chip .offer-avatar { width: 22px; height: 22px; font-size: 10px; flex-shrink: 0; }
+
+.income-glass-modal .modal-actions .button-ghost {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.14);
+  color: #e2e8f0;
+}
+.income-glass-modal .modal-actions .button-ghost:hover { background: rgba(255,255,255,.14); }
+.income-glass-modal .modal-actions .button-primary {
+  background: linear-gradient(180deg, #14b8a6 0%, #0f766e 100%) !important;
+  box-shadow: 0 8px 16px -8px rgba(15, 118, 110, .8), inset 0 1px 0 rgba(255,255,255,.22) !important;
+}
+
 @media (max-width: 900px) {
   .income-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .income-list-header { flex-direction: column; }
@@ -6144,7 +6226,7 @@ code.abonent-code {
   mask-image: linear-gradient(180deg, rgba(0,0,0,.45), transparent 82%);
   opacity: .55;
 }
-.main > * { position: relative; z-index: 1; }
+.main > *:not(.modal-backdrop) { position: relative; z-index: 1; }
 .workspace-bar {
   background: color-mix(in srgb, #ffffff 72%, transparent);
   backdrop-filter: blur(16px);
@@ -6641,14 +6723,14 @@ code.abonent-code {
     text-overflow: ellipsis;
     max-width: 58vw;
   }
-  .page.header-open > .page-header-actions {
+  .page.header-open .page-header-actions {
     flex: 1 1 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
-  .page.header-open > .page-header-actions .button-primary,
-  .page.header-open > .page-header-actions #income-clear-filters {
+  .page.header-open .page-header-actions .button-primary,
+  .page.header-open .page-header-actions #income-clear-filters {
     grid-column: 1 / -1;
   }
 }
