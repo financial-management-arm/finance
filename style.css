@@ -7394,47 +7394,9 @@ body.income-filter-open { overflow: hidden; }
 #page-reconcile .recon-delta.is-saved,
 #page-reconcile .recon-delta.is-down { color: #34d399 !important; }
 
-/* Income mobile header: keep the sync/collapse rail from floating alone —
-   group title + Filter + sync + collapse-toggle + Add all on one clustered
-   row, so nothing sits isolated and asymmetric. */
 @media (max-width: 720px) {
-  #page-income.header-open > .page-header {
-    flex-wrap: wrap;
-  }
-  #page-income.header-open > .page-header h1 {
-    order: 1;
-    flex: 1 1 100%;
-  }
-  #page-income.header-open > .page-header .header-rail {
-    order: 2 !important;
-    width: auto !important;
-    margin-left: auto !important;
-    flex: 0 0 auto !important;
-  }
-  #page-income.header-open > .page-header .header-filter-btn {
-    order: 3;
-    flex: 0 0 auto;
-    padding: 0 12px !important;
-    font-size: 13px !important;
-    min-height: 32px !important;
-    gap: 6px !important;
-  }
-  #page-income.header-open > .page-header .page-header-actions {
-    order: 4;
-    flex: 0 0 auto !important;
-    display: flex !important;
-    margin-left: 0 !important;
-  }
-  #page-income.header-open > .page-header .page-header-actions .button-primary {
-    grid-column: unset !important;
-    width: auto !important;
-    min-height: 32px !important;
-    padding: 0 14px !important;
-    font-size: 13px !important;
-    border-radius: 10px !important;
-  }
   #page-income.header-open > .page-header .month-nav {
-    order: 5;
+    order: 8;
     flex: 1 1 100%;
   }
 }
@@ -7577,39 +7539,42 @@ body.income-filter-open { overflow: hidden; }
   color: #fff !important;
 }
 
-/* Compact open headers: Filters sits with the collapse arrow */
+/* Compact open headers: one toolbar row — title, actions, arrow */
 @media (max-width: 900px) {
   .page.header-open > .page-header {
     display: flex !important;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 8px;
-    padding: 12px 12px 10px !important;
+    padding: 10px 12px !important;
   }
   .page.header-open > .page-header .page-kicker {
     display: none !important;
   }
-  .page.header-open > .page-header > div:not(.header-rail):not(.page-header-actions):not(.month-nav) {
-    flex: 1 1 100%;
+  .page.header-open > .page-header > div:not(.header-rail):not(.page-header-actions):not(.month-nav),
+  .page.header-open > .page-header > h1 {
+    flex: 0 1 auto;
     min-width: 0;
     order: 1;
+    margin: 0;
+    font-size: 17px !important;
+    line-height: 1.15;
+    white-space: nowrap;
   }
   .page.header-open > .page-header > h1 {
-    flex: 1 1 100%;
-    order: 1;
-    margin: 0;
-    font-size: 20px !important;
-    line-height: 1.15;
+    font-size: 17px !important;
   }
   .page.header-open > .page-header .page-header-actions {
     order: 2 !important;
-    flex: 1 1 auto !important;
+    flex: 0 1 auto !important;
     display: flex !important;
     flex-wrap: nowrap;
     align-items: center;
+    justify-content: flex-start;
     gap: 6px !important;
     margin: 0 !important;
     width: auto !important;
+    min-width: 0;
     grid-template-columns: none !important;
   }
   .page.header-open > .page-header .page-header-actions .button-primary,
@@ -7648,7 +7613,7 @@ body.income-filter-open { overflow: hidden; }
   .page.header-open > .page-header .header-rail {
     order: 3 !important;
     width: auto !important;
-    margin-left: 0 !important;
+    margin-left: auto !important;
     flex: 0 0 auto !important;
   }
   .page.header-open > .page-header .header-toggle {
