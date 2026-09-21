@@ -1563,8 +1563,7 @@ function refreshHeaderToggles() {
     page.classList.toggle('header-closed', !open);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     const month = page.querySelector('.month-label')?.textContent || '';
-    btn.innerHTML = `<span class="ht-orb" aria-hidden="true"></span>
-      <span class="ht-copy"><span class="ht-kicker">${open ? 'Hide controls' : 'Open controls'}</span>
+    btn.innerHTML = `<span class="ht-copy"><span class="ht-kicker">${open ? 'Hide controls' : 'Open controls'}</span>
       <span class="header-toggle-title">${escapeHtml(pageHeaderTitle(page))}</span></span>
       <span class="header-toggle-meta">${escapeHtml(month)}</span>
       <span class="header-toggle-chev" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M5 8l5 5 5-5"/></svg></span>`;
