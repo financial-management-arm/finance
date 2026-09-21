@@ -1481,6 +1481,7 @@ function ensureUiUnlocked() {
   // Never allow a stale overlay/inert state to make the whole app unclickable.
   try {
     document.body.classList.remove('filter-drawer-open');
+    document.body.classList.remove('income-filter-open');
     document.body.classList.remove('is-loading');
     const appEl = document.querySelector('.app');
     if (appEl) {
@@ -1489,6 +1490,10 @@ function ensureUiUnlocked() {
     }
     const drawer = q('filter-drawer');
     if (drawer) drawer.inert = true;
+    const incomeSheet = q('income-filter-sheet');
+    if (incomeSheet) { incomeSheet.classList.add('hidden'); incomeSheet.classList.remove('is-open'); incomeSheet.inert = true; }
+    const incomeSheetBackdrop = q('income-filter-backdrop');
+    if (incomeSheetBackdrop) { incomeSheetBackdrop.classList.add('hidden'); incomeSheetBackdrop.classList.remove('is-visible'); }
     document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(m => m.classList.add('hidden'));
   } catch (_) { /* ignore */ }
 }
@@ -4059,6 +4064,9 @@ function renderIncomeTab() {
       </section>`
     : '';
   q('income-tbody').innerHTML = grouped + orphanHtml || '<div class="empty-state">No income entries match these filters.</div>';
+  updateIncomeFilterBadge();
+  const incomeFilterCaptionEl = q('income-filter-caption');
+  if (incomeFilterCaptionEl) incomeFilterCaptionEl.textContent = q('income-results-count')?.textContent || '';
 }
 
 function setIncomeScope(scope) {
@@ -4070,6 +4078,103 @@ function setIncomeSourceFilter(source) {
   state.incomeSourceFilter = state.incomeSourceFilter === source ? 'all' : source;
   q('income-source-filter').value = state.incomeSourceFilter;
   renderIncomeTab();
+}
+
+const INCOME_SOURCE_FILTER_OPTIONS = [
+  { value: 'all', label: 'All sources' },
+  { value: 'car_rental', label: 'Car Rental' },
+  { value: 'legal', label: 'Legal' },
+  { value: 'real_estate', label: 'Real Estate' },
+  { value: 'other', label: 'Other' }
+];
+
+const INCOME_SORT_FILTER_OPTIONS = [
+  { value: 'date-desc', label: 'Newest first' },
+  { value: 'date-asc', label: 'Oldest first' },
+  { value: 'amount-desc', label: 'Highest amount' },
+  { value: 'amount-asc', label: 'Lowest amount' }
+];
+
+function renderIncomeFilterOptions() {
+  const sourceList = q('income-filter-source-list');
+  if (sourceList) {
+    sourceList.innerHTML = INCOME_SOURCE_FILTER_OPTIONS.map(o => `
+      <button type="button" class="sheet-radio-row${state.incomeSourceFilter === o.value ? ' is-active' : ''}" onclick="pickIncomeSourceFilter('${o.value}')">
+        <span>${escapeHtml(o.label)}</span>
+        <span class="sheet-radio-dot" aria-hidden="true"></span>
+      </button>`).join('');
+  }
+  const sortList = q('income-filter-sort-list');
+  if (sortList) {
+    sortList.innerHTML = INCOME_SORT_FILTER_OPTIONS.map(o => `
+      <button type="button" class="sheet-radio-row${state.incomeSort === o.value ? ' is-active' : ''}" onclick="pickIncomeSort('${o.value}')">
+        <span>${escapeHtml(o.label)}</span>
+        <span class="sheet-radio-dot" aria-hidden="true"></span>
+      </button>`).join('');
+  }
+}
+
+function pickIncomeSourceFilter(value) {
+  const sel = q('income-source-filter');
+  if (sel) { sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+  renderIncomeFilterOptions();
+}
+
+function pickIncomeSort(value) {
+  const sel = q('income-sort');
+  if (sel) { sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+  renderIncomeFilterOptions();
+}
+
+function updateIncomeFilterBadge() {
+  const badge = q('income-filter-badge');
+  const btn = q('income-filter-btn');
+  const count = [
+    state.incomeSourceFilter && state.incomeSourceFilter !== 'all',
+    !!state.incomeDateFrom,
+    !!state.incomeDateTo,
+    !!state.incomeSearch
+  ].filter(Boolean).length;
+  if (badge) {
+    badge.textContent = count || '';
+    badge.classList.toggle('hidden', !count);
+  }
+  if (btn) btn.classList.toggle('has-filters', !!count);
+}
+
+function openIncomeFilterSheet() {
+  renderIncomeFilterOptions();
+  const backdrop = q('income-filter-backdrop');
+  const sheet = q('income-filter-sheet');
+  if (!backdrop || !sheet) return;
+  incomeFilterReturnFocus = document.activeElement;
+  backdrop.classList.remove('hidden');
+  sheet.classList.remove('hidden');
+  sheet.inert = false;
+  document.body.classList.add('income-filter-open');
+  requestAnimationFrame(() => {
+    backdrop.classList.add('is-visible');
+    sheet.classList.add('is-open');
+  });
+  try {
+    const closeBtn = sheet.querySelector('.sheet-close');
+    if (closeBtn) closeBtn.focus();
+  } catch (_) { /* focus can fail; never leave UI locked forever */ }
+}
+
+function closeIncomeFilterSheet() {
+  const backdrop = q('income-filter-backdrop');
+  const sheet = q('income-filter-sheet');
+  if (!backdrop || !sheet) return;
+  backdrop.classList.remove('is-visible');
+  sheet.classList.remove('is-open');
+  document.body.classList.remove('income-filter-open');
+  setTimeout(() => {
+    backdrop.classList.add('hidden');
+    sheet.classList.add('hidden');
+    sheet.inert = true;
+  }, 220);
+  try { incomeFilterReturnFocus?.focus(); } catch (_) {}
 }
 
 function clearIncomeFilters() {
@@ -5437,6 +5542,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       if (document.body.classList.contains('filter-drawer-open')) closeFilterDrawer();
+      else if (document.body.classList.contains('income-filter-open')) closeIncomeFilterSheet();
       else ensureUiUnlocked();
     }
   });
@@ -5816,6 +5922,7 @@ function renderPayerFilters() {
 // Filter Drawer
 // ================================================================
 const FILTER_TABS = ['payment', 'obligation', 'recon', 'cash', 'offer'];
+let incomeFilterReturnFocus = null;
 
 function activeCashFilterCount() {
   return [

@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=97">
+  <link rel="stylesheet" href="style.css?v=98">
 </head>
 <body class="month-pending">
 
@@ -142,23 +142,11 @@
       <div class="page-header">
         <h1>Income</h1>
         <div class="page-header-actions">
-          <input class="search-input" id="income-search" type="search" placeholder="Search note or amount">
-          <select class="sort-select" id="income-source-filter">
-            <option value="all">All sources</option>
-            <option value="car_rental">Car Rental</option>
-            <option value="legal">Legal</option>
-            <option value="real_estate">Real Estate</option>
-            <option value="other">Other</option>
-          </select>
-          <select class="sort-select" id="income-sort" aria-label="Sort income">
-            <option value="date-desc">Newest</option>
-            <option value="date-asc">Oldest</option>
-            <option value="amount-desc">Highest</option>
-            <option value="amount-asc">Lowest</option>
-          </select>
-          <input class="form-input income-date-filter" id="income-date-from" type="date" aria-label="From">
-          <input class="form-input income-date-filter" id="income-date-to" type="date" aria-label="To">
-          <button class="button button-ghost btn-sm" id="income-clear-filters" type="button">Clear</button>
+          <button class="filter-trigger-btn" id="income-filter-btn" type="button" onclick="openIncomeFilterSheet()" aria-label="Open filters">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+            Filter
+            <span class="filter-badge hidden" id="income-filter-badge"></span>
+          </button>
           <button class="button button-primary" id="btn-open-income" type="button" onclick="openIncomeModal()">+ Add</button>
         </div>
         <div class="month-nav">
@@ -1094,6 +1082,66 @@
   </div>
 </aside>
 
+<!-- Income filter bottom sheet -->
+<div class="income-filter-backdrop hidden" id="income-filter-backdrop" onclick="closeIncomeFilterSheet()"></div>
+<aside class="income-filter-sheet hidden" id="income-filter-sheet" role="dialog" aria-modal="true" aria-labelledby="income-filter-title" inert>
+  <div class="sheet-handle" aria-hidden="true"></div>
+  <div class="sheet-header">
+    <div class="sheet-header-title">
+      <span class="sheet-header-icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+      </span>
+      <h2 id="income-filter-title">Filter income</h2>
+    </div>
+    <button class="sheet-close" type="button" onclick="closeIncomeFilterSheet()" aria-label="Close">
+      <svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15"/></svg>
+    </button>
+  </div>
+  <div class="sheet-body">
+    <div class="sheet-section">
+      <label class="sheet-section-label" for="income-search">Search</label>
+      <label class="filter-input-wrap">
+        <svg class="filter-input-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m13 13 3.5 3.5"/></svg>
+        <input id="income-search" class="filter-input" type="search" placeholder="Search note or amount">
+      </label>
+    </div>
+    <div class="sheet-section">
+      <div class="sheet-section-label">Source</div>
+      <div class="sheet-radio-list" id="income-filter-source-list"></div>
+    </div>
+    <div class="sheet-section">
+      <div class="sheet-section-label">Sort by</div>
+      <div class="sheet-radio-list" id="income-filter-sort-list"></div>
+    </div>
+    <div class="sheet-section">
+      <div class="sheet-section-label">Date range</div>
+      <div class="sheet-date-row">
+        <input class="form-input" id="income-date-from" type="date" aria-label="From">
+        <span class="sheet-date-sep">&ndash;</span>
+        <input class="form-input" id="income-date-to" type="date" aria-label="To">
+      </div>
+    </div>
+    <select class="hidden" id="income-source-filter" aria-hidden="true" tabindex="-1">
+      <option value="all">All sources</option>
+      <option value="car_rental">Car Rental</option>
+      <option value="legal">Legal</option>
+      <option value="real_estate">Real Estate</option>
+      <option value="other">Other</option>
+    </select>
+    <select class="hidden" id="income-sort" aria-hidden="true" tabindex="-1" aria-label="Sort income">
+      <option value="date-desc">Newest</option>
+      <option value="date-asc">Oldest</option>
+      <option value="amount-desc">Highest</option>
+      <option value="amount-asc">Lowest</option>
+    </select>
+  </div>
+  <div class="sheet-footer">
+    <button class="sheet-clear-link" id="income-clear-filters" type="button">Clear all</button>
+    <button class="sheet-apply-btn" type="button" onclick="closeIncomeFilterSheet()">Apply filters</button>
+    <p class="sheet-caption" id="income-filter-caption"></p>
+  </div>
+</aside>
+
 <!-- hidden IDs needed by JS but unused in drawer UI -->
 <span id="payment-filter-count" style="display:none"></span>
 <span id="obligation-filter-count" style="display:none"></span>
@@ -1101,7 +1149,7 @@
 <span id="obligation-results-count" style="display:none"></span>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=127"></script>
+<script src="app.js?v=128"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>
