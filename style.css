@@ -7576,3 +7576,111 @@ body.income-filter-open { overflow: hidden; }
   box-shadow: 0 8px 16px -10px rgba(37, 99, 235, 0.75), inset 0 1px 0 rgba(255,255,255,0.18) !important;
   color: #fff !important;
 }
+
+/* Compact open headers: Filters sits with the collapse arrow */
+@media (max-width: 900px) {
+  .page.header-open > .page-header {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 8px;
+    padding: 12px 12px 10px !important;
+  }
+  .page.header-open > .page-header .page-kicker {
+    display: none !important;
+  }
+  .page.header-open > .page-header > div:not(.header-rail):not(.page-header-actions):not(.month-nav) {
+    flex: 1 1 100%;
+    min-width: 0;
+    order: 1;
+  }
+  .page.header-open > .page-header > h1 {
+    flex: 1 1 100%;
+    order: 1;
+    margin: 0;
+    font-size: 20px !important;
+    line-height: 1.15;
+  }
+  .page.header-open > .page-header .page-header-actions {
+    order: 2 !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px !important;
+    margin: 0 !important;
+    width: auto !important;
+    grid-template-columns: none !important;
+  }
+  .page.header-open > .page-header .page-header-actions .button-primary,
+  .page.header-open > .page-header .page-header-actions #income-clear-filters {
+    grid-column: auto !important;
+    width: auto !important;
+  }
+  .page.header-open > .page-header .filter-trigger-btn,
+  .page.header-open > .page-header .button,
+  .page.header-open > .page-header .button-primary,
+  .page.header-open > .page-header .btn-primary,
+  .page.header-open > .page-header .button-ghost,
+  .page.header-open > .page-header .export-menu summary {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 11px !important;
+    font-size: 12px !important;
+    border-radius: 10px !important;
+    width: auto !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap;
+  }
+  .page.header-open > .page-header .filter-trigger-btn {
+    padding: 0 10px !important;
+  }
+  .page.header-open > .page-header .filter-trigger-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .page.header-open > .page-header .recon-progress,
+  .page.header-open > .page-header .search-input,
+  .page.header-open > .page-header .sort-select,
+  .page.header-open > .page-header .income-date-filter {
+    display: none !important;
+  }
+  .page.header-open > .page-header .header-rail {
+    order: 3 !important;
+    width: auto !important;
+    margin-left: 0 !important;
+    flex: 0 0 auto !important;
+  }
+  .page.header-open > .page-header .header-toggle {
+    min-height: 34px !important;
+    height: 34px !important;
+    width: 34px !important;
+    min-width: 34px;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    justify-content: center;
+    gap: 0 !important;
+  }
+  .page.header-open > .page-header .ht-copy,
+  .page.header-open > .page-header .header-toggle-title,
+  .page.header-open > .page-header .header-toggle-meta,
+  .page.header-open > .page-header .ht-kicker {
+    display: none !important;
+  }
+  .page.header-open > .page-header .ht-orb {
+    width: 8px;
+    height: 8px;
+    box-shadow: 0 0 0 3px rgba(94,234,212,.16);
+  }
+  .page.header-open > .page-header .month-nav {
+    order: 8;
+    flex: 1 1 100%;
+    min-height: 36px;
+    margin: 0;
+  }
+  .page.header-closed > .page-header .header-toggle {
+    min-height: 44px !important;
+    padding: 6px 10px !important;
+    border-radius: 14px !important;
+  }
+}
