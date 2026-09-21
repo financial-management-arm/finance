@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=98">
+  <link rel="stylesheet" href="style.css?v=100">
 </head>
 <body class="month-pending">
 
@@ -141,12 +141,12 @@
     <section id="page-income" class="page">
       <div class="page-header">
         <h1>Income</h1>
+        <button class="filter-trigger-btn header-filter-btn" id="income-filter-btn" type="button" onclick="openIncomeFilterSheet()" aria-label="Open filters">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+          Filter
+          <span class="filter-badge hidden" id="income-filter-badge"></span>
+        </button>
         <div class="page-header-actions">
-          <button class="filter-trigger-btn" id="income-filter-btn" type="button" onclick="openIncomeFilterSheet()" aria-label="Open filters">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
-            Filter
-            <span class="filter-badge hidden" id="income-filter-badge"></span>
-          </button>
           <button class="button button-primary" id="btn-open-income" type="button" onclick="openIncomeModal()">+ Add</button>
         </div>
         <div class="month-nav">

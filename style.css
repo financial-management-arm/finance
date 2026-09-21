@@ -7378,3 +7378,35 @@ body.income-filter-open { overflow: hidden; }
 }
 #page-reconcile .recon-delta.is-saved,
 #page-reconcile .recon-delta.is-down { color: #34d399 !important; }
+
+/* Income mobile header: keep the sync/collapse rail from floating alone —
+   group title + Filter + sync + collapse-toggle on one row, so nothing
+   sits isolated and asymmetric. */
+@media (max-width: 720px) {
+  #page-income.header-open > .page-header {
+    flex-wrap: wrap;
+  }
+  #page-income.header-open > .page-header h1 {
+    order: 1;
+    flex: 1 1 100%;
+  }
+  #page-income.header-open > .page-header .header-rail {
+    order: 2 !important;
+    width: auto !important;
+    margin-left: auto !important;
+    flex: 0 0 auto !important;
+  }
+  #page-income.header-open > .page-header .header-filter-btn {
+    order: 3;
+    flex: 0 0 auto;
+    margin-left: 8px;
+  }
+  #page-income.header-open > .page-header .page-header-actions {
+    order: 4;
+    flex: 1 1 100%;
+  }
+  #page-income.header-open > .page-header .month-nav {
+    order: 5;
+    flex: 1 1 100%;
+  }
+}
