@@ -440,7 +440,7 @@ function invalidateCachedMonth(month = state.month) {
 
 async function callApi(params, options = {}) {
   const isWrite = params.action && !['all', 'getReportData'].includes(params.action);
-  if (!isWrite) return requestApi(params, options);
+  if (!isWrite) return requestApi(params, { timeout: params.action === 'all' ? 60000 : 30000, retries: 2, ...options });
   // A read started before a write must never overwrite the user's newer changes.
   dataRevision++;
   pendingWrites++;
@@ -479,7 +479,9 @@ async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
     try {
       const res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal });
       if (!res.ok) throw Object.assign(new Error(`Server returned ${res.status}`), { retryable: res.status >= 500 || res.status === 429 });
-      const json = await res.json();
+      const json = await res.json().catch(() => {
+        throw Object.assign(new Error('The backend did not return data. Open the web app as Anyone in Apps Script.'), { retryable: false });
+      });
       if (json.error) throw Object.assign(new Error(json.error), { retryable: /lock|timed out|try again|too many times/i.test(json.error) });
       if (['setPayment', 'updateBalance'].includes(params.action) && json.success !== true) {
         throw Object.assign(new Error('The server did not confirm the save. Refresh to check its status.'), { retryable: false });
@@ -490,6 +492,9 @@ async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
       return json;
     } catch (err) {
       clearTimeout(timer);
+      if (err && err.name === 'AbortError') {
+        err = Object.assign(new Error('Timed out waiting for the spreadsheet.'), { retryable: true });
+      }
       if (attempt < retries && err.retryable !== false) {
         await new Promise(r => setTimeout(r, 1500));
         continue;
@@ -505,7 +510,8 @@ async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
 function applyAllData(data) {
   const fingerprint = JSON.stringify([state.month, data.obligations, data.payments, data.income, data.loanHistory, data.utilities, data.cashEntries, data.partners]);
   loadedMonth = state.month;
-  document.body.classList.remove('month-pending');
+  document.body.classList.remove('month-pending', 'month-load-failed');
+  q('month-load-fail')?.classList.add('hidden');
   if (fingerprint === appliedFingerprint) return;
   appliedFingerprint = fingerprint;
   state.obligations = data.obligations || [];
@@ -1504,8 +1510,11 @@ async function revalidateMonth(month, force = false) {
       }
     } catch (err) {
       if (state.month !== month || revision !== dataRevision) return;
+      document.body.classList.remove('month-pending', 'is-loading');
       setSyncStatus('error', loadedMonth === month ? 'Saved view. Tap to retry' : 'Could not load. Tap to retry');
-      if (loadedMonth !== month) showError('Could not load this month. Use the refresh button to retry.');
+      if (loadedMonth !== month) {
+        showMonthLoadFailure(err);
+      }
     } finally {
       monthRequests.delete(requestKey);
       if (state.month === month) {
@@ -1555,6 +1564,32 @@ async function addIncome(entry) {
 // ================================================================
 function showLoading(on) {
   document.body.classList.toggle('is-loading', on);
+}
+
+function retryMonthLoad() {
+  document.body.classList.remove('month-load-failed');
+  const panel = q('month-load-fail');
+  if (panel) panel.classList.add('hidden');
+  document.body.classList.add('month-pending');
+  revalidateMonth(state.month, true);
+}
+
+function showMonthLoadFailure(err) {
+  const detail = err && err.message ? String(err.message) : 'Network error';
+  showError('Could not load this month. ' + detail);
+  document.body.classList.add('month-load-failed');
+  let panel = q('month-load-fail');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'month-load-fail';
+    panel.className = 'month-load-fail';
+    panel.innerHTML = `<strong>Could not load this month</strong><span class="month-load-fail-detail"></span><button type="button" class="btn-primary" onclick="retryMonthLoad()">Retry</button>`;
+    const host = document.querySelector('.app-main, .content, #page-schedule') || document.body;
+    host.prepend(panel);
+  }
+  const detailEl = panel.querySelector('.month-load-fail-detail');
+  if (detailEl) detailEl.textContent = detail;
+  panel.classList.remove('hidden');
 }
 
 function showError(msg) {

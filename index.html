@@ -8,13 +8,18 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=105">
+  <link rel="stylesheet" href="style.css?v=106">
 </head>
 <body class="month-pending">
 
 <!-- Loading overlay -->
 <div id="loading" class="loading-overlay hidden" aria-hidden="true"></div>
 <div id="error-toast" class="error-toast hidden" role="status" aria-live="polite"></div>
+<div id="month-load-fail" class="month-load-fail hidden">
+  <strong>Could not load this month</strong>
+  <span class="month-load-fail-detail">The phone could not reach the spreadsheet backend.</span>
+  <button type="button" class="btn-primary" onclick="retryMonthLoad()">Retry</button>
+</div>
 
 <div class="app">
 
@@ -1188,7 +1193,7 @@
 </aside>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=138"></script>
+<script src="app.js?v=139"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>
