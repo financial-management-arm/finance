@@ -469,19 +469,34 @@ async function callApi(params, options = {}) {
 }
 
 async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
-  const url = new URL(API_URL);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  url.searchParams.set('_t', Date.now());
+  const parseResponse = async res => {
+    const text = await res.text();
+    const trimmed = String(text || '').trim();
+    if (!res.ok) {
+      throw Object.assign(new Error(`Server returned ${res.status}`), { retryable: res.status >= 500 || res.status === 429 });
+    }
+    if (!trimmed || trimmed[0] === '<') {
+      throw Object.assign(new Error('Apps Script blocked the phone. Set the web app access to Anyone, then deploy that version.'), { retryable: false });
+    }
+    try { return JSON.parse(trimmed); }
+    catch (_) {
+      throw Object.assign(new Error('The backend did not return data. Set web app access to Anyone.'), { retryable: false });
+    }
+  };
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal });
-      if (!res.ok) throw Object.assign(new Error(`Server returned ${res.status}`), { retryable: res.status >= 500 || res.status === 429 });
-      const json = await res.json().catch(() => {
-        throw Object.assign(new Error('The backend did not return data. Open the web app as Anyone in Apps Script.'), { retryable: false });
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        cache: 'no-store',
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ ...params, _t: Date.now() })
       });
+      const json = await parseResponse(res);
       if (json.error) throw Object.assign(new Error(json.error), { retryable: /lock|timed out|try again|too many times/i.test(json.error) });
       if (['setPayment', 'updateBalance'].includes(params.action) && json.success !== true) {
         throw Object.assign(new Error('The server did not confirm the save. Refresh to check its status.'), { retryable: false });

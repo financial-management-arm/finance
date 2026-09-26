@@ -587,31 +587,36 @@ function deletePartner(ss, params) {
 function doPost(e) {
   var params = {};
   try {
+    if (e && e.parameter) {
+      Object.keys(e.parameter).forEach(function(k) { params[k] = e.parameter[k]; });
+    }
     if (e && e.postData && e.postData.contents) {
-      params = JSON.parse(e.postData.contents);
+      var body = JSON.parse(e.postData.contents);
+      Object.keys(body).forEach(function(k) { params[k] = body[k]; });
     }
   } catch (err) {
     return jsonOutput({ error: 'Invalid request body' });
   }
   var action = params.action || '';
-  var ss = SpreadsheetApp.openById(SS_ID);
-  var result;
-  try {
-    ensureSheetSchema(ss, 'Partners');
-    if (action === 'addPartner') {
-      result = withLock(function() { return addPartner(ss, params); });
-    } else if (action === 'updatePartner') {
-      result = withLock(function() { return updatePartner(ss, params); });
-    } else if (action === 'deletePartner') {
-      result = withLock(function() { return deletePartner(ss, params); });
-    } else {
-      result = { error: 'Unknown POST action: ' + action };
+  if (action === 'addPartner' || action === 'updatePartner' || action === 'deletePartner') {
+    var ss = SpreadsheetApp.openById(SS_ID);
+    var result;
+    try {
+      ensureSheetSchema(ss, 'Partners');
+      if (action === 'addPartner') {
+        result = withLock(function() { return addPartner(ss, params); });
+      } else if (action === 'updatePartner') {
+        result = withLock(function() { return updatePartner(ss, params); });
+      } else {
+        result = withLock(function() { return deletePartner(ss, params); });
+      }
+      if (!(result && result.error)) clearAllCache();
+    } catch (err) {
+      result = { error: err && err.message ? err.message : String(err) };
     }
-    if (!(result && result.error)) clearAllCache();
-  } catch (err) {
-    result = { error: err && err.message ? err.message : String(err) };
+    return jsonOutput(result);
   }
-  return jsonOutput(result);
+  return doGet({ parameter: params });
 }
 
 // Creates one immutable monthly row per active loan. Existing rows are not
