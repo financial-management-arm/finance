@@ -7680,3 +7680,23 @@ body.income-filter-open { overflow: hidden; }
   cursor: pointer;
 }
 .close-sooner-chip em { display: block; font-style: normal; font-size: 11px; color: #fbbf24; }
+
+.ym-picker, .dmy-picker {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.ym-picker select,
+.dmy-picker .dmy-text,
+.dmy-picker .dmy-cal {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid #d8dee8;
+  padding: 0 10px;
+  background: #fff;
+  font: inherit;
+}
+.ym-picker .ym-month { flex: 1.3; }
+.ym-picker .ym-year { flex: 0.9; min-width: 88px; }
+.dmy-picker .dmy-text { flex: 1; }
+.dmy-picker .dmy-cal { width: 40px; padding: 0 4px; flex: 0 0 40px; }

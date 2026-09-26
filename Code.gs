@@ -34,7 +34,7 @@ function doGet(e) {
   var result;
 
   try {
-    if (!['all', 'setPayment', 'updateBalance'].includes(action)) ensureSchema(ss);
+    if (!['all', 'setPayment', 'updateBalance', 'addObligation', 'updateLoan'].includes(action)) ensureSchema(ss);
 
     if (action === 'all') {
       var monthly = ensureMonthlyLoanSnapshot(ss, month);

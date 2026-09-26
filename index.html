@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=102">
+  <link rel="stylesheet" href="style.css?v=103">
 </head>
 <body class="month-pending">
 
@@ -481,20 +481,20 @@
         <label>Due day<input name="dueDay" type="number" min="0" max="31" value="0"></label>
         <label>Current balance<input name="currentBalance" type="number" min="0" placeholder="optional"></label>
         <label>Original loan total<input name="loanTotal" type="number" min="0" placeholder="optional"></label>
-        <label>End month<input name="endDate" type="month"></label>
+        <label>End month<div id="add-ob-enddate-wrap"></div></label>
         <label>Percent type
           <select name="rateType">
             <option value="fixed">Fixed percent</option>
             <option value="variable">Not fixed — changes later</option>
           </select>
         </label>
-        <label>Percent %<input name="ratePercent" type="number" min="0" step="0.1" placeholder="e.g. 0"></label>
-        <label>Cheap rate ends<input name="promoEndDate" type="month"></label>
-        <label>Then percent %<input name="laterPercent" type="number" min="0" step="0.1" placeholder="e.g. 24"></label>
-        <label>Service fee ֏<input name="serviceFee" type="number" min="0" step="1000" placeholder="0"></label>
+        <label>Percent %<input name="ratePercent" type="number" min="0" step="0.01" placeholder="e.g. 0"></label>
+        <label>Cheap rate ends<div id="add-ob-promo-wrap"></div></label>
+        <label>Then percent %<input name="laterPercent" type="number" min="0" step="0.01" placeholder="e.g. 24"></label>
+        <label>Service fee ֏<input name="serviceFee" type="number" min="0" step="any" placeholder="any amount"></label>
         <label class="edit-wide">Contract number<input name="contractNumber" type="text" placeholder="optional"></label>
         <label class="edit-wide hidden" id="add-ob-startdate-row">Start month
-          <input id="add-ob-startdate" name="startDate" type="month">
+          <div id="add-ob-startdate-wrap"></div>
         </label>
       </div>
       <div class="modal-actions">
@@ -536,8 +536,8 @@
         <label>Due Day<input id="edit-due-day" type="number" min="0" max="31" required></label>
         <label>Current Balance<input id="edit-balance" type="number" min="0"></label>
         <label>Original Loan Total<input id="edit-total" type="number" min="0"></label>
-        <label>Start Month<input id="edit-start-date" type="month"></label>
-        <label>End Month<input id="edit-end-date" type="month"></label>
+        <label>Start month<div id="edit-start-date-wrap"></div></label>
+        <label>End month<div id="edit-end-date-wrap"></div></label>
         <label>Percent type
           <select id="edit-rate-type" onchange="onLoanRateTypeChange()">
             <option value="fixed">Fixed percent</option>
@@ -548,13 +548,13 @@
           <input id="edit-rate-percent" type="number" min="0" step="0.1" placeholder="e.g. 0 or 12">
         </label>
         <label id="edit-promo-end-wrap" class="hidden">Cheap rate ends
-          <input id="edit-promo-end" type="month">
+          <div id="edit-promo-end-inner"></div>
         </label>
         <label id="edit-later-percent-wrap" class="hidden">Then percent %
-          <input id="edit-later-percent" type="number" min="0" step="0.1" placeholder="e.g. 24">
+          <input id="edit-later-percent" type="number" min="0" step="0.01" placeholder="e.g. 24">
         </label>
         <label>Service fee ֏
-          <input id="edit-service-fee" type="number" min="0" step="1000" placeholder="0">
+          <input id="edit-service-fee" type="number" min="0" step="any" placeholder="any amount">
         </label>
         <label class="edit-wide">Contract Number<input id="edit-contract" type="text"></label>
       </div>
@@ -1173,7 +1173,7 @@
 </aside>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=133"></script>
+<script src="app.js?v=134"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>

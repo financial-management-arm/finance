@@ -1233,6 +1233,121 @@ async function saveBalance(id, balance) {
   }
 }
 
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function monthSelectHtml({ name = '', id = '', value = '' } = {}) {
+  const key = monthKeyOf(value);
+  const yy = key.slice(0, 4);
+  const mm = key.slice(5, 7);
+  const years = [];
+  const nowY = new Date().getFullYear();
+  for (let y = nowY - 8; y <= nowY + 16; y++) years.push(y);
+  const monthOpts = MONTH_NAMES.map((label, i) => {
+    const v = String(i + 1).padStart(2, '0');
+    return `<option value="${v}"${mm === v ? ' selected' : ''}>${label}</option>`;
+  }).join('');
+  const yearOpts = years.map(y => `<option value="${y}"${String(y) === yy ? ' selected' : ''}>${y}</option>`).join('');
+  return `<div class="ym-picker">
+    <input type="hidden" name="${escapeHtml(name)}" id="${escapeHtml(id)}" value="${escapeHtml(key)}">
+    <select class="ym-month" aria-label="Month"><option value="">Month</option>${monthOpts}</select>
+    <select class="ym-year" aria-label="Year"><option value="">Year</option>${yearOpts}</select>
+  </div>`;
+}
+
+function syncYmPicker(picker) {
+  const hid = picker.querySelector('input[type="hidden"]');
+  const m = picker.querySelector('.ym-month')?.value || '';
+  const y = picker.querySelector('.ym-year')?.value || '';
+  if (hid) hid.value = (y && m) ? `${y}-${m}` : '';
+}
+
+function setYmPickerValue(id, value) {
+  const hid = q(id);
+  if (!hid) return;
+  const picker = hid.closest('.ym-picker');
+  const key = monthKeyOf(value);
+  hid.value = key;
+  if (!picker) return;
+  const mm = picker.querySelector('.ym-month');
+  const yy = picker.querySelector('.ym-year');
+  if (mm) mm.value = key.slice(5, 7);
+  if (yy) yy.value = key.slice(0, 4);
+}
+
+function mountYmPicker(wrapId, opts) {
+  const wrap = q(wrapId);
+  if (!wrap) return;
+  wrap.innerHTML = monthSelectHtml(opts);
+  wireYmPickers(wrap);
+}
+
+function wireYmPickers(root = document) {
+  root.querySelectorAll('.ym-picker').forEach(p => {
+    if (p.dataset.wired === '1') return;
+    p.dataset.wired = '1';
+    p.addEventListener('change', () => syncYmPicker(p));
+  });
+}
+
+function parseLooseDate(s) {
+  const raw = String(s || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const dmy = raw.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  const date = new Date(raw);
+  if (!Number.isNaN(date.getTime()) && raw.length >= 8) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+  return '';
+}
+
+function formatDmy(iso) {
+  const v = parseLooseDate(iso);
+  if (!v) return '';
+  const [y, m, d] = v.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function upgradeDateInputs(root = document) {
+  root.querySelectorAll('input[type="date"]').forEach(input => {
+    if (input.classList.contains('dmy-cal')) return;
+    if (input.closest('.dmy-picker')) return;
+    const iso = parseLooseDate(input.value);
+    const wrap = document.createElement('div');
+    wrap.className = 'dmy-picker';
+    const hid = document.createElement('input');
+    hid.type = 'hidden';
+    hid.name = input.name || '';
+    hid.id = input.id || '';
+    hid.value = iso;
+    const text = document.createElement('input');
+    text.type = 'text';
+    text.className = 'dmy-text';
+    text.inputMode = 'numeric';
+    text.placeholder = 'dd.mm.yyyy';
+    text.value = formatDmy(iso);
+    text.autocomplete = 'off';
+    const cal = document.createElement('input');
+    cal.type = 'date';
+    cal.className = 'dmy-cal';
+    cal.value = iso;
+    cal.setAttribute('aria-label', 'Choose date');
+    wrap.append(hid, text, cal);
+    input.replaceWith(wrap);
+    const sync = from => {
+      const next = parseLooseDate(from === 'cal' ? cal.value : text.value) || (from === 'cal' ? cal.value : '');
+      hid.value = next;
+      if (next) {
+        text.value = formatDmy(next);
+        cal.value = next;
+      }
+    };
+    text.addEventListener('change', () => sync('text'));
+    text.addEventListener('blur', () => sync('text'));
+    cal.addEventListener('change', () => sync('cal'));
+  });
+}
+
 function openAddObligationModal() {
   const payerList = [...new Set(activeObs().map(o => String(o.payer || '').trim()).filter(Boolean))];
   q('add-ob-payer').setAttribute('list', 'add-ob-payer-list');
@@ -1240,10 +1355,13 @@ function openAddObligationModal() {
   q('add-ob-bank').setAttribute('list', 'add-ob-bank-list');
   q('add-ob-bank-list').innerHTML = creditors().map(b => `<option value="${escapeHtml(b)}">`).join('');
   q('add-ob-startdate-row').classList.add('hidden');
-  q('add-ob-startdate').required = false;
+  mountYmPicker('add-ob-enddate-wrap', { name: 'endDate', id: 'add-ob-enddate', value: '' });
+  mountYmPicker('add-ob-promo-wrap', { name: 'promoEndDate', id: 'add-ob-promo', value: '' });
+  mountYmPicker('add-ob-startdate-wrap', { name: 'startDate', id: 'add-ob-startdate', value: '' });
   q('add-ob-modal').classList.remove('hidden');
   q('add-ob-bank').focus();
   wireBankPickers(q('add-ob-modal') || document);
+  upgradeDateInputs(q('add-ob-modal') || document);
 }
 
 function closeAddObligationModal() {
@@ -1254,45 +1372,54 @@ function closeAddObligationModal() {
 function onAddObFreqChange(sel) {
   const needs = sel.value !== 'monthly';
   q('add-ob-startdate-row').classList.toggle('hidden', !needs);
-  q('add-ob-startdate').required = needs;
 }
 
 async function submitAddObligation(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  const v = id => form.elements[id].value;
-  const btn = form.querySelector('[type="submit"]');
-  btn.disabled = true;
-  btn.textContent = 'Adding...';
+  const v = id => {
+    const el = form.elements[id];
+    return el ? el.value : '';
+  };
+  const payload = {
+    payer: v('payer').trim(),
+    bank: normalizeBankName(v('bank')),
+    category: v('category'),
+    amount: Number(v('amount')) || 0,
+    dueDay: Number(v('dueDay')) || 0,
+    startDate: v('startDate') || '',
+    frequency: v('frequency'),
+    currentBalance: v('currentBalance') === '' ? '' : Number(v('currentBalance')),
+    loanTotal: v('loanTotal') === '' ? '' : Number(v('loanTotal')),
+    endDate: v('endDate') || '',
+    rateType: v('rateType') || 'fixed',
+    ratePercent: v('ratePercent') === '' ? '' : Number(v('ratePercent')),
+    promoEndDate: v('promoEndDate') || '',
+    laterPercent: v('laterPercent') === '' ? '' : Number(v('laterPercent')),
+    serviceFee: v('serviceFee') === '' ? '' : Number(v('serviceFee')),
+    contractNumber: v('contractNumber').trim()
+  };
+  if (!payload.bank || !payload.payer) {
+    showError('Bank and payer are required.');
+    return;
+  }
+  const tempId = 'ob-tmp-' + Date.now();
+  const local = { id: tempId, active: true, ...payload };
+  state.obligations = state.obligations || [];
+  state.obligations.unshift(local);
+  closeAddObligationModal();
+  renderCurrentTab();
+  showToast('Obligation added.');
   try {
-    await callApi({
-      action: 'addObligation',
-      payer: v('payer').trim(),
-      bank: normalizeBankName(v('bank')),
-      category: v('category'),
-      amount: Number(v('amount')) || 0,
-      dueDay: Number(v('dueDay')) || 0,
-      startDate: v('startDate') || '',
-      frequency: v('frequency'),
-      currentBalance: v('currentBalance') === '' ? '' : Number(v('currentBalance')),
-      loanTotal: v('loanTotal') === '' ? '' : Number(v('loanTotal')),
-      endDate: v('endDate') || '',
-      rateType: v('rateType') || 'fixed',
-      ratePercent: v('ratePercent') === '' ? '' : Number(v('ratePercent')),
-      promoEndDate: v('promoEndDate') || '',
-      laterPercent: v('laterPercent') === '' ? '' : Number(v('laterPercent')),
-      serviceFee: v('serviceFee') === '' ? '' : Number(v('serviceFee')),
-      contractNumber: v('contractNumber').trim()
-    });
-    await refreshData(false);
-    renderCurrentTab();
-    closeAddObligationModal();
-    showToast('Obligation added.');
+    const res = await callApi({ action: 'addObligation', ...payload });
+    if (res && res.id) {
+      const row = state.obligations.find(o => o.id === tempId);
+      if (row) row.id = res.id;
+    }
   } catch (err) {
+    state.obligations = state.obligations.filter(o => o.id !== tempId);
+    renderCurrentTab();
     showError('Could not add obligation: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Add Obligation';
   }
 }
 
@@ -2797,11 +2924,11 @@ function openLoanEditor(id) {
   q('edit-due-day').value = Number(loan.dueDay) || 0;
   q('edit-balance').value = loan.currentBalance === '' ? '' : Number(loan.currentBalance);
   q('edit-total').value = loan.loanTotal === '' ? '' : Number(loan.loanTotal);
-  q('edit-start-date').value = inputMonth(loan.startDate);
-  q('edit-end-date').value = inputMonth(loan.endDate);
+  mountYmPicker('edit-start-date-wrap', { name: 'startDate', id: 'edit-start-date', value: loan.startDate });
+  mountYmPicker('edit-end-date-wrap', { name: 'endDate', id: 'edit-end-date', value: loan.endDate });
+  mountYmPicker('edit-promo-end-inner', { name: 'promoEndDate', id: 'edit-promo-end', value: loan.promoEndDate });
   q('edit-rate-type').value = String(loan.rateType || '').toLowerCase() === 'variable' ? 'variable' : 'fixed';
   q('edit-rate-percent').value = loan.ratePercent === '' || loan.ratePercent == null ? '' : Number(loan.ratePercent);
-  q('edit-promo-end').value = inputMonth(loan.promoEndDate);
   q('edit-later-percent').value = loan.laterPercent === '' || loan.laterPercent == null ? '' : Number(loan.laterPercent);
   q('edit-service-fee').value = loan.serviceFee === '' || loan.serviceFee == null ? '' : Number(loan.serviceFee);
   q('edit-contract').value = loan.contractNumber || '';
@@ -2821,7 +2948,8 @@ function closeLoanEditor() {
 function submitLoanEdit(event) {
   event.preventDefault();
   const optionalNumber = id => q(id).value === '' ? '' : Number(q(id).value);
-  updateLoan(q('edit-id').value, {
+  const id = q('edit-id').value;
+  const changes = {
     bank: normalizeBankName(q('edit-bank').value),
     // Sent explicitly: the backend defaults frequency to 'monthly' when it is
     // absent, so omitting it silently reset quarterly/one-time obligations.
@@ -2839,7 +2967,12 @@ function submitLoanEdit(event) {
     laterPercent: q('edit-later-percent').value === '' ? '' : Number(q('edit-later-percent').value),
     serviceFee: q('edit-service-fee').value === '' ? '' : Number(q('edit-service-fee').value),
     contractNumber: q('edit-contract').value.trim()
-  });
+  };
+  const loan = state.obligations.find(o => String(o.id) === String(id));
+  if (loan) Object.assign(loan, changes);
+  closeLoanEditor();
+  renderCurrentTab();
+  updateLoan(id, changes);
 }
 
 function onLoanRateTypeChange() {
@@ -5628,6 +5761,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('focus', ensureUiUnlocked);
   window.addEventListener('pageshow', ensureUiUnlocked);
   wireBankPickers(document);
+  wireYmPickers(document);
+  upgradeDateInputs(document);
   // Input-modality tracking: keyboard actions stay instant; pointer/touch actions may animate.
   const setKeyboardMode = event => {
     if (event.key === 'Tab' || event.key.startsWith('Arrow') || event.key === 'Enter' || event.key === ' ') {
