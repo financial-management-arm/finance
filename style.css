@@ -2288,6 +2288,12 @@ tbody tr:hover td { background: transparent; }
   justify-self: end;
   text-align: right;
 }
+#page-loans.header-open > .page-header .ob-chip-block {
+  flex: 1 1 100%;
+  order: 20;
+  margin: 4px 0 0;
+  min-width: 0;
+}
 .ob-chip-block { margin: 0 0 8px; }
 .ob-chip-label {
   display: block;

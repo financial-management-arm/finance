@@ -2379,7 +2379,7 @@ function renderObligationChips(rows) {
   const payerWrap = q('ob-payer-chips');
   if (bankWrap) {
     bankWrap.innerHTML = [
-      `<button type="button" class="ob-chip${state.obligationBank === 'all' ? ' is-on' : ''}" onclick="setObligationChip('bank','all')">All banks</button>`,
+      `<button type="button" class="ob-chip${state.obligationBank === 'all' ? ' is-on' : ''}" onclick="setObligationChip('bank','all')">All receivers</button>`,
       ...banks.map(name => {
         const on = normalizeBankName(state.obligationBank) === normalizeBankName(name);
         return `<button type="button" class="ob-chip${on ? ' is-on' : ''}" onclick="setObligationChip('bank', this.dataset.name)" data-name="${escapeHtml(name)}">${bankAvatarHtml(name, 'ob-chip-avatar')}<span>${escapeHtml(name)}</span></button>`;
