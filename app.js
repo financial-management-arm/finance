@@ -469,6 +469,12 @@ async function callApi(params, options = {}) {
 }
 
 async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
+  const url = new URL(API_URL);
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+  });
+  url.searchParams.set('_t', Date.now());
+
   const parseResponse = async res => {
     const text = await res.text();
     const trimmed = String(text || '').trim();
@@ -488,13 +494,11 @@ async function requestApi(params, { retries = 1, timeout = 30000 } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
+      const res = await fetch(url.toString(), {
+        method: 'GET',
         cache: 'no-store',
         redirect: 'follow',
-        signal: controller.signal,
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ ...params, _t: Date.now() })
+        signal: controller.signal
       });
       const json = await parseResponse(res);
       if (json.error) throw Object.assign(new Error(json.error), { retryable: /lock|timed out|try again|too many times/i.test(json.error) });
