@@ -2343,15 +2343,60 @@ function renderLoans() {
     <div class="loans-grid">${nonLoans.map(nonLoanCard).join('')}</div>
   ` : '';
 
-  q('loans-container').innerHTML = `
-    <div class="loan-list-summary">
-      <span>${filteredRows.length} result${filteredRows.length !== 1 ? 's' : ''} · ${loans.length} loan${loans.length !== 1 ? 's' : ''} · ${nonLoans.length} other</span>
-      <strong>${amd(totalDebt)} total debt</strong>
-    </div>
-    ${filteredRows.length
-      ? closeSoonerStrip(loans) + loansSection + nonLoansSection
-      : '<div class="obligation-empty"><strong>No obligations match these filters.</strong><span>Adjust or clear the filters to see more results.</span></div>'}
-  `;
+  const meta = q('loan-summary-meta');
+  const debtEl = q('loan-summary-debt');
+  if (meta) meta.textContent = `${filteredRows.length} result${filteredRows.length !== 1 ? 's' : ''} · ${loans.length} loan${loans.length !== 1 ? 's' : ''} · ${nonLoans.length} other`;
+  if (debtEl) debtEl.textContent = `${amd(totalDebt)} total debt`;
+  const mainSearch = q('obligation-search-main');
+  if (mainSearch && document.activeElement !== mainSearch) mainSearch.value = state.obligationSearch || '';
+  renderObligationChips(allRows);
+
+  q('loans-container').innerHTML = filteredRows.length
+    ? closeSoonerStrip(loans) + loansSection + nonLoansSection
+    : '<div class="obligation-empty"><strong>No obligations match these filters.</strong><span>Adjust or clear the filters to see more results.</span></div>';
+}
+
+function uniqueSorted(values) {
+  return [...new Set(values.map(v => String(v || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
+function renderObligationChips(rows) {
+  const banks = uniqueSorted(rows.map(o => o.bank));
+  const payers = uniqueSorted(rows.map(o => o.payer));
+  const bankWrap = q('ob-bank-chips');
+  const payerWrap = q('ob-payer-chips');
+  if (bankWrap) {
+    bankWrap.innerHTML = [
+      `<button type="button" class="ob-chip${state.obligationBank === 'all' ? ' is-on' : ''}" onclick="setObligationChip('bank','all')">All banks</button>`,
+      ...banks.map(name => {
+        const on = normalizeBankName(state.obligationBank) === normalizeBankName(name);
+        return `<button type="button" class="ob-chip${on ? ' is-on' : ''}" onclick="setObligationChip('bank', this.dataset.name)" data-name="${escapeHtml(name)}">${bankAvatarHtml(name, 'ob-chip-avatar')}<span>${escapeHtml(name)}</span></button>`;
+      })
+    ].join('');
+  }
+  if (payerWrap) {
+    payerWrap.innerHTML = [
+      `<button type="button" class="ob-chip${state.obligationPayer === 'all' ? ' is-on' : ''}" onclick="setObligationChip('payer','all')">All payers</button>`,
+      ...payers.map(name => {
+        const on = String(state.obligationPayer) === name;
+        return `<button type="button" class="ob-chip${on ? ' is-on' : ''}" onclick="setObligationChip('payer', this.dataset.name)" data-name="${escapeHtml(name)}"><span>${escapeHtml(name)}</span></button>`;
+      })
+    ].join('');
+  }
+}
+
+function setObligationChip(kind, value) {
+  if (kind === 'bank') {
+    state.obligationBank = value || 'all';
+    const sel = q('obligation-bank');
+    if (sel) sel.value = state.obligationBank;
+  } else {
+    state.obligationPayer = value || 'all';
+    const sel = q('obligation-payer');
+    if (sel) sel.value = state.obligationPayer;
+  }
+  renderLoans();
 }
 
 function filterObligations(rows) {
@@ -5899,12 +5944,22 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   Object.entries(obligationControls).forEach(([id, stateKey]) => {
     const control = q(id);
+    if (!control) return;
     const eventName = control.matches('input') ? 'input' : 'change';
     control.addEventListener(eventName, event => {
       state[stateKey] = event.target.value.trim();
       renderLoans();
     });
   });
+  const mainSearch = q('obligation-search-main');
+  if (mainSearch) {
+    mainSearch.addEventListener('input', event => {
+      state.obligationSearch = event.target.value.trim();
+      const drawerSearch = q('obligation-search');
+      if (drawerSearch) drawerSearch.value = event.target.value;
+      renderLoans();
+    });
+  }
   q('obligation-clear-filters').addEventListener('click', clearObligationFilters);
 
   const cashControls = {

@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=103">
+  <link rel="stylesheet" href="style.css?v=104">
 </head>
 <body class="month-pending">
 
@@ -99,6 +99,21 @@
           </button>
           <details class="export-menu"><summary>Export</summary><div><button type="button" onclick="exportFinanceView('obligations','csv',this)">CSV</button><button type="button" onclick="exportFinanceView('obligations','txt',this)">Text</button><button type="button" onclick="exportFinanceView('obligations','xlsx',this)">Excel (.xlsx)</button><button type="button" onclick="exportFinanceView('obligations','pdf',this)">PDF</button></div></details>
           <button class="button button-primary" type="button" onclick="openAddObligationModal()">+ Add</button>
+        </div>
+      </div>
+      <div class="loan-overview">
+        <div class="loan-list-summary">
+          <span id="loan-summary-meta">—</span>
+          <input id="obligation-search-main" class="loan-search" type="search" placeholder="Search bank, payer, contract…" autocomplete="off">
+          <strong id="loan-summary-debt">—</strong>
+        </div>
+        <div class="ob-chip-block">
+          <span class="ob-chip-label">Banks</span>
+          <div class="ob-chip-row" id="ob-bank-chips"></div>
+        </div>
+        <div class="ob-chip-block">
+          <span class="ob-chip-label">Payers</span>
+          <div class="ob-chip-row" id="ob-payer-chips"></div>
         </div>
       </div>
       <div class="page-body" id="loans-container"></div>
@@ -1173,7 +1188,7 @@
 </aside>
 
 <script src="config.js?v=21"></script>
-<script src="app.js?v=134"></script>
+<script src="app.js?v=135"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>
