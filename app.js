@@ -2789,6 +2789,8 @@ function openLoanEditor(id) {
   if (!modal) return;
   q('edit-id').value = loan.id;
   q('edit-bank').value = loan.bank || '';
+  const bankPicker = modal.querySelector('.bank-picker');
+  if (bankPicker) setBankPickerValue(bankPicker, loan.bank || '', { silent: true });
   q('edit-category').value = String(loan.category || 'personal').toLowerCase();
   q('edit-frequency').value = String(loan.frequency || 'monthly').toLowerCase().trim() || 'monthly';
   q('edit-amount').value = Number(loan.amount) || 0;
@@ -2806,8 +2808,10 @@ function openLoanEditor(id) {
   onLoanRateTypeChange();
   q('loan-edit-title').textContent = `Edit ${loan.bank || 'loan'}`;
   modal.classList.remove('hidden');
-  try { q('edit-bank').focus(); } catch (_) {}
   try { wireBankPickers(modal); } catch (_) {}
+  const pickerAfter = modal.querySelector('.bank-picker');
+  if (pickerAfter) setBankPickerValue(pickerAfter, loan.bank || '', { silent: true });
+  try { q('edit-bank')?.focus?.(); } catch (_) {}
 }
 
 function closeLoanEditor() {
