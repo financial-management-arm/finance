@@ -1898,6 +1898,7 @@ function renderPayerBars() {
 function renderSchedule() {
   const all = dueThisMonth();
   syncPaymentFilterOptions(all);
+  renderPaymentChips(all);
   const obs = sortPayments(filteredObs());
   const paymentResults = q('payment-results-count');
   const paymentFilterCount = q('payment-filter-count');
@@ -2449,6 +2450,45 @@ function renderObligationChips(rows) {
       })
     ].join('');
   }
+}
+
+function renderPaymentChips(rows) {
+  const banks = uniqueBanks(rows);
+  const payers = uniqueSorted(rows.map(o => o.payer));
+  const bankWrap = q('pay-bank-chips');
+  const payerWrap = q('pay-payer-chips');
+  if (bankWrap) {
+    bankWrap.innerHTML = [
+      `<button type="button" class="ob-chip${state.paymentBank === 'all' ? ' is-on' : ''}" onclick="setPaymentChip('bank','all')">All receivers</button>`,
+      ...banks.map(name => {
+        const on = normalizeBankName(state.paymentBank) === normalizeBankName(name);
+        return `<button type="button" class="ob-chip${on ? ' is-on' : ''}" onclick="setPaymentChip('bank', this.dataset.name)" data-name="${escapeHtml(name)}">${bankAvatarHtml(name, 'ob-chip-avatar')}<span>${escapeHtml(name)}</span></button>`;
+      })
+    ].join('');
+  }
+  if (payerWrap) {
+    payerWrap.innerHTML = [
+      `<button type="button" class="ob-chip${state.filter === 'all' ? ' is-on' : ''}" onclick="setPaymentChip('payer','all')">All payers</button>`,
+      ...payers.map(name => {
+        const on = String(state.filter) === name;
+        return `<button type="button" class="ob-chip${on ? ' is-on' : ''}" onclick="setPaymentChip('payer', this.dataset.name)" data-name="${escapeHtml(name)}"><span>${escapeHtml(name)}</span></button>`;
+      })
+    ].join('');
+  }
+}
+
+function setPaymentChip(kind, value) {
+  if (kind === 'bank') {
+    state.paymentBank = value || 'all';
+    const sel = q('payment-bank');
+    if (sel) sel.value = state.paymentBank;
+  } else {
+    state.filter = value || 'all';
+    q('payer-filters')?.querySelectorAll('.pill').forEach(p =>
+      p.classList.toggle('active', p.dataset.filter === state.filter)
+    );
+  }
+  renderSchedule();
 }
 
 function setObligationChip(kind, value) {

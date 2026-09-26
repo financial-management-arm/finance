@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=109">
+  <link rel="stylesheet" href="style.css?v=110">
 </head>
 <body class="month-pending">
 
@@ -75,6 +75,21 @@
           <button class="btn-nav btn-next" aria-label="Next month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 5 5 5-5 5"/></svg></button>
           <button class="btn-today">Today</button>
         </div>
+        <div class="ob-chip-stack">
+          <div class="ob-chip-block">
+            <span class="ob-chip-label">Receivers</span>
+            <div class="ob-chip-row" id="pay-bank-chips"></div>
+          </div>
+          <div class="ob-chip-block">
+            <span class="ob-chip-label">Payers</span>
+            <div class="ob-chip-row" id="pay-payer-chips"></div>
+          </div>
+        </div>
+        <div class="payment-toolbar">
+          <label class="quick-search"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input id="payment-quick-search" type="search" placeholder="Search payer, bank or contract" aria-label="Search payments"></label>
+          <label class="quick-sort"><span>Sort</span><select id="payment-quick-sort" aria-label="Quick payment sort"><option value="dueDay:asc">Due date</option><option value="amount:desc">Amount: high to low</option><option value="amount:asc">Amount: low to high</option><option value="payer:asc">Payer: A to Z</option><option value="bank:asc">Bank: A to Z</option><option value="currentBalance:desc">Debt: high to low</option><option value="custom" disabled>Custom sort</option></select></label>
+          <label class="completed-switch"><input id="show-completed" type="checkbox"><span class="switch-track" aria-hidden="true"></span><span>Show completed</span></label>
+        </div>
       </div>
       <div class="payments-workspace">
         <section class="payment-overview" aria-label="Monthly overview">
@@ -82,11 +97,6 @@
           <div class="overview-stat"><span>Total loan debt</span><strong id="overview-debt">&#8212;</strong><span id="overview-debt-note">Latest known balances</span></div>
           <div class="overview-completion"><div class="completion-orbit" id="completion-orbit"><strong id="overview-percent">0%</strong></div><div><strong id="overview-resolved">&#8212;</strong><span>Payments resolved</span></div></div>
         </section>
-        <div class="payment-toolbar">
-          <label class="quick-search"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input id="payment-quick-search" type="search" placeholder="Search payer, bank or contract" aria-label="Search payments"></label>
-          <label class="quick-sort"><span>Sort</span><select id="payment-quick-sort" aria-label="Quick payment sort"><option value="dueDay:asc">Due date</option><option value="amount:desc">Amount: high to low</option><option value="amount:asc">Amount: low to high</option><option value="payer:asc">Payer: A to Z</option><option value="bank:asc">Bank: A to Z</option><option value="currentBalance:desc">Debt: high to low</option><option value="custom" disabled>Custom sort</option></select></label>
-          <label class="completed-switch"><input id="show-completed" type="checkbox"><span class="switch-track" aria-hidden="true"></span><span>Show completed</span></label>
-        </div>
         <div class="payments-summary"><div><h2>Your payments</h2><span id="sched-grand" class="muted"></span></div><div><strong id="sched-total"></strong><span id="sched-count" class="muted"></span></div></div>
         <div class="payments-board" id="payments-board"></div>
       </div>
@@ -1195,7 +1205,7 @@
 </aside>
 
 <script src="config.js?v=22"></script>
-<script src="app.js?v=141"></script>
+<script src="app.js?v=142"></script>
 <script src="exports.js?v=1"></script>
 </body>
 </html>

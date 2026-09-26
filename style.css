@@ -2304,10 +2304,12 @@ tbody tr:hover td { background: transparent; }
   justify-self: end;
   text-align: right;
 }
-#page-loans.header-open > .page-header {
+#page-loans.header-open > .page-header,
+#page-schedule.header-open > .page-header {
   flex-wrap: wrap;
 }
-#page-loans.header-open > .page-header .ob-chip-stack {
+#page-loans.header-open > .page-header .ob-chip-stack,
+#page-schedule.header-open > .page-header .ob-chip-stack {
   flex: 1 1 100%;
   width: 100%;
   max-width: 100%;
@@ -2318,12 +2320,23 @@ tbody tr:hover td { background: transparent; }
   min-width: 0;
   margin: 6px 0 0;
 }
-#page-loans.header-open > .page-header .ob-chip-block {
+#page-loans.header-open > .page-header .ob-chip-block,
+#page-schedule.header-open > .page-header .ob-chip-block {
   width: 100%;
   margin: 0;
 }
-#page-loans.header-open > .page-header .ob-chip-label {
+#page-loans.header-open > .page-header .ob-chip-label,
+#page-schedule.header-open > .page-header .ob-chip-label {
   color: rgba(226, 232, 240, 0.72);
+}
+#page-schedule.header-open > .page-header .payment-toolbar {
+  flex: 1 1 100%;
+  width: 100%;
+  order: 41;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.96);
 }
 #page-loans.header-open > .page-header .loan-overview {
   flex: 1 1 100%;
