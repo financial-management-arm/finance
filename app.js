@@ -2361,8 +2361,19 @@ function uniqueSorted(values) {
     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
+function uniqueBanks(rows) {
+  const map = new Map();
+  rows.forEach(o => {
+    const canon = normalizeBankName(o.bank);
+    if (!canon) return;
+    const key = bankNormKey(canon);
+    if (!map.has(key)) map.set(key, canon);
+  });
+  return [...map.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
 function renderObligationChips(rows) {
-  const banks = uniqueSorted(rows.map(o => o.bank));
+  const banks = uniqueBanks(rows);
   const payers = uniqueSorted(rows.map(o => o.payer));
   const bankWrap = q('ob-bank-chips');
   const payerWrap = q('ob-payer-chips');
@@ -2673,7 +2684,7 @@ function loanCard(o) {
       <div class="loan-identity">
         ${bankAvatarHtml(o.bank, 'bank-avatar')}
         <div>
-          <div class="loan-bank">${escapeHtml(o.bank)}</div>
+          <div class="loan-bank">${escapeHtml(normalizeBankName(o.bank) || o.bank)}</div>
           <div class="loan-meta">${escapeHtml(o.payer)}${o.startDate ? ` · Started ${fmtStartDate(o.startDate)}` : ''}</div>
         </div>
       </div>
@@ -2760,7 +2771,7 @@ function nonLoanCard(o) {
       <div class="loan-identity">
         ${bankAvatarHtml(o.bank, 'bank-avatar')}
         <div>
-          <div class="loan-bank">${escapeHtml(o.bank)}</div>
+          <div class="loan-bank">${escapeHtml(normalizeBankName(o.bank) || o.bank)}</div>
           <div class="loan-meta">${escapeHtml(o.payer)} · ${escapeHtml(catDisplay)}</div>
         </div>
       </div>
@@ -3133,7 +3144,7 @@ const CANONICAL_BANKS = [
   { id: 'ameria', name: 'Ameriabank', logo: 'bank-logos/ameriabank.png', keys: ['ameria'], aliases: ['Ameriabank CJSC', 'AMERIABANK'] },
   { id: 'amio', name: 'AMIO Bank', logo: 'bank-logos/amiobank.png', keys: ['amio', 'armbusiness'], aliases: ['AMIO BANK', 'Armbusinessbank', 'ArmBusinessBank'] },
   { id: 'ararat', name: 'AraratBank', logo: 'bank-logos/araratbank.png', keys: ['ararat'], aliases: ['ARARATBANK', 'Ararat Bank'] },
-  { id: 'ardshin', name: 'Ardshinbank', logo: 'bank-logos/ardshinbank.png', keys: ['ardshin', 'ashib'], aliases: ['Ardshininbank', 'Ardshinbank CJSC', 'ARDSHINBANK'] },
+  { id: 'ardshin', name: 'Ardshinbank', logo: 'bank-logos/ardshinbank.png', keys: ['ardshin', 'ashib', 'արդշին'], aliases: ['Ardshininbank', 'Ardshinbank CJSC', 'ARDSHINBANK', 'Ardshin Bank', 'Ardshinbank CJSC', 'ASHIB', 'Արդշինբանկ'] },
   { id: 'aeb', name: 'Armeconombank', logo: 'bank-logos/armeconombank.png', keys: ['armeconom', 'aeb'], aliases: ['AEB', 'ArmEconomBank'] },
   { id: 'armswiss', name: 'ArmSwissBank', logo: 'bank-logos/armswissbank.svg', keys: ['armswiss'], aliases: ['ArmSwiss Bank'] },
   { id: 'artsakh', name: 'Artsakhbank', logo: 'bank-logos/artsakhbank.svg', keys: ['artsakh'], aliases: ['Artsakh Bank'] },
@@ -3175,23 +3186,28 @@ function bankNormKey(s) {
 }
 
 function allBankEntries() {
-  // Partners (added on the Partners page, each with your own avatar) are
-  // merged with the static bank catalog so they show up in every bank /
-  // place / payee picker across the app -- one identity everywhere, not a
-  // duplicate free-text entry per tab.
+  const usedCanon = new Set();
   const partnerEntries = (state.partners || [])
     .filter(p => p.active !== false && p.active !== 'false')
-    .map(p => ({
-      id: p.id,
-      name: p.name,
-      logo: p.avatar || null,
-      keys: [String(p.name || '').toLowerCase()],
-      aliases: [],
-      category: p.category || '',
-      isPartner: true
-    }));
-  const partnerNames = new Set(partnerEntries.map(p => bankNormKey(p.name)));
-  const canonical = CANONICAL_BANKS.filter(b => !partnerNames.has(bankNormKey(b.name)));
+    .map(p => {
+      const key = bankNormKey(p.name);
+      const canon = CANONICAL_BANKS.find(b =>
+        bankNormKey(b.name) === key ||
+        (b.aliases || []).some(a => bankNormKey(a) === key) ||
+        (b.keys || []).some(k => key.includes(bankNormKey(k)) && bankNormKey(k).length >= 5)
+      );
+      if (canon && canon.id) usedCanon.add(canon.id);
+      return {
+        id: p.id,
+        name: canon ? canon.name : p.name,
+        logo: p.avatar || (canon && canon.logo) || null,
+        keys: canon ? [...(canon.keys || []), String(p.name || '').toLowerCase()] : [String(p.name || '').toLowerCase()],
+        aliases: canon ? [...(canon.aliases || []), p.name] : [p.name],
+        category: p.category || '',
+        isPartner: true
+      };
+    });
+  const canonical = CANONICAL_BANKS.filter(b => !usedCanon.has(b.id));
   return [...partnerEntries, ...canonical];
 }
 
