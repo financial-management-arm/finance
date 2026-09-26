@@ -2304,11 +2304,26 @@ tbody tr:hover td { background: transparent; }
   justify-self: end;
   text-align: right;
 }
-#page-loans.header-open > .page-header .ob-chip-block {
+#page-loans.header-open > .page-header {
+  flex-wrap: wrap;
+}
+#page-loans.header-open > .page-header .ob-chip-stack {
   flex: 1 1 100%;
-  order: 20;
-  margin: 4px 0 0;
+  width: 100%;
+  max-width: 100%;
+  order: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
+  margin: 6px 0 0;
+}
+#page-loans.header-open > .page-header .ob-chip-block {
+  width: 100%;
+  margin: 0;
+}
+#page-loans.header-open > .page-header .ob-chip-label {
+  color: rgba(226, 232, 240, 0.72);
 }
 .ob-chip-block { margin: 0 0 8px; }
 .ob-chip-label {
