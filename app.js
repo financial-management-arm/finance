@@ -5843,7 +5843,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(reg => { try { reg.update(); } catch (_) {} });
+    }).catch(() => {});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+  }
+  setTimeout(() => {
+    document.body.classList.remove('month-pending', 'is-loading');
+    showLoading(false);
+    ensureUiUnlocked();
+  }, 6000);
   q('payment-quick-search').addEventListener('input', event => {
     state.search = event.target.value.trim();
     q('schedule-search').value = state.search;

@@ -1,10 +1,10 @@
-const CACHE = 'finances-arm-v84';
+const CACHE = 'finances-arm-v85';
 
 const ASSETS = [
   './',
   './index.html',
   './style.css?v=104',
-  './app.js?v=136',
+  './app.js?v=137',
   './exports.js?v=1',
   './config.js?v=21',
   './manifest.json',
@@ -40,6 +40,8 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+
   const isAppFile = req.mode === 'navigate' ||
     /\.(?:html|css|js)$/.test(url.pathname) ||
     url.searchParams.has('v');
