@@ -7837,27 +7837,10 @@ body.income-filter-open { overflow: hidden; }
 .dmy-picker .dmy-text { flex: 1; }
 .dmy-picker .dmy-cal { width: 40px; padding: 0 4px; flex: 0 0 40px; }
 
-/* Light surfaces for Payments / Obligations / Reconcile */
+/* Match Payments / Obligations / Reconcile to the open-header teal */
 #page-schedule.header-open > .page-header,
 #page-loans.header-open > .page-header,
-#page-reconcile.header-open > .page-header {
-  background:
-    radial-gradient(420px 160px at 8% -20%, rgba(59, 130, 246, 0.16), transparent 58%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%) !important;
-  border-color: #dbe4f0 !important;
-  color: #0f172a !important;
-  box-shadow: 0 10px 28px -18px rgba(15, 23, 42, 0.18) !important;
-}
-#page-schedule.header-open > .page-header h1,
-#page-loans.header-open > .page-header h1,
-#page-reconcile.header-open > .page-header h1,
-#page-schedule.header-open > .page-header .page-kicker,
-#page-loans.header-open > .page-header .ob-chip-label,
-#page-schedule.header-open > .page-header .ob-chip-label,
-#page-schedule.header-open > .page-header .month-label {
-  color: #0f172a !important;
-}
-
+#page-reconcile.header-open > .page-header,
 #page-schedule .payment-overview,
 #page-schedule .payment-glass-card,
 #page-schedule .util-pay-card,
@@ -7866,60 +7849,56 @@ body.income-filter-open { overflow: hidden; }
 #page-reconcile .recon-glass-card,
 #page-reconcile .recon-row.recon-glass-card,
 #page-reconcile .recon-row.recon-glass-card.is-done {
-  background: #fff !important;
-  border: 1px solid #d7e0ea !important;
-  color: #0f172a !important;
-  box-shadow: 0 8px 24px -16px rgba(15, 23, 42, 0.18) !important;
+  background:
+    radial-gradient(420px 160px at 8% -20%, rgba(94, 234, 212, 0.18), transparent 58%),
+    radial-gradient(380px 140px at 100% 0%, rgba(59, 130, 246, 0.16), transparent 50%),
+    linear-gradient(165deg, #122033 0%, #0d1726 58%, #102a32 100%) !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  color: #e2e8f0 !important;
+  box-shadow:
+    0 18px 40px -22px rgba(8, 15, 28, 0.55),
+    inset 0 1px 0 rgba(255,255,255,0.08) !important;
 }
 
-#page-schedule .payment-glass-card::before,
-#page-schedule .util-pay-card::before,
-#page-loans .loan-glass-card::before,
-#page-reconcile .recon-glass-card::before,
-#page-schedule .offer-glass-glow,
-#page-loans .offer-glass-glow {
-  display: none !important;
-}
-
-#page-schedule .payment-glass-card *,
-#page-loans .loan-glass-card *,
-#page-reconcile .recon-glass-card * {
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-  background-image: none !important;
-}
-
-#page-schedule .payment-basic-payer,
+#page-schedule.header-open > .page-header h1,
+#page-loans.header-open > .page-header h1,
+#page-reconcile.header-open > .page-header h1,
+#page-schedule .payment-overview strong,
 #page-schedule .payment-basic-card h2,
 #page-schedule .payment-card-title h2,
-#page-schedule .payment-card-title div,
-#page-schedule .payment-basic-meta span,
+#page-schedule .payment-basic-payer,
 #page-loans .loan-bank,
-#page-loans .loan-payer,
-#page-loans .loan-meta,
+#page-reconcile .recon-name {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  background: none !important;
+}
+
+#page-schedule .overview-eyebrow,
+#page-schedule .overview-caption,
+#page-schedule .payment-basic-meta span,
+#page-schedule .payment-card-title div,
 #page-loans .loan-monthly-line,
-#page-loans .loan-balance-line {
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
+#page-loans .loan-meta,
+#page-reconcile .recon-sub,
+#page-reconcile .recon-bank-label {
+  color: rgba(226, 232, 240, 0.72) !important;
+  -webkit-text-fill-color: rgba(226, 232, 240, 0.72) !important;
 }
 
 #page-schedule .payment-basic-meta strong,
 #page-schedule .payment-card-amount strong,
 #page-loans .loan-glass-card .ob-amount {
-  color: #1d4ed8 !important;
-  -webkit-text-fill-color: #1d4ed8 !important;
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+  background: none !important;
 }
 
-#page-loans .loan-glass-card .button-secondary,
-#page-loans .loan-glass-card .loan-complete,
 #page-schedule .payment-glass-card .button-secondary,
-#page-schedule .payment-glass-card .button-ghost {
-  background: #f1f5f9 !important;
-  color: #0f172a !important;
-  border-color: #dbe4f0 !important;
-  -webkit-text-fill-color: #0f172a !important;
-}
-#page-schedule .payment-glass-card .button-primary {
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+#page-schedule .payment-glass-card .button-ghost,
+#page-loans .loan-glass-card .button-secondary {
+  background: rgba(255,255,255,0.08) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255,255,255,0.14) !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
 }
