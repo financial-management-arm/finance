@@ -166,10 +166,19 @@ function New-AppleBtn($text, $fill, $fillH, $fillD, $fg, $x, $y, $w, $h, $pt) {
   return $b
 }
 
+function Refresh-ProcessPath {
+  $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+  $user = [Environment]::GetEnvironmentVariable('Path', 'User')
+  $nodeDir = "$env:ProgramFiles\nodejs"
+  $extra = @($machine, $user, $nodeDir, "$env:APPDATA\npm") | Where-Object { $_ }
+  $env:Path = ($extra -join ';')
+}
+
 function Find-Cmd([string]$name, [string[]]$guesses) {
+  Refresh-ProcessPath
+  foreach ($g in $guesses) { if ($g -and (Test-Path -LiteralPath $g)) { return $g } }
   $cmd = Get-Command $name -ErrorAction SilentlyContinue
-  if ($cmd) { return $cmd.Source }
-  foreach ($g in $guesses) { if (Test-Path $g) { return $g } }
+  if ($cmd -and $cmd.Source -and $cmd.Source -notmatch '\.ps1$') { return $cmd.Source }
   return $null
 }
 
@@ -186,10 +195,27 @@ function Test-VercelCli {
     "$env:LOCALAPPDATA\Yarn\bin\vercel.cmd"
   )
 }
+function Test-NpmCli {
+  foreach ($g in @(
+    "$env:ProgramFiles\nodejs\npm.cmd",
+    "${env:ProgramFiles(x86)}\nodejs\npm.cmd",
+    "$env:APPDATA\npm\npm.cmd"
+  )) {
+    if (Test-Path -LiteralPath $g) { return $g }
+  }
+  return $null
+}
+function Test-NodeCli {
+  Find-Cmd 'node' @(
+    "$env:ProgramFiles\nodejs\node.exe"
+  )
+}
 function Test-ClaspCli {
   Find-Cmd 'clasp' @(
     "$env:APPDATA\npm\clasp.cmd",
-    "$env:LOCALAPPDATA\Yarn\bin\clasp.cmd"
+    "$env:LOCALAPPDATA\Yarn\bin\clasp.cmd",
+    (Join-Path $Root 'node_modules\.bin\clasp.cmd'),
+    (Join-Path $Root '.deploy-tools\node_modules\.bin\clasp.cmd')
   )
 }
 function Test-GitCli { Find-Cmd 'git' @("$env:ProgramFiles\Git\cmd\git.exe") }
@@ -481,35 +507,128 @@ function Invoke-WebsiteDeploy {
   return $code
 }
 
-function Invoke-ScriptDeploy {
-  $cl = Test-ClaspCli
-  if (-not $cl) {
-    Write-Log 'clasp is not installed.'
-    Write-Log 'Install: npm install -g @google/clasp'
-    Write-Log 'Then: clasp login'
-    return 1
+function Ensure-ClaspProjectFiles {
+  if (-not (Test-Path (Join-Path $Root 'appsscript.json'))) {
+    Write-Log 'Writing appsscript.json'
+    @{
+      timeZone = 'Asia/Yerevan'
+      dependencies = @{}
+      exceptionLogging = 'STACKDRIVER'
+      runtimeVersion = 'V8'
+    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Root 'appsscript.json') -Encoding UTF8
   }
+  if (-not (Test-Path (Join-Path $Root '.claspignore'))) {
+    Set-Content -LiteralPath (Join-Path $Root '.claspignore') -Value "**/**`r`n!Code.gs`r`n!appsscript.json`r`n" -Encoding UTF8
+  }
+  if (-not (Test-Path (Join-Path $Root '.clasp.json'))) {
+    $sid = $Cfg.ScriptId
+    if (-not $sid) { return $false }
+    Write-Log "Writing .clasp.json for $sid"
+    @{ scriptId = $sid; rootDir = '.' } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Root '.clasp.json') -Encoding UTF8
+  }
+  return $true
+}
+
+function Install-Clasp {
+  $existing = Test-ClaspCli
+  if ($existing) { Write-Log "clasp found  $existing"; return $existing }
+
+  $npm = Test-NpmCli
+  if (-not $npm) {
+    Write-Log 'Node.js / npm is not installed, so clasp cannot be installed automatically.'
+    Write-Log 'Install Node LTS from https://nodejs.org then click Deploy Apps Script again.'
+    return $null
+  }
+
+  Write-Log 'clasp is missing — installing it now (one time).'
+  Write-Log "npm  $npm"
+  $tools = Join-Path $Root '.deploy-tools'
+  New-Item -ItemType Directory -Path $tools -Force | Out-Null
+  $code = Invoke-Process $npm "install --prefix `"$tools`" --no-fund --no-audit @google/clasp"
+  $local = Join-Path $tools 'node_modules\.bin\clasp.cmd'
+  if ($code -eq 0 -and (Test-Path $local)) {
+    Write-Log "clasp installed  $local"
+    return $local
+  }
+
+  Write-Log 'Local install failed. Trying global npm install -g @google/clasp'
+  [void](Invoke-Process $npm 'install -g @google/clasp')
+  $again = Test-ClaspCli
+  if ($again) { Write-Log "clasp installed  $again"; return $again }
+
+  Write-Log 'Could not install clasp automatically.'
+  return $null
+}
+
+function Get-ClaspCommand {
+  $cl = Install-Clasp
+  if ($cl) { return @{ File = $cl; Prefix = '' } }
+  $npm = Test-NpmCli
+  if ($npm) { return @{ File = $npm; Prefix = 'exec --yes -- @google/clasp ' } }
+  return $null
+}
+
+function Invoke-Clasp([string]$claspArgs) {
+  $cmd = Get-ClaspCommand
+  if (-not $cmd) { return 1 }
+  if ($cmd.Prefix) {
+    Write-Log "npx clasp $claspArgs"
+    return Invoke-Process $cmd.File ($cmd.Prefix + $claspArgs)
+  }
+  Write-Log "clasp $claspArgs"
+  return Invoke-Process $cmd.File $claspArgs
+}
+
+function Test-ClaspLogin {
+  $rc = Join-Path $env:USERPROFILE '.clasprc.json'
+  return (Test-Path -LiteralPath $rc)
+}
+
+function Invoke-ScriptDeploy {
   if (-not (Test-Path (Join-Path $Root 'Code.gs'))) {
     Write-Log 'Code.gs is not in this folder. Copy the Apps Script file here first.'
     return 2
   }
-  if (-not (Test-Path (Join-Path $Root '.clasp.json'))) {
-    $sid = $Cfg.ScriptId
-    if (-not $sid) {
-      Write-Log 'No .clasp.json and no ScriptId in deploy-config.json.'
-      Write-Log 'Run: clasp clone <SCRIPT_ID>   or add ScriptId to deploy-config.json.'
-      return 2
-    }
-    Write-Log "Writing .clasp.json for $sid"
-    $json = @{ scriptId = $sid; rootDir = '.' } | ConvertTo-Json
-    Set-Content -LiteralPath (Join-Path $Root '.clasp.json') -Value $json -Encoding UTF8
+  if (-not (Ensure-ClaspProjectFiles)) {
+    Write-Log 'No .clasp.json and no ScriptId in deploy-config.json.'
+    Write-Log 'Open the Apps Script project → Project Settings → copy Script ID into deploy-config.json.'
+    return 2
   }
+
   Set-Busy $true
   try {
-    Write-Log 'clasp push'
-    $code = Invoke-Process 'cmd.exe' '/c clasp push'
-    if ($code -eq 0) { Write-Log 'Apps Script pushed. Deploy the web app from script.google.com if the /exec URL changed.' }
-    else { Write-Log "clasp failed  $code  — click Connect account if you are not signed in." }
+    $cl = Install-Clasp
+    if (-not $cl -and -not (Test-NpmCli)) { return 1 }
+
+    if (-not (Test-ClaspLogin)) {
+      Write-Log 'Google login required once for clasp.'
+      Write-Log 'A window will open. Sign in, then this deploy will retry.'
+      $cmd = Get-ClaspCommand
+      if ($cmd) {
+        if ($cmd.Prefix) { Start-Process 'cmd.exe' -ArgumentList ($cmd.Prefix + 'login') }
+        else { Start-Process $cmd.File -ArgumentList 'login' }
+      }
+      $waited = 0
+      while (-not (Test-ClaspLogin) -and $waited -lt 180) {
+        Start-Sleep -Seconds 3
+        $waited += 3
+        [System.Windows.Forms.Application]::DoEvents()
+      }
+      if (-not (Test-ClaspLogin)) {
+        Write-Log 'Login did not finish. Click Deploy Apps Script again after you sign in.'
+        return 1
+      }
+      Write-Log 'clasp login saved.'
+    }
+
+    Write-Log 'Pushing Code.gs to Apps Script…'
+    $code = Invoke-Clasp 'push --force'
+    if ($code -eq 0) {
+      Write-Log 'Apps Script pushed. Existing /exec web-app URL stays the same unless you created a new deployment.'
+    } else {
+      Write-Log "clasp failed  $code"
+      Write-Log 'If this is the spreadsheet ID, replace ScriptId in deploy-config.json with the Apps Script project ID (Project Settings).'
+    }
     return $code
   } catch { Write-Log $_.Exception.Message; return 1 }
   finally { Set-Busy $false }
@@ -549,11 +668,15 @@ function Invoke-Connect {
       Start-Process 'cmd.exe' -ArgumentList '/k', 'vercel login'
     }
     default {
-      if (Test-ClaspCli) {
-        Write-Log 'Opening clasp sign-in for Apps Script…'
-        Start-Process 'cmd.exe' -ArgumentList '/k', 'clasp login'
+      Write-Log 'Preparing clasp for Apps Script…'
+      [void](Install-Clasp)
+      $cmd = Get-ClaspCommand
+      if ($cmd) {
+        Write-Log 'Opening clasp sign-in…'
+        if ($cmd.Prefix) { Start-Process 'cmd.exe' -ArgumentList '/k', ($cmd.Prefix.TrimStart('/c ').Trim() + ' login') }
+        else { Start-Process 'cmd.exe' -ArgumentList '/k', "`"$($cmd.File)`" login" }
       } else {
-        Write-Log 'No host CLI found. Install firebase-tools, vercel, or @google/clasp, then retry.'
+        Write-Log 'Install Node.js LTS from https://nodejs.org then click Connect account again.'
       }
     }
   }
@@ -576,7 +699,8 @@ $btnAll.Add_Click({
 $btnPack.Add_Click({ [void](Invoke-Pack) })
 $btnOpen.Add_Click({ Invoke-OpenSite })
 
-Write-Log 'Ready — Finances deploy.'
+Write-Log 'Ready — Finances deploy helper 2026-09-26.'
+Write-Log 'Deploy Apps Script installs clasp by itself after Node.js is present.'
 Write-Log 'Check files first. Then Deploy website, or Pack upload folder.'
 Write-Preflight (Get-Preflight)
 

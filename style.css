@@ -7648,3 +7648,35 @@ body.income-filter-open { overflow: hidden; }
     border-radius: 14px !important;
   }
 }
+
+.loan-terms {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: #99f6e4;
+}
+.loan-term-alert {
+  color: #fbbf24;
+  font-weight: 700;
+}
+.close-sooner-strip {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+.close-sooner-strip strong { display: block; margin-bottom: 10px; font-size: 13px; }
+.close-sooner-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.close-sooner-chip {
+  border: 0;
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: #1e293b;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.close-sooner-chip em { display: block; font-style: normal; font-size: 11px; color: #fbbf24; }

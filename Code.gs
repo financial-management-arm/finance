@@ -7,7 +7,8 @@ var SCHEMAS = {
   Obligations: [
     'id', 'payer', 'bank', 'category', 'amount', 'dueDay',
     'currentBalance', 'loanTotal', 'contractNumber', 'active', 'startDate',
-    'balanceUpdatedMonth', 'completedAt', 'updatedAt', 'frequency'
+    'balanceUpdatedMonth', 'completedAt', 'updatedAt', 'frequency',
+    'endDate', 'rateType', 'ratePercent', 'promoEndDate', 'laterPercent', 'serviceFee'
   ],
   Payments: ['key', 'paid', 'completedAt', 'updatedAt', 'status', 'paidAmount', 'month'],
   Income: ['id', 'date', 'amount', 'stream', 'note', 'createdAt', 'updatedAt'],
@@ -310,12 +311,23 @@ function updateLoan(ss, params, month) {
   var currentBalance = params.currentBalance === '' ? '' : Number(params.currentBalance);
   var loanTotal = params.loanTotal === '' ? '' : Number(params.loanTotal);
   var startDate = String(params.startDate || '');
+  var endDate = String(params.endDate || '');
+  var promoEndDate = String(params.promoEndDate || '');
+  var rateType = String(params.rateType || 'fixed').trim().toLowerCase() === 'variable' ? 'variable' : 'fixed';
+  var ratePercent = params.ratePercent === '' || params.ratePercent === undefined ? '' : Number(params.ratePercent);
+  var laterPercent = params.laterPercent === '' || params.laterPercent === undefined ? '' : Number(params.laterPercent);
+  var serviceFee = params.serviceFee === '' || params.serviceFee === undefined ? '' : Number(params.serviceFee);
 
   if (!isFinite(amount) || amount < 0) throw new Error('Invalid monthly payment');
   if (!isFinite(dueDay) || dueDay < 0 || dueDay > 31) throw new Error('Invalid due day');
   if (currentBalance !== '' && (!isFinite(currentBalance) || currentBalance < 0)) throw new Error('Invalid balance');
   if (loanTotal !== '' && (!isFinite(loanTotal) || loanTotal < 0)) throw new Error('Invalid loan total');
   if (startDate && !validMonth(startDate)) throw new Error('Invalid start month');
+  if (endDate && !validMonth(endDate)) throw new Error('Invalid end month');
+  if (promoEndDate && !validMonth(promoEndDate)) throw new Error('Invalid promo end month');
+  if (ratePercent !== '' && (!isFinite(ratePercent) || ratePercent < 0)) throw new Error('Invalid percent');
+  if (laterPercent !== '' && (!isFinite(laterPercent) || laterPercent < 0)) throw new Error('Invalid later percent');
+  if (serviceFee !== '' && (!isFinite(serviceFee) || serviceFee < 0)) throw new Error('Invalid service fee');
 
   var existing = findObjectByKey(ss.getSheetByName('Obligations'), 'id', id);
   if (!existing) throw new Error('Loan not found');
@@ -330,6 +342,12 @@ function updateLoan(ss, params, month) {
     loanTotal: loanTotal,
     contractNumber: String(params.contractNumber || '').trim().slice(0, 120),
     startDate: startDate,
+    endDate: endDate,
+    rateType: rateType,
+    ratePercent: ratePercent,
+    promoEndDate: promoEndDate,
+    laterPercent: laterPercent,
+    serviceFee: serviceFee,
     frequency: String(params.frequency || 'monthly').trim(),
     balanceUpdatedMonth: balanceChanged ? month : existing.balanceUpdatedMonth,
     updatedAt: isoNow()
@@ -427,6 +445,12 @@ function addObligation(ss, params) {
       case 'completedAt': return '';
       case 'updatedAt': return now;
       case 'frequency': return frequency;
+      case 'endDate': return String(params.endDate || '');
+      case 'rateType': return String(params.rateType || 'fixed').trim().toLowerCase() === 'variable' ? 'variable' : 'fixed';
+      case 'ratePercent': return params.ratePercent === '' || params.ratePercent === undefined ? '' : Number(params.ratePercent);
+      case 'promoEndDate': return String(params.promoEndDate || '');
+      case 'laterPercent': return params.laterPercent === '' || params.laterPercent === undefined ? '' : Number(params.laterPercent);
+      case 'serviceFee': return params.serviceFee === '' || params.serviceFee === undefined ? '' : Number(params.serviceFee);
       default: return '';
     }
   });

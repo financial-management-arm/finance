@@ -1276,6 +1276,12 @@ async function submitAddObligation(event) {
       frequency: v('frequency'),
       currentBalance: v('currentBalance') === '' ? '' : Number(v('currentBalance')),
       loanTotal: v('loanTotal') === '' ? '' : Number(v('loanTotal')),
+      endDate: v('endDate') || '',
+      rateType: v('rateType') || 'fixed',
+      ratePercent: v('ratePercent') === '' ? '' : Number(v('ratePercent')),
+      promoEndDate: v('promoEndDate') || '',
+      laterPercent: v('laterPercent') === '' ? '' : Number(v('laterPercent')),
+      serviceFee: v('serviceFee') === '' ? '' : Number(v('serviceFee')),
       contractNumber: v('contractNumber').trim()
     });
     await refreshData(false);
@@ -2216,7 +2222,7 @@ function renderLoans() {
       <strong>${amd(totalDebt)} total debt</strong>
     </div>
     ${filteredRows.length
-      ? loansSection + nonLoansSection
+      ? closeSoonerStrip(loans) + loansSection + nonLoansSection
       : '<div class="obligation-empty"><strong>No obligations match these filters.</strong><span>Adjust or clear the filters to see more results.</span></div>'}
   `;
 }
@@ -2521,6 +2527,7 @@ function loanCard(o) {
         ${staleBalance
           ? `<div class="balance-stale">Approximate balance · last updated ${sourceMonth ? monthLabel(sourceMonth) : 'before this month'}</div>`
           : '<div class="balance-current">Balance updated for this month</div>'}
+        ${loanTermsHtml(o)}
       </div>
     </div>
     ${contracts.length ? `
@@ -2705,6 +2712,67 @@ function fmtStartDate(d) {
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
+function monthKeyOf(value) {
+  const m = String(value || '').match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}` : '';
+}
+
+function monthsUntil(value) {
+  const key = monthKeyOf(value);
+  if (!key) return null;
+  const [y, mo] = key.split('-').map(Number);
+  const now = new Date();
+  return (y - now.getFullYear()) * 12 + (mo - (now.getMonth() + 1));
+}
+
+function loanTermInfo(o) {
+  const type = String(o.rateType || '').toLowerCase() === 'variable' ? 'variable' : 'fixed';
+  const nowRate = o.ratePercent === '' || o.ratePercent == null ? null : Number(o.ratePercent);
+  const later = o.laterPercent === '' || o.laterPercent == null ? null : Number(o.laterPercent);
+  const fee = Number(o.serviceFee) || 0;
+  const promoEnd = monthKeyOf(o.promoEndDate);
+  const end = monthKeyOf(o.endDate);
+  const untilPromo = promoEnd ? monthsUntil(promoEnd) : null;
+  const harshSoon = type === 'variable' && later != null && (nowRate == null || later > nowRate) && untilPromo !== null && untilPromo <= 6;
+  const harshNow = type === 'variable' && later != null && untilPromo !== null && untilPromo < 0;
+  return { type, nowRate, later, fee, promoEnd, end, untilPromo, harshSoon, harshNow };
+}
+
+function loanTermsHtml(o) {
+  const t = loanTermInfo(o);
+  if (t.nowRate == null && !t.end && !t.promoEnd && !t.later && !t.fee) return '';
+  const bits = [];
+  if (t.type === 'variable' && t.promoEnd) {
+    const nowPct = t.nowRate == null ? '0' : String(t.nowRate);
+    const laterPct = t.later == null ? '?' : String(t.later);
+    bits.push(`<div class="loan-term-line">${nowPct}% until ${fmtStartDate(t.promoEnd)} → then ${laterPct}%</div>`);
+  } else if (t.nowRate != null) {
+    bits.push(`<div class="loan-term-line">${t.type === 'fixed' ? 'Fixed' : 'Now'} ${t.nowRate}%</div>`);
+  }
+  if (t.fee) bits.push(`<div class="loan-term-line">Service fee ${amd(t.fee)}</div>`);
+  if (t.end) bits.push(`<div class="loan-term-line">Ends ${fmtStartDate(t.end)}</div>`);
+  if (t.harshNow) bits.push('<div class="loan-term-alert">Harsh terms already started — close if you can</div>');
+  else if (t.harshSoon) bits.push(`<div class="loan-term-alert">Close before ${fmtStartDate(t.promoEnd)} — expensive terms next</div>`);
+  return bits.length ? `<div class="loan-terms">${bits.join('')}</div>` : '';
+}
+
+function closeSoonerStrip(loans) {
+  const urgent = loans
+    .map(o => ({ o, t: loanTermInfo(o) }))
+    .filter(x => x.t.harshSoon || x.t.harshNow)
+    .sort((a, b) => (a.t.untilPromo ?? 99) - (b.t.untilPromo ?? 99));
+  if (!urgent.length) return '';
+  return `<div class="close-sooner-strip">
+    <strong>Close these before expensive terms</strong>
+    <div class="close-sooner-list">${urgent.map(({ o, t }) => `
+      <button type="button" class="close-sooner-chip" onclick="openLoanEditor('${escapeHtml(o.id)}')">
+        <span>${escapeHtml(o.bank)}</span>
+        <em>${t.harshNow ? 'terms already on' : `cheap rate ends ${fmtStartDate(t.promoEnd)}`}</em>
+      </button>`).join('')}
+    </div>
+  </div>`;
+}
+
 function inputMonth(value) {
   if (!value) return '';
   const match = String(value).match(/^(\d{4})-(\d{2})/);
@@ -2728,7 +2796,14 @@ function openLoanEditor(id) {
   q('edit-balance').value = loan.currentBalance === '' ? '' : Number(loan.currentBalance);
   q('edit-total').value = loan.loanTotal === '' ? '' : Number(loan.loanTotal);
   q('edit-start-date').value = inputMonth(loan.startDate);
+  q('edit-end-date').value = inputMonth(loan.endDate);
+  q('edit-rate-type').value = String(loan.rateType || '').toLowerCase() === 'variable' ? 'variable' : 'fixed';
+  q('edit-rate-percent').value = loan.ratePercent === '' || loan.ratePercent == null ? '' : Number(loan.ratePercent);
+  q('edit-promo-end').value = inputMonth(loan.promoEndDate);
+  q('edit-later-percent').value = loan.laterPercent === '' || loan.laterPercent == null ? '' : Number(loan.laterPercent);
+  q('edit-service-fee').value = loan.serviceFee === '' || loan.serviceFee == null ? '' : Number(loan.serviceFee);
   q('edit-contract').value = loan.contractNumber || '';
+  onLoanRateTypeChange();
   q('loan-edit-title').textContent = `Edit ${loan.bank || 'loan'}`;
   modal.classList.remove('hidden');
   try { q('edit-bank').focus(); } catch (_) {}
@@ -2753,8 +2828,20 @@ function submitLoanEdit(event) {
     currentBalance: optionalNumber('edit-balance'),
     loanTotal: optionalNumber('edit-total'),
     startDate: q('edit-start-date').value,
+    endDate: q('edit-end-date').value,
+    rateType: q('edit-rate-type').value,
+    ratePercent: q('edit-rate-percent').value === '' ? '' : Number(q('edit-rate-percent').value),
+    promoEndDate: q('edit-promo-end').value,
+    laterPercent: q('edit-later-percent').value === '' ? '' : Number(q('edit-later-percent').value),
+    serviceFee: q('edit-service-fee').value === '' ? '' : Number(q('edit-service-fee').value),
     contractNumber: q('edit-contract').value.trim()
   });
+}
+
+function onLoanRateTypeChange() {
+  const variable = q('edit-rate-type')?.value === 'variable';
+  q('edit-promo-end-wrap')?.classList.toggle('hidden', !variable);
+  q('edit-later-percent-wrap')?.classList.toggle('hidden', !variable);
 }
 
 function saveBalFromInput(id) {
