@@ -2325,6 +2325,20 @@ tbody tr:hover td { background: transparent; }
 #page-loans.header-open > .page-header .ob-chip-label {
   color: rgba(226, 232, 240, 0.72);
 }
+#page-loans.header-open > .page-header .loan-overview {
+  flex: 1 1 100%;
+  width: 100%;
+  order: 41;
+  padding: 4px 0 0;
+}
+#page-loans.header-open > .page-header .loan-list-summary {
+  background: rgba(248, 250, 252, 0.96);
+  border-color: rgba(226, 232, 240, 0.9);
+  color: #334155;
+}
+#page-loans.header-open > .page-header .loan-list-summary strong {
+  color: #0f172a;
+}
 .ob-chip-block { margin: 0 0 8px; }
 .ob-chip-label {
   display: block;
