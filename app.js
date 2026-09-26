@@ -2717,8 +2717,10 @@ function inputMonth(value) {
 function openLoanEditor(id) {
   const loan = state.obligations.find(o => String(o.id) === String(id));
   if (!loan) return;
+  const modal = q('loan-edit-modal');
+  if (!modal) return;
   q('edit-id').value = loan.id;
-  normalizeBankName(q('edit-bank').value) = loan.bank || '';
+  q('edit-bank').value = loan.bank || '';
   q('edit-category').value = String(loan.category || 'personal').toLowerCase();
   q('edit-frequency').value = String(loan.frequency || 'monthly').toLowerCase().trim() || 'monthly';
   q('edit-amount').value = Number(loan.amount) || 0;
@@ -2728,9 +2730,9 @@ function openLoanEditor(id) {
   q('edit-start-date').value = inputMonth(loan.startDate);
   q('edit-contract').value = loan.contractNumber || '';
   q('loan-edit-title').textContent = `Edit ${loan.bank || 'loan'}`;
-  q('loan-edit-modal').classList.remove('hidden');
-  q('edit-bank').focus();
-  wireBankPickers(q('loan-edit-modal') || document);
+  modal.classList.remove('hidden');
+  try { q('edit-bank').focus(); } catch (_) {}
+  try { wireBankPickers(modal); } catch (_) {}
 }
 
 function closeLoanEditor() {
