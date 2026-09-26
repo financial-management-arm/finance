@@ -7280,28 +7280,28 @@ body.income-filter-open { overflow: hidden; }
    Payments is the hero surface. Every other tab has its own hue.
    ========================================================= */
 #page-schedule {
-  --tab-a: 56, 189, 248;
-  --tab-b: 99, 102, 241;
-  --tab-c: 167, 139, 250;
-  --tab-bg1: 10, 24, 72;
-  --tab-bg2: 6, 10, 28;
+  --tab-a: 37, 99, 235;
+  --tab-b: 14, 165, 233;
+  --tab-c: 99, 102, 241;
+  --tab-bg1: 239, 246, 255;
+  --tab-bg2: 248, 250, 252;
   --tab-glow: 59, 130, 246;
 }
 #page-loans {
-  --tab-a: 167, 139, 250;
-  --tab-b: 139, 92, 246;
-  --tab-c: 244, 114, 182;
-  --tab-bg1: 36, 18, 64;
-  --tab-bg2: 14, 10, 28;
+  --tab-a: 124, 58, 237;
+  --tab-b: 167, 139, 250;
+  --tab-c: 236, 72, 153;
+  --tab-bg1: 245, 243, 255;
+  --tab-bg2: 250, 245, 255;
   --tab-glow: 139, 92, 246;
 }
 #page-reconcile {
-  --tab-a: 96, 165, 250;
+  --tab-a: 14, 165, 233;
   --tab-b: 37, 99, 235;
-  --tab-c: 125, 211, 252;
-  --tab-bg1: 15, 23, 42;
-  --tab-bg2: 8, 15, 30;
-  --tab-glow: 37, 99, 235;
+  --tab-c: 56, 189, 248;
+  --tab-bg1: 240, 249, 255;
+  --tab-bg2: 248, 250, 252;
+  --tab-glow: 14, 165, 233;
 }
 #page-income {
   --tab-a: 52, 211, 153;
@@ -7836,3 +7836,75 @@ body.income-filter-open { overflow: hidden; }
 .ym-picker .ym-year { flex: 0.9; min-width: 88px; }
 .dmy-picker .dmy-text { flex: 1; }
 .dmy-picker .dmy-cal { width: 40px; padding: 0 4px; flex: 0 0 40px; }
+
+/* Light surfaces for Payments / Obligations / Reconcile */
+#page-schedule.header-open > .page-header,
+#page-loans.header-open > .page-header,
+#page-reconcile.header-open > .page-header {
+  background:
+    radial-gradient(420px 160px at 8% -20%, rgba(59, 130, 246, 0.16), transparent 58%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%) !important;
+  border-color: #dbe4f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 28px -18px rgba(15, 23, 42, 0.18) !important;
+}
+#page-schedule.header-open > .page-header h1,
+#page-loans.header-open > .page-header h1,
+#page-reconcile.header-open > .page-header h1,
+#page-schedule.header-open > .page-header .page-kicker,
+#page-loans.header-open > .page-header .ob-chip-label,
+#page-schedule.header-open > .page-header .ob-chip-label,
+#page-schedule.header-open > .page-header .month-label {
+  color: #0f172a !important;
+}
+
+#page-schedule .payment-overview,
+#page-schedule .payment-glass-card,
+#page-schedule .util-pay-card,
+#page-loans .loan-glass-card,
+#page-loans .obligation-card,
+#page-reconcile .recon-glass-card,
+#page-reconcile .recon-row.recon-glass-card,
+#page-reconcile .recon-row.recon-glass-card.is-done {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: #dbe4f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 28px -18px rgba(15, 23, 42, 0.16) !important;
+}
+
+#page-schedule .payment-overview strong,
+#page-schedule .payment-glass-card,
+#page-schedule .payment-glass-card .payment-card-title h2,
+#page-loans .loan-glass-card,
+#page-loans .loan-bank,
+#page-loans .loan-glass-card .ob-amount,
+#page-loans .loan-balance-line,
+#page-loans .loan-monthly-line,
+#page-reconcile .recon-name,
+#page-reconcile .recon-initial,
+#page-reconcile .recon-prev,
+#page-reconcile .recon-sub,
+#page-reconcile .recon-bank-label,
+#page-reconcile .recon-prev-label,
+#page-reconcile .recon-entry-label,
+#page-reconcile .recon-prev-when,
+#page-reconcile .recon-delta {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  background: none !important;
+}
+
+#page-schedule .payment-glass-card .payment-card-amount strong,
+#page-loans .loan-glass-card .ob-amount {
+  background: none !important;
+  -webkit-text-fill-color: #1d4ed8 !important;
+  color: #1d4ed8 !important;
+}
+
+#page-loans .loan-glass-card .button-secondary,
+#page-loans .loan-glass-card .loan-complete,
+#page-schedule .payment-glass-card .button-secondary {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #dbe4f0 !important;
+}
